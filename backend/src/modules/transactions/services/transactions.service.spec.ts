@@ -388,6 +388,44 @@ describe('TransactionsService', () => {
         sellingAgentId: SELLING_AGENT_ID
       });
     });
+
+    it('does not alter stage history on non-stage transaction updates', async () => {
+      const existingTransaction = buildExistingTransaction({
+        stage: TransactionStage.EARNEST_MONEY
+      });
+      const updateDto = {
+        propertyTitle: 'Updated Property Title'
+      };
+      const recalculatedBreakdown = buildFinancialBreakdown();
+
+      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
+      commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(
+        createQueryMock({
+          ...existingTransaction,
+          ...updateDto,
+          financialBreakdown: recalculatedBreakdown
+        })
+      );
+
+      await service.update(VALID_TRANSACTION_ID, updateDto);
+
+      expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
+        VALID_TRANSACTION_ID,
+        {
+          ...updateDto,
+          financialBreakdown: recalculatedBreakdown
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+      const updatePayload = transactionModelMock.findByIdAndUpdate.mock.calls[0][1];
+      expect(updatePayload).not.toHaveProperty('stage');
+      expect(updatePayload).not.toHaveProperty('stageHistory');
+      expect(updatePayload).not.toHaveProperty('$push');
+    });
   });
 
   describe('updateStage', () => {
