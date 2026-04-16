@@ -13,6 +13,17 @@ import {
   TransactionDocument
 } from '@/modules/transactions/schemas/transaction.schema';
 
+export interface CompletedAgentEarningsSummaryItem {
+  agentId: string;
+  earnings: number;
+}
+
+export interface CompletedTransactionEarningsSummary {
+  totalAgencyEarnings: number;
+  totalAgentEarnings: number;
+  byAgent: CompletedAgentEarningsSummaryItem[];
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -37,10 +48,18 @@ export class TransactionsService {
       sellingAgentId: createTransactionDto.sellingAgentId
     });
 
+    const stageHistory = [
+      this.createStageHistoryEntry({
+        fromStage: null,
+        toStage: initialStage
+      })
+    ];
+
     return this.transactionModel.create({
       ...createTransactionDto,
       stage: initialStage,
-      financialBreakdown
+      financialBreakdown,
+      stageHistory
     });
   }
 
@@ -49,6 +68,7 @@ export class TransactionsService {
       .find()
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('stageHistory.changedBy', 'name email isActive')
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -60,6 +80,7 @@ export class TransactionsService {
       .findById(id)
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
     if (!transaction) {
@@ -112,6 +133,7 @@ export class TransactionsService {
       )
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
     if (!updatedTransaction) {
@@ -121,8 +143,17 @@ export class TransactionsService {
     return updatedTransaction;
   }
 
-  async updateStage(id: string, stage: TransactionStage): Promise<TransactionDocument> {
+  async updateStage(
+    id: string,
+    stage: TransactionStage,
+    changedBy?: string
+  ): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
+
+    if (changedBy) {
+      this.validateObjectId(changedBy, 'changedBy');
+      await this.agentsService.ensureAgentExists(changedBy);
+    }
 
     const existingTransaction = await this.transactionModel.findById(id).exec();
     if (!existingTransaction) {
@@ -131,10 +162,24 @@ export class TransactionsService {
 
     this.stageTransitionPolicyService.assertValidTransition(existingTransaction.stage, stage);
 
+    const stageHistoryEntry = this.createStageHistoryEntry({
+      fromStage: existingTransaction.stage,
+      toStage: stage,
+      changedBy
+    });
+
     const updatedTransaction = await this.transactionModel
-      .findByIdAndUpdate(id, { stage }, { new: true, runValidators: true })
+      .findByIdAndUpdate(
+        id,
+        {
+          stage,
+          $push: { stageHistory: stageHistoryEntry }
+        },
+        { new: true, runValidators: true }
+      )
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
     if (!updatedTransaction) {
@@ -153,9 +198,87 @@ export class TransactionsService {
     }
   }
 
+  async getCompletedEarningsSummary(): Promise<CompletedTransactionEarningsSummary> {
+    const [totalsResult, agentBreakdownResult] = await Promise.all([
+      this.transactionModel
+        .aggregate<{
+          totalAgencyEarnings: number;
+          totalAgentEarnings: number;
+        }>([
+          {
+            $match: {
+              stage: TransactionStage.COMPLETED
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              totalAgencyEarnings: { $sum: '$financialBreakdown.agencyAmount' },
+              totalAgentEarnings: { $sum: '$financialBreakdown.agentPoolAmount' }
+            }
+          }
+        ])
+        .exec(),
+      this.transactionModel
+        .aggregate<CompletedAgentEarningsSummaryItem>([
+          {
+            $match: {
+              stage: TransactionStage.COMPLETED
+            }
+          },
+          {
+            $unwind: '$financialBreakdown.agents'
+          },
+          {
+            $group: {
+              _id: '$financialBreakdown.agents.agentId',
+              earnings: { $sum: '$financialBreakdown.agents.amount' }
+            }
+          },
+          {
+            $sort: {
+              earnings: -1
+            }
+          },
+          {
+            $project: {
+              _id: 0,
+              agentId: { $toString: '$_id' },
+              earnings: 1
+            }
+          }
+        ])
+        .exec()
+    ]);
+
+    const totals = totalsResult[0] ?? {
+      totalAgencyEarnings: 0,
+      totalAgentEarnings: 0
+    };
+
+    return {
+      totalAgencyEarnings: totals.totalAgencyEarnings,
+      totalAgentEarnings: totals.totalAgentEarnings,
+      byAgent: agentBreakdownResult
+    };
+  }
+
   private validateObjectId(value: string, field: string): void {
     if (!Types.ObjectId.isValid(value)) {
       throw new BadRequestException(`${field} must be a valid MongoDB ObjectId`);
     }
+  }
+
+  private createStageHistoryEntry(params: {
+    fromStage: TransactionStage | null;
+    toStage: TransactionStage;
+    changedBy?: string;
+  }) {
+    return {
+      fromStage: params.fromStage,
+      toStage: params.toStage,
+      changedAt: new Date(),
+      ...(params.changedBy ? { changedBy: new Types.ObjectId(params.changedBy) } : {})
+    };
   }
 }

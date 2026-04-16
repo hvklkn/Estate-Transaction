@@ -49,6 +49,27 @@ export class FinancialBreakdown {
 export const FinancialBreakdownSchema = SchemaFactory.createForClass(FinancialBreakdown);
 
 @Schema({
+  _id: false
+})
+export class TransactionStageHistoryEntry {
+  @Prop({ type: String, enum: TransactionStage, default: null })
+  fromStage!: TransactionStage | null;
+
+  @Prop({ required: true, type: String, enum: TransactionStage })
+  toStage!: TransactionStage;
+
+  @Prop({ required: true })
+  changedAt!: Date;
+
+  @Prop({ type: Types.ObjectId, ref: Agent.name })
+  changedBy?: Types.ObjectId;
+}
+
+export const TransactionStageHistoryEntrySchema = SchemaFactory.createForClass(
+  TransactionStageHistoryEntry
+);
+
+@Schema({
   timestamps: true,
   collection: 'transactions'
 })
@@ -82,6 +103,13 @@ export class Transaction {
     })
   })
   financialBreakdown!: FinancialBreakdown;
+
+  @Prop({
+    type: [TransactionStageHistoryEntrySchema],
+    required: true,
+    default: []
+  })
+  stageHistory!: TransactionStageHistoryEntry[];
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

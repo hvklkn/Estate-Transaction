@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post
+} from '@nestjs/common';
 
 import { CreateTransactionDto } from '@/modules/transactions/dto/create-transaction.dto';
 import { UpdateTransactionDto } from '@/modules/transactions/dto/update-transaction.dto';
@@ -19,6 +28,11 @@ export class TransactionsController {
     return this.transactionsService.findAll();
   }
 
+  @Get('summary')
+  summary() {
+    return this.transactionsService.getCompletedEarningsSummary();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.transactionsService.findOne(id);
@@ -27,9 +41,10 @@ export class TransactionsController {
   @Patch(':id/stage')
   updateStage(
     @Param('id') id: string,
-    @Body() updateTransactionStageDto: UpdateTransactionStageDto
+    @Body() updateTransactionStageDto: UpdateTransactionStageDto,
+    @Headers('x-agent-id') changedBy?: string
   ) {
-    return this.transactionsService.updateStage(id, updateTransactionStageDto.stage);
+    return this.transactionsService.updateStage(id, updateTransactionStageDto.stage, changedBy);
   }
 
   @Patch(':id')
