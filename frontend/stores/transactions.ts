@@ -4,6 +4,7 @@ import { defineStore } from 'pinia';
 import { toApiErrorMessage } from '~/services/api.errors';
 import { useTransactionsApi } from '~/services/transactions.api';
 import {
+  type CompletedTransactionEarningsSummary,
   TRANSACTION_STAGE_ORDER,
   TransactionStage,
   type CreateTransactionPayload,
@@ -19,6 +20,11 @@ export const useTransactionsStore = defineStore('transactions', () => {
   const stageUpdateTransactionId = ref<string | null>(null);
   const error = ref<string | null>(null);
   const hasLoaded = ref(false);
+  const completedEarningsSummary = ref<CompletedTransactionEarningsSummary>({
+    totalAgencyEarnings: 0,
+    totalAgentEarnings: 0,
+    byAgent: []
+  });
 
   const count = computed(() => items.value.length);
   const openTransactionsCount = computed(
@@ -87,6 +93,15 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
     try {
       items.value = await api.listTransactions();
+      try {
+        completedEarningsSummary.value = await api.getCompletedEarningsSummary();
+      } catch {
+        completedEarningsSummary.value = {
+          totalAgencyEarnings: 0,
+          totalAgentEarnings: 0,
+          byAgent: []
+        };
+      }
       hasLoaded.value = true;
     } catch (unknownError) {
       setError(toApiErrorMessage(unknownError));
@@ -140,6 +155,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     stageUpdateTransactionId,
     error,
     hasLoaded,
+    completedEarningsSummary,
     count,
     openTransactionsCount,
     completedTransactionsCount,

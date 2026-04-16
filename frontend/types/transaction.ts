@@ -34,6 +34,14 @@ export interface FinancialBreakdown {
   agents: AgentCommissionAllocation[];
 }
 
+export interface TransactionStageHistoryItem {
+  fromStage: TransactionStage | null;
+  toStage: TransactionStage;
+  changedAt: string;
+  changedBy?: AgentSummary;
+  changedById?: string;
+}
+
 export interface Transaction {
   id: string;
   propertyTitle: string;
@@ -43,6 +51,7 @@ export interface Transaction {
   listingAgent?: AgentSummary;
   sellingAgent?: AgentSummary;
   stage: TransactionStage;
+  stageHistory: TransactionStageHistoryItem[];
   financialBreakdown: FinancialBreakdown;
   createdAt?: string;
   updatedAt?: string;
@@ -58,4 +67,15 @@ export interface CreateTransactionPayload {
 
 export interface UpdateTransactionStagePayload {
   stage: TransactionStage;
+}
+
+export interface TransactionEarningsByAgent {
+  agentId: string;
+  earnings: number;
+}
+
+export interface CompletedTransactionEarningsSummary {
+  totalAgencyEarnings: number;
+  totalAgentEarnings: number;
+  byAgent: TransactionEarningsByAgent[];
 }

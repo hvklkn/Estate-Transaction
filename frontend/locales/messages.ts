@@ -83,6 +83,14 @@ export const MESSAGES = {
           label: 'Total Commission Volume',
           helper: 'Combined service fee volume across all transactions'
         },
+        completedAgencyEarnings: {
+          label: 'Completed Agency Earnings',
+          helper: 'Agency share across completed transactions'
+        },
+        completedAgentEarnings: {
+          label: 'Completed Agent Earnings',
+          helper: 'Agent share across completed transactions'
+        },
         pendingClosings: {
           label: 'Pending Closings',
           helper: 'Currently in title deed stage'
@@ -128,6 +136,18 @@ export const MESSAGES = {
         hideDetails: 'Hide details',
         advanceTo: 'Advance to {stage}',
         completed: 'Completed'
+      },
+      detail: {
+        currentStage: 'Current Stage',
+        totalServiceFee: 'Total Service Fee',
+        listingAgent: 'Listing Agent',
+        sellingAgent: 'Selling Agent'
+      },
+      history: {
+        title: 'Stage History',
+        changedBy: 'Changed by',
+        createdAtStage: 'Created at {stage}',
+        empty: 'No stage history is available.'
       },
       form: {
         title: 'Create Transaction',

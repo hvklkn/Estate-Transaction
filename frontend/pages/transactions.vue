@@ -126,7 +126,7 @@ onMounted(async () => {
       </div>
     </header>
 
-    <div class="grid gap-4 lg:grid-cols-4">
+    <div class="grid gap-4 lg:grid-cols-6">
       <MetricCard
         :label="t('transactions.metrics.totalTransactions.label')"
         :value="String(transactionsStore.count)"
@@ -147,6 +147,16 @@ onMounted(async () => {
         :value="formatCurrency(transactionsStore.commissionPipelineAmount)"
         :helper="t('transactions.metrics.totalCommissionVolume.helper')"
         emphasis
+      />
+      <MetricCard
+        :label="t('transactions.metrics.completedAgencyEarnings.label')"
+        :value="formatCurrency(transactionsStore.completedEarningsSummary.totalAgencyEarnings)"
+        :helper="t('transactions.metrics.completedAgencyEarnings.helper')"
+      />
+      <MetricCard
+        :label="t('transactions.metrics.completedAgentEarnings.label')"
+        :value="formatCurrency(transactionsStore.completedEarningsSummary.totalAgentEarnings)"
+        :helper="t('transactions.metrics.completedAgentEarnings.helper')"
       />
     </div>
 

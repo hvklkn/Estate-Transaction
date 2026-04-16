@@ -1,15 +1,18 @@
 import type {
   AgentCommissionAllocation,
   AgentSummary,
+  CompletedTransactionEarningsSummary,
   CreateTransactionPayload,
   FinancialBreakdown,
   Transaction,
+  TransactionStageHistoryItem,
   TransactionStage
 } from '~/types/transaction';
 import { TransactionStage as TransactionStageEnum } from '~/types/transaction';
 
 const TRANSACTIONS_ENDPOINT = '/transactions';
 const TRANSACTION_STAGE_ENDPOINT = (id: string) => `${TRANSACTIONS_ENDPOINT}/${id}/stage`;
+const TRANSACTIONS_SUMMARY_ENDPOINT = `${TRANSACTIONS_ENDPOINT}/summary`;
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
 
 type ObjectIdLike = string | { toString(): string };
@@ -43,9 +46,23 @@ interface ApiTransaction {
   listingAgentId?: string | ApiAgent;
   sellingAgentId?: string | ApiAgent;
   stage?: TransactionStage;
+  stageHistory?: ApiTransactionStageHistoryItem[];
   financialBreakdown?: ApiFinancialBreakdown;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface ApiTransactionStageHistoryItem {
+  fromStage?: TransactionStage | null;
+  toStage?: TransactionStage;
+  changedAt?: string;
+  changedBy?: string | ApiAgent;
+}
+
+interface ApiCompletedTransactionEarningsSummary {
+  totalAgencyEarnings?: number;
+  totalAgentEarnings?: number;
+  byAgent?: Array<{ agentId?: ObjectIdLike; earnings?: number }>;
 }
 
 const TRANSACTION_STAGE_SET = new Set(Object.values(TransactionStageEnum));
@@ -208,6 +225,64 @@ const normalizeStage = (stage: unknown): TransactionStage => {
   return stage as TransactionStage;
 };
 
+const normalizeOptionalStage = (stage: unknown): TransactionStage | null => {
+  if (stage === null || stage === undefined) {
+    return null;
+  }
+
+  return normalizeStage(stage);
+};
+
+const normalizeChangedBy = (
+  changedBy: ApiTransactionStageHistoryItem['changedBy']
+): Pick<TransactionStageHistoryItem, 'changedBy' | 'changedById'> => {
+  if (!changedBy) {
+    return {};
+  }
+
+  if (typeof changedBy === 'string') {
+    return {
+      changedById: toRequiredObjectIdString(changedBy, 'stageHistory.changedBy')
+    };
+  }
+
+  const objectIdValue = toOptionalObjectIdString(changedBy as unknown);
+  if (objectIdValue && OBJECT_ID_REGEX.test(objectIdValue)) {
+    return {
+      changedById: objectIdValue
+    };
+  }
+
+  const changedById = toRequiredObjectIdString(changedBy.id ?? changedBy._id, 'stageHistory.changedBy');
+
+  return {
+    changedById,
+    changedBy: normalizeAgentSummary(changedBy, changedById)
+  };
+};
+
+const normalizeStageHistory = (
+  stageHistory: ApiTransactionStageHistoryItem[] | undefined
+): TransactionStageHistoryItem[] => {
+  return (stageHistory ?? [])
+    .map((historyItem, index) => {
+      const changedAt = toRequiredString(historyItem.changedAt, `stageHistory[${index}].changedAt`);
+      const changedAtDate = new Date(changedAt);
+
+      if (Number.isNaN(changedAtDate.getTime())) {
+        throw new Error(`Invalid API response: invalid "stageHistory[${index}].changedAt".`);
+      }
+
+      return {
+        fromStage: normalizeOptionalStage(historyItem.fromStage),
+        toStage: normalizeStage(historyItem.toStage),
+        changedAt: changedAtDate.toISOString(),
+        ...normalizeChangedBy(historyItem.changedBy)
+      };
+    })
+    .sort((left, right) => new Date(left.changedAt).getTime() - new Date(right.changedAt).getTime());
+};
+
 export const normalizeTransaction = (apiTransaction: ApiTransaction): Transaction => {
   const transactionId = toRequiredObjectIdString(
     apiTransaction.id ?? apiTransaction._id,
@@ -247,6 +322,7 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
     listingAgent: normalizeAgentSummary(apiTransaction.listingAgentId, listingAgentId),
     sellingAgent: normalizeAgentSummary(apiTransaction.sellingAgentId, sellingAgentId),
     stage: normalizeStage(apiTransaction.stage),
+    stageHistory: normalizeStageHistory(apiTransaction.stageHistory),
     financialBreakdown: normalizeFinancialBreakdown(
       apiTransaction.financialBreakdown,
       listingAgentId,
@@ -287,6 +363,27 @@ export const useTransactionsApi = () => {
       });
 
       return normalizeTransaction(response);
+    },
+
+    async getCompletedEarningsSummary(): Promise<CompletedTransactionEarningsSummary> {
+      const response = await api.request<ApiCompletedTransactionEarningsSummary>(
+        TRANSACTIONS_SUMMARY_ENDPOINT
+      );
+
+      return {
+        totalAgencyEarnings: toRequiredNonNegativeNumber(
+          response.totalAgencyEarnings,
+          'totalAgencyEarnings'
+        ),
+        totalAgentEarnings: toRequiredNonNegativeNumber(
+          response.totalAgentEarnings,
+          'totalAgentEarnings'
+        ),
+        byAgent: (response.byAgent ?? []).map((item, index) => ({
+          agentId: toRequiredObjectIdString(item.agentId, `byAgent[${index}].agentId`),
+          earnings: toRequiredNonNegativeNumber(item.earnings, `byAgent[${index}].earnings`)
+        }))
+      };
     }
   };
 };

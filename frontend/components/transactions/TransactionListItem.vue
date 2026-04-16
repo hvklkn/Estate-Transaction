@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 
 import TransactionCompactFinancialSummary from '~/components/transactions/TransactionCompactFinancialSummary.vue';
-import TransactionFinancialBreakdown from '~/components/transactions/TransactionFinancialBreakdown.vue';
+import TransactionDetailPanel from '~/components/transactions/TransactionDetailPanel.vue';
 import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
 import type { Transaction, TransactionStage } from '~/types/transaction';
@@ -129,10 +129,9 @@ const onToggleDetails = () => {
         </div>
       </section>
 
-      <TransactionFinancialBreakdown
+      <TransactionDetailPanel
         v-if="isDetailsVisible"
-        :financial-breakdown="props.transaction.financialBreakdown"
-        :total-service-fee="props.transaction.totalServiceFee"
+        :transaction="props.transaction"
       />
     </div>
   </article>

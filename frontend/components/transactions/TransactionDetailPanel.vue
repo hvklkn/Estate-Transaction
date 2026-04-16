@@ -1,0 +1,97 @@
+<script setup lang="ts">
+import TransactionFinancialBreakdown from '~/components/transactions/TransactionFinancialBreakdown.vue';
+import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
+import { useAppI18n } from '~/composables/useAppI18n';
+import type { Transaction } from '~/types/transaction';
+
+const props = defineProps<{
+  transaction: Transaction;
+}>();
+
+const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
+</script>
+
+<template>
+  <section class="space-y-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+    <header class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {{ t('transactions.detail.currentStage') }}
+        </p>
+        <div class="mt-1">
+          <TransactionStageBadge :stage="props.transaction.stage" />
+        </div>
+      </div>
+
+      <div class="text-right">
+        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {{ t('transactions.detail.totalServiceFee') }}
+        </p>
+        <p class="mt-1 text-base font-semibold text-slate-900">
+          {{ formatCurrency(props.transaction.totalServiceFee) }}
+        </p>
+      </div>
+    </header>
+
+    <dl class="grid gap-3 md:grid-cols-2">
+      <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
+        <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {{ t('transactions.detail.listingAgent') }}
+        </dt>
+        <dd class="mt-1 text-sm font-medium text-slate-800">
+          {{ props.transaction.listingAgent?.name ?? props.transaction.listingAgentId }}
+        </dd>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
+        <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          {{ t('transactions.detail.sellingAgent') }}
+        </dt>
+        <dd class="mt-1 text-sm font-medium text-slate-800">
+          {{ props.transaction.sellingAgent?.name ?? props.transaction.sellingAgentId }}
+        </dd>
+      </div>
+    </dl>
+
+    <section class="space-y-2">
+      <h5 class="text-sm font-semibold text-slate-800">{{ t('transactions.history.title') }}</h5>
+
+      <ol v-if="props.transaction.stageHistory.length > 0" class="space-y-2">
+        <li
+          v-for="(entry, index) in props.transaction.stageHistory"
+          :key="`${entry.toStage}-${entry.changedAt}-${index}`"
+          class="rounded-lg border border-slate-200 bg-white px-3 py-3"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-medium text-slate-800">
+              <template v-if="entry.fromStage">
+                {{ getStageLabel(entry.fromStage) }} → {{ getStageLabel(entry.toStage) }}
+              </template>
+              <template v-else>
+                {{ t('transactions.history.createdAtStage', { stage: getStageLabel(entry.toStage) }) }}
+              </template>
+            </p>
+            <p class="text-xs text-slate-500">{{ formatDateTime(entry.changedAt) }}</p>
+          </div>
+
+          <p v-if="entry.changedBy?.name || entry.changedById" class="mt-1 text-xs text-slate-500">
+            {{ t('transactions.history.changedBy') }}:
+            {{ entry.changedBy?.name ?? entry.changedById }}
+          </p>
+        </li>
+      </ol>
+
+      <p
+        v-else
+        class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500"
+      >
+        {{ t('transactions.history.empty') }}
+      </p>
+    </section>
+
+    <TransactionFinancialBreakdown
+      :financial-breakdown="props.transaction.financialBreakdown"
+      :total-service-fee="props.transaction.totalServiceFee"
+    />
+  </section>
+</template>
