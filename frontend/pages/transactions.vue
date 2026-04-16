@@ -97,7 +97,7 @@ onMounted(async () => {
 <template>
   <section class="space-y-8">
     <header
-      class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm sm:p-7"
+      class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7"
     >
       <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div class="space-y-2">
@@ -105,7 +105,7 @@ onMounted(async () => {
             {{ t('transactions.header.kicker') }}
           </p>
           <h1 class="text-3xl font-semibold sm:text-4xl">{{ t('transactions.header.title') }}</h1>
-          <p class="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+          <p class="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
             {{ t('transactions.header.description') }}
           </p>
         </div>
@@ -126,7 +126,7 @@ onMounted(async () => {
       </div>
     </header>
 
-    <div class="grid gap-4 lg:grid-cols-6">
+    <div class="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
       <MetricCard
         :label="t('transactions.metrics.totalTransactions.label')"
         :value="String(transactionsStore.count)"
@@ -163,11 +163,11 @@ onMounted(async () => {
     <div v-if="transactionsStore.error" class="alert-error flex flex-wrap items-start justify-between gap-3">
       <div>
         <p class="font-medium">{{ t('transactions.errors.syncTitle') }}</p>
-        <p class="mt-0.5 text-xs text-rose-700/90">{{ transactionsStore.error }}</p>
+        <p class="mt-0.5 text-xs text-rose-700/90 dark:text-rose-300">{{ transactionsStore.error }}</p>
       </div>
       <button
         type="button"
-        class="btn-secondary border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
+        class="btn-secondary border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50"
         @click="handleRefresh"
       >
         {{ t('transactions.actions.retry') }}

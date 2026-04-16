@@ -41,7 +41,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
   <section class="panel">
     <div class="panel-body space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-slate-900">{{ t('transactions.filters.title') }}</h3>
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.filters.title') }}</h3>
       </div>
 
       <div class="grid gap-3 lg:grid-cols-[1.5fr,1fr,1fr]">

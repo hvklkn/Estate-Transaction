@@ -100,12 +100,12 @@ const onSubmit = () => {
 <template>
   <section class="panel overflow-hidden">
     <div class="panel-body">
-      <div class="mb-6 space-y-2 border-b border-slate-100 pb-5">
+      <div class="mb-6 space-y-2 border-b border-slate-100 pb-5 dark:border-slate-800">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand-700">
           {{ t('transactions.header.kicker') }}
         </p>
-        <h3 class="text-xl font-semibold text-slate-900">{{ t('transactions.form.title') }}</h3>
-        <p class="text-sm leading-6 text-slate-500">
+        <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.form.title') }}</h3>
+        <p class="text-sm leading-6 text-slate-500 dark:text-slate-400">
           {{ t('transactions.form.description') }}
         </p>
       </div>
@@ -115,8 +115,8 @@ const onSubmit = () => {
           {{ t('transactions.form.validationSummary') }}
         </div>
 
-        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.form.sections.dealDetails') }}
           </p>
           <div class="grid gap-4">
@@ -156,7 +156,7 @@ const onSubmit = () => {
               <div class="block">
                 <span class="field-label">{{ t('transactions.form.fields.initialStage') }}</span>
                 <div
-                  class="input-base flex items-center bg-slate-100 text-sm font-medium text-slate-600"
+                  class="input-base flex items-center bg-slate-100 text-sm font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-200"
                   aria-readonly="true"
                 >
                   {{ getStageLabel(TransactionStage.AGREEMENT) }}
@@ -167,8 +167,8 @@ const onSubmit = () => {
           </div>
         </div>
 
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.form.sections.agentAssignment') }}
           </p>
           <div class="grid gap-4">
@@ -227,7 +227,7 @@ const onSubmit = () => {
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-5">
+        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
           <button
             type="button"
             class="btn-secondary"

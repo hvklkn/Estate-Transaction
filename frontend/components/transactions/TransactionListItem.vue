@@ -37,50 +37,50 @@ const onToggleDetails = () => {
 </script>
 
 <template>
-  <article class="rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300">
+  <article class="rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
     <div class="space-y-4 p-5 sm:p-6">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-1.5">
-          <h4 class="text-xl font-semibold leading-tight text-slate-900">
+          <h4 class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">
             {{ props.transaction.propertyTitle }}
           </h4>
-          <p class="font-mono text-[11px] text-slate-500">
+          <p class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.transactionId') }}: {{ props.transaction.id }}
           </p>
         </div>
 
         <div class="flex flex-col items-end gap-2">
           <TransactionStageBadge :stage="props.transaction.stage" />
-          <p class="text-xs text-slate-500">
+          <p class="text-xs text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.lastUpdated') }}: {{ formatDateTime(props.transaction.updatedAt) }}
           </p>
         </div>
       </header>
 
       <section class="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.totalServiceFee') }}
           </p>
-          <p class="mt-1 text-lg font-semibold text-slate-900">
+          <p class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
             {{ formatCurrency(props.transaction.totalServiceFee) }}
           </p>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
-          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.listingAgent') }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-800">
+          <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
             {{ props.transaction.listingAgent?.name ?? props.transaction.listingAgentId }}
           </p>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
-          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.sellingAgent') }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-800">
+          <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
             {{ props.transaction.sellingAgent?.name ?? props.transaction.sellingAgentId }}
           </p>
         </div>
@@ -92,18 +92,18 @@ const onToggleDetails = () => {
       />
 
       <section
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/80"
       >
         <div>
-          <p class="text-sm font-medium text-slate-800">{{ t('transactions.item.stageAction') }}</p>
-          <p v-if="props.nextStage" class="text-xs text-slate-500">
+          <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ t('transactions.item.stageAction') }}</p>
+          <p v-if="props.nextStage" class="text-xs text-slate-500 dark:text-slate-400">
             {{
               t('transactions.item.nextAllowedStage', {
                 stage: getStageLabel(props.nextStage)
               })
             }}
           </p>
-          <p v-else class="text-xs text-slate-500">{{ t('transactions.item.noFurtherAction') }}</p>
+          <p v-else class="text-xs text-slate-500 dark:text-slate-400">{{ t('transactions.item.noFurtherAction') }}</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">

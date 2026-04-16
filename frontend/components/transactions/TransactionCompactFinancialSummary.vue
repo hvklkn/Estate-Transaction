@@ -15,36 +15,36 @@ const agentAllocationCount = computed(() => props.financialBreakdown.agents.leng
 </script>
 
 <template>
-  <section class="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+  <section class="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/70">
     <div class="mb-2 flex items-center justify-between gap-3">
-      <h5 class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+      <h5 class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {{ t('transactions.financial.title') }}
       </h5>
-      <p class="text-xs text-slate-500">
+      <p class="text-xs text-slate-500 dark:text-slate-400">
         {{ t('transactions.financial.total') }}: {{ formatCurrency(props.totalServiceFee) }}
       </p>
     </div>
 
     <div class="grid gap-2 sm:grid-cols-2">
-      <div class="rounded-lg border border-brand-200 bg-white px-3 py-2.5">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+      <div class="rounded-lg border border-brand-200 bg-white px-3 py-2.5 dark:border-brand-700/70 dark:bg-slate-900">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
           {{ t('transactions.financial.agencyAmount') }}
         </p>
-        <p class="mt-1 text-base font-semibold text-slate-900">
+        <p class="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
           {{ formatCurrency(props.financialBreakdown.agencyAmount) }}
         </p>
       </div>
 
-      <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+      <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
         <div class="flex items-center justify-between gap-2">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.financial.agentPool') }}
           </p>
-          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {{ t('transactions.item.agentsCount', { count: agentAllocationCount }) }}
           </span>
         </div>
-        <p class="mt-1 text-base font-semibold text-slate-900">
+        <p class="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
           {{ formatCurrency(props.financialBreakdown.agentPoolAmount) }}
         </p>
       </div>
