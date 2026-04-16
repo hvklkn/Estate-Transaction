@@ -70,7 +70,8 @@ describe('TransactionsService', () => {
     find: jest.fn(),
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
-    findByIdAndDelete: jest.fn()
+    findByIdAndDelete: jest.fn(),
+    aggregate: jest.fn()
   };
 
   const agentsServiceMock = {
@@ -171,7 +172,14 @@ describe('TransactionsService', () => {
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
         stage: TransactionStage.AGREEMENT,
-        financialBreakdown
+        financialBreakdown,
+        stageHistory: [
+          {
+            fromStage: null,
+            toStage: TransactionStage.AGREEMENT,
+            changedAt: expect.any(Date)
+          }
+        ]
       });
       expect(result).toEqual(createdTransaction);
     });
@@ -224,8 +232,36 @@ describe('TransactionsService', () => {
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
         stage: TransactionStage.AGREEMENT,
-        financialBreakdown
+        financialBreakdown,
+        stageHistory: [
+          {
+            fromStage: null,
+            toStage: TransactionStage.AGREEMENT,
+            changedAt: expect.any(Date)
+          }
+        ]
       });
+    });
+
+    it('returns create failure when listing agent validation fails', async () => {
+      const createDto = {
+        propertyTitle: 'Sunset Villas #12',
+        totalServiceFee: 100000,
+        listingAgentId: LISTING_AGENT_ID,
+        sellingAgentId: SELLING_AGENT_ID
+      };
+
+      stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockReturnValue(
+        TransactionStage.AGREEMENT
+      );
+      agentsServiceMock.ensureAgentExists.mockRejectedValueOnce(
+        new NotFoundException(`Agent not found: ${LISTING_AGENT_ID}`)
+      );
+
+      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+
+      expect(commissionCalculatorServiceMock.calculate).not.toHaveBeenCalled();
+      expect(transactionModelMock.create).not.toHaveBeenCalled();
     });
   });
 
@@ -395,10 +431,62 @@ describe('TransactionsService', () => {
       );
       expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
         VALID_TRANSACTION_ID,
-        { stage: TransactionStage.TITLE_DEED },
+        {
+          stage: TransactionStage.TITLE_DEED,
+          $push: {
+            stageHistory: {
+              fromStage: TransactionStage.EARNEST_MONEY,
+              toStage: TransactionStage.TITLE_DEED,
+              changedAt: expect.any(Date)
+            }
+          }
+        },
         { new: true, runValidators: true }
       );
       expect(result).toEqual(updatedTransaction);
+    });
+
+    it('appends stage history with changedBy when stage update includes agent context', async () => {
+      const changedBy = '661b8c0134e2c40fd2f89a77';
+      const existingTransaction = buildExistingTransaction({
+        stage: TransactionStage.TITLE_DEED
+      });
+
+      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(
+        createQueryMock({
+          ...existingTransaction,
+          stage: TransactionStage.COMPLETED
+        })
+      );
+
+      await service.updateStage(VALID_TRANSACTION_ID, TransactionStage.COMPLETED, changedBy);
+
+      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledWith(changedBy);
+      expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
+        VALID_TRANSACTION_ID,
+        {
+          stage: TransactionStage.COMPLETED,
+          $push: {
+            stageHistory: {
+              fromStage: TransactionStage.TITLE_DEED,
+              toStage: TransactionStage.COMPLETED,
+              changedAt: expect.any(Date),
+              changedBy: expect.any(Types.ObjectId)
+            }
+          }
+        },
+        { new: true, runValidators: true }
+      );
+    });
+
+    it('rejects stage update when changedBy is not a valid object id', async () => {
+      await expect(
+        service.updateStage(VALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY, 'invalid-id')
+      ).rejects.toThrow(/changedBy must be a valid MongoDB ObjectId/i);
+
+      expect(transactionModelMock.findById).not.toHaveBeenCalled();
+      expect(stageTransitionPolicyServiceMock.assertValidTransition).not.toHaveBeenCalled();
     });
 
     it('does not update stage when policy rejects skipping transitions', async () => {
@@ -433,6 +521,56 @@ describe('TransactionsService', () => {
       ).rejects.toThrow(/already in stage/i);
 
       expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCompletedEarningsSummary', () => {
+    it('returns totals and per-agent earnings from completed transactions', async () => {
+      transactionModelMock.aggregate
+        .mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue([
+            {
+              totalAgencyEarnings: 175000,
+              totalAgentEarnings: 175000
+            }
+          ])
+        })
+        .mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue([
+            { agentId: LISTING_AGENT_ID, earnings: 100000 },
+            { agentId: SELLING_AGENT_ID, earnings: 75000 }
+          ])
+        });
+
+      const result = await service.getCompletedEarningsSummary();
+
+      expect(result).toEqual({
+        totalAgencyEarnings: 175000,
+        totalAgentEarnings: 175000,
+        byAgent: [
+          { agentId: LISTING_AGENT_ID, earnings: 100000 },
+          { agentId: SELLING_AGENT_ID, earnings: 75000 }
+        ]
+      });
+      expect(transactionModelMock.aggregate).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns zeroed totals when there are no completed transactions', async () => {
+      transactionModelMock.aggregate
+        .mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue([])
+        })
+        .mockReturnValueOnce({
+          exec: jest.fn().mockResolvedValue([])
+        });
+
+      const result = await service.getCompletedEarningsSummary();
+
+      expect(result).toEqual({
+        totalAgencyEarnings: 0,
+        totalAgentEarnings: 0,
+        byAgent: []
+      });
     });
   });
 });
