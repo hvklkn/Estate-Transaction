@@ -9,6 +9,10 @@ const isProduction = nodeEnv === 'production';
 export default defineNuxtConfig({
   compatibilityDate: '2026-04-16',
   modules: ['@pinia/nuxt', '@nuxtjs/tailwindcss'],
+  experimental: {
+    // Keep runtime stable in local/CI dev where manifest virtual import can intermittently break.
+    appManifest: false
+  },
   css: ['~/assets/css/tailwind.css'],
   devtools: {
     enabled: !isProduction

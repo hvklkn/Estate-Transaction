@@ -67,9 +67,21 @@ export const MESSAGES = {
         creating: 'Creating...'
       },
       metrics: {
+        totalTransactions: {
+          label: 'Total Transactions',
+          helper: 'All tracked deals in the system'
+        },
+        completedTransactions: {
+          label: 'Completed Transactions',
+          helper: 'Deals that reached the completed stage'
+        },
         openTransactions: {
           label: 'Open Transactions',
           helper: 'All active deals not yet completed'
+        },
+        totalCommissionVolume: {
+          label: 'Total Commission Volume',
+          helper: 'Combined service fee volume across all transactions'
         },
         pendingClosings: {
           label: 'Pending Closings',
@@ -79,6 +91,17 @@ export const MESSAGES = {
           label: 'Commission Pipeline',
           helper: 'Total service fees across tracked deals'
         }
+      },
+      filters: {
+        title: 'List Controls',
+        searchLabel: 'Search',
+        searchPlaceholder: 'Search by property or advisor name',
+        stageLabel: 'Stage',
+        allStages: 'All stages',
+        sortLabel: 'Sort by',
+        sortNewest: 'Newest',
+        sortOldest: 'Oldest',
+        sortHighestCommission: 'Highest commission'
       },
       errors: {
         syncTitle: 'Unable to sync transaction data'
@@ -95,11 +118,14 @@ export const MESSAGES = {
         totalServiceFee: 'Total Service Fee',
         listingAgent: 'Listing Agent',
         sellingAgent: 'Selling Agent',
+        agentsCount: '{count} agents',
         lastUpdated: 'Last Updated',
         stageAction: 'Stage Action',
         nextAllowedStage: 'Next allowed stage: {stage}',
         noFurtherAction: 'No further action. Transaction is completed.',
         updating: 'Updating...',
+        viewDetails: 'View details',
+        hideDetails: 'Hide details',
         advanceTo: 'Advance to {stage}',
         completed: 'Completed'
       },
@@ -248,11 +274,14 @@ export const MESSAGES = {
         totalServiceFee: 'Toplam Hizmet Bedeli',
         listingAgent: 'Listeleyen Danışman',
         sellingAgent: 'Satışı Yapan Danışman',
+        agentsCount: '{count} danışman',
         lastUpdated: 'Son Güncelleme',
         stageAction: 'Aşama İşlemi',
         nextAllowedStage: 'Sonraki izinli aşama: {stage}',
         noFurtherAction: 'Başka işlem yok. İşlem tamamlandı.',
         updating: 'Güncelleniyor...',
+        viewDetails: 'Detayları görüntüle',
+        hideDetails: 'Detayları gizle',
         advanceTo: '{stage} aşamasına ilerlet',
         completed: 'Tamamlandı'
       },
@@ -402,11 +431,14 @@ export const MESSAGES = {
         totalServiceFee: 'Frais de Service Totaux',
         listingAgent: 'Agent Mandataire',
         sellingAgent: 'Agent Vendeur',
+        agentsCount: '{count} agents',
         lastUpdated: 'Dernière Mise à Jour',
         stageAction: 'Action d’Étape',
         nextAllowedStage: 'Prochaine étape autorisée : {stage}',
         noFurtherAction: 'Aucune autre action. La transaction est terminée.',
         updating: 'Mise à jour...',
+        viewDetails: 'Voir les détails',
+        hideDetails: 'Masquer les détails',
         advanceTo: 'Passer à {stage}',
         completed: 'Terminée'
       },
@@ -557,11 +589,14 @@ export const MESSAGES = {
         totalServiceFee: 'Gesamte Servicegebühr',
         listingAgent: 'Listing-Agent',
         sellingAgent: 'Selling-Agent',
+        agentsCount: '{count} Makler',
         lastUpdated: 'Zuletzt Aktualisiert',
         stageAction: 'Stufenaktion',
         nextAllowedStage: 'Nächste erlaubte Stufe: {stage}',
         noFurtherAction: 'Keine weitere Aktion. Die Transaktion ist abgeschlossen.',
         updating: 'Wird aktualisiert...',
+        viewDetails: 'Details anzeigen',
+        hideDetails: 'Details ausblenden',
         advanceTo: 'Weiter zu {stage}',
         completed: 'Abgeschlossen'
       },

@@ -28,6 +28,13 @@ export const useTransactionsStore = defineStore('transactions', () => {
       )
         .length
   );
+  const completedTransactionsCount = computed(
+    () =>
+      items.value.filter(
+        (transaction) => transaction.stage === TransactionStage.COMPLETED
+      )
+        .length
+  );
   const pendingClosingsCount = computed(
     () =>
       items.value.filter(
@@ -135,6 +142,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     hasLoaded,
     count,
     openTransactionsCount,
+    completedTransactionsCount,
     pendingClosingsCount,
     commissionPipelineAmount,
     getNextStage,

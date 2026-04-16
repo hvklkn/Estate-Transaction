@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import MetricCard from '~/components/dashboard/MetricCard.vue';
+import TransactionListControls, {
+  type TransactionSortOption
+} from '~/components/dashboard/TransactionListControls.vue';
 import TransactionCreateForm from '~/components/transactions/TransactionCreateForm.vue';
 import TransactionList from '~/components/transactions/TransactionList.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
@@ -20,6 +23,50 @@ useHead(() => ({
 const hasTransactions = computed(() => transactionsStore.items.length > 0);
 const isInitialLoading = computed(() => transactionsStore.isLoading && !hasTransactions.value);
 const isRefreshing = computed(() => transactionsStore.isLoading && hasTransactions.value);
+const searchQuery = ref('');
+const stageFilter = ref<TransactionStage | 'all'>('all');
+const sortBy = ref<TransactionSortOption>('newest');
+
+const filteredTransactions = computed(() => {
+  const normalizedSearch = searchQuery.value.trim().toLowerCase();
+
+  const filtered = transactionsStore.items.filter((transaction) => {
+    const stageMatches =
+      stageFilter.value === 'all' || transaction.stage === stageFilter.value;
+
+    if (!stageMatches) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    const haystack = [
+      transaction.propertyTitle,
+      transaction.listingAgent?.name,
+      transaction.sellingAgent?.name,
+      transaction.listingAgent?.email,
+      transaction.sellingAgent?.email
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(normalizedSearch);
+  });
+
+  return [...filtered].sort((left, right) => {
+    if (sortBy.value === 'highest_commission') {
+      return right.totalServiceFee - left.totalServiceFee;
+    }
+
+    const leftDate = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+    const rightDate = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+
+    return sortBy.value === 'oldest' ? leftDate - rightDate : rightDate - leftDate;
+  });
+});
 
 const handleCreateTransaction = async (payload: CreateTransactionPayload) => {
   try {
@@ -79,21 +126,26 @@ onMounted(async () => {
       </div>
     </header>
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-4 lg:grid-cols-4">
+      <MetricCard
+        :label="t('transactions.metrics.totalTransactions.label')"
+        :value="String(transactionsStore.count)"
+        :helper="t('transactions.metrics.totalTransactions.helper')"
+      />
+      <MetricCard
+        :label="t('transactions.metrics.completedTransactions.label')"
+        :value="String(transactionsStore.completedTransactionsCount)"
+        :helper="t('transactions.metrics.completedTransactions.helper')"
+      />
       <MetricCard
         :label="t('transactions.metrics.openTransactions.label')"
         :value="String(transactionsStore.openTransactionsCount)"
         :helper="t('transactions.metrics.openTransactions.helper')"
       />
       <MetricCard
-        :label="t('transactions.metrics.pendingClosings.label')"
-        :value="String(transactionsStore.pendingClosingsCount)"
-        :helper="t('transactions.metrics.pendingClosings.helper')"
-      />
-      <MetricCard
-        :label="t('transactions.metrics.commissionPipeline.label')"
+        :label="t('transactions.metrics.totalCommissionVolume.label')"
         :value="formatCurrency(transactionsStore.commissionPipelineAmount)"
-        :helper="t('transactions.metrics.commissionPipeline.helper')"
+        :helper="t('transactions.metrics.totalCommissionVolume.helper')"
         emphasis
       />
     </div>
@@ -142,13 +194,25 @@ onMounted(async () => {
         />
       </div>
 
-      <TransactionList
-        :transactions="transactionsStore.items"
-        :stage-update-transaction-id="transactionsStore.stageUpdateTransactionId"
-        :get-next-stage="transactionsStore.getNextStage"
-        :is-refreshing="isRefreshing"
-        @stage-change="handleStageChange"
-      />
+      <div class="space-y-4">
+        <TransactionListControls
+          :search-query="searchQuery"
+          :stage-filter="stageFilter"
+          :sort-by="sortBy"
+          :disabled="transactionsStore.isLoading"
+          @update:search-query="searchQuery = $event"
+          @update:stage-filter="stageFilter = $event"
+          @update:sort-by="sortBy = $event"
+        />
+
+        <TransactionList
+          :transactions="filteredTransactions"
+          :stage-update-transaction-id="transactionsStore.stageUpdateTransactionId"
+          :get-next-stage="transactionsStore.getNextStage"
+          :is-refreshing="isRefreshing"
+          @stage-change="handleStageChange"
+        />
+      </div>
     </div>
   </section>
 </template>

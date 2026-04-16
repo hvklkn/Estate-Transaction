@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+
+import TransactionCompactFinancialSummary from '~/components/transactions/TransactionCompactFinancialSummary.vue';
 import TransactionFinancialBreakdown from '~/components/transactions/TransactionFinancialBreakdown.vue';
 import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
@@ -13,7 +16,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   'stage-change': [payload: { id: string; stage: TransactionStage }];
 }>();
+
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
+const isDetailsVisible = ref(false);
 
 const onAdvanceStage = () => {
   if (!props.nextStage) {
@@ -25,27 +30,34 @@ const onAdvanceStage = () => {
     stage: props.nextStage
   });
 };
+
+const onToggleDetails = () => {
+  isDetailsVisible.value = !isDetailsVisible.value;
+};
 </script>
 
 <template>
-  <article class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <div class="space-y-5 p-5 sm:p-6">
-      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
-        <div class="space-y-1">
-          <h4 class="text-xl font-semibold text-slate-900">{{ props.transaction.propertyTitle }}</h4>
-          <p class="mt-1 font-mono text-[11px] text-slate-500">
+  <article class="rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300">
+    <div class="space-y-4 p-5 sm:p-6">
+      <header class="flex flex-wrap items-start justify-between gap-4">
+        <div class="space-y-1.5">
+          <h4 class="text-xl font-semibold leading-tight text-slate-900">
+            {{ props.transaction.propertyTitle }}
+          </h4>
+          <p class="font-mono text-[11px] text-slate-500">
             {{ t('transactions.item.transactionId') }}: {{ props.transaction.id }}
           </p>
         </div>
-        <div class="space-y-2 text-right">
+
+        <div class="flex flex-col items-end gap-2">
           <TransactionStageBadge :stage="props.transaction.stage" />
           <p class="text-xs text-slate-500">
             {{ t('transactions.item.lastUpdated') }}: {{ formatDateTime(props.transaction.updatedAt) }}
           </p>
         </div>
-      </div>
+      </header>
 
-      <div class="grid gap-3 md:grid-cols-3">
+      <section class="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
           <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
             {{ t('transactions.item.totalServiceFee') }}
@@ -55,26 +67,6 @@ const onAdvanceStage = () => {
           </p>
         </div>
 
-        <div class="rounded-lg border border-brand-200 bg-brand-50/70 px-3 py-3">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            {{ t('transactions.financial.agencyAmount') }}
-          </p>
-          <p class="mt-1 text-lg font-semibold text-slate-900">
-            {{ formatCurrency(props.transaction.financialBreakdown.agencyAmount) }}
-          </p>
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            {{ t('transactions.financial.agentPool') }}
-          </p>
-          <p class="mt-1 text-lg font-semibold text-slate-900">
-            {{ formatCurrency(props.transaction.financialBreakdown.agentPoolAmount) }}
-          </p>
-        </div>
-      </div>
-
-      <div class="grid gap-3 md:grid-cols-2">
         <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
           <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
             {{ t('transactions.item.listingAgent') }}
@@ -92,9 +84,16 @@ const onAdvanceStage = () => {
             {{ props.transaction.sellingAgent?.name ?? props.transaction.sellingAgentId }}
           </p>
         </div>
-      </div>
+      </section>
 
-      <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+      <TransactionCompactFinancialSummary
+        :financial-breakdown="props.transaction.financialBreakdown"
+        :total-service-fee="props.transaction.totalServiceFee"
+      />
+
+      <section
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3"
+      >
         <div>
           <p class="text-sm font-medium text-slate-800">{{ t('transactions.item.stageAction') }}</p>
           <p v-if="props.nextStage" class="text-xs text-slate-500">
@@ -107,20 +106,31 @@ const onAdvanceStage = () => {
           <p v-else class="text-xs text-slate-500">{{ t('transactions.item.noFurtherAction') }}</p>
         </div>
 
-        <button
-          :class="props.nextStage ? 'btn-primary' : 'btn-secondary'"
-          :disabled="!props.nextStage || props.isUpdatingStage"
-          @click="onAdvanceStage"
-        >
-          <template v-if="props.isUpdatingStage">{{ t('transactions.item.updating') }}</template>
-          <template v-else-if="props.nextStage">
-            {{ t('transactions.item.advanceTo', { stage: getStageLabel(props.nextStage) }) }}
-          </template>
-          <template v-else>{{ t('transactions.item.completed') }}</template>
-        </button>
-      </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" class="btn-secondary" @click="onToggleDetails">
+            {{
+              isDetailsVisible
+                ? t('transactions.item.hideDetails')
+                : t('transactions.item.viewDetails')
+            }}
+          </button>
+
+          <button
+            :class="props.nextStage ? 'btn-primary' : 'btn-secondary'"
+            :disabled="!props.nextStage || props.isUpdatingStage"
+            @click="onAdvanceStage"
+          >
+            <template v-if="props.isUpdatingStage">{{ t('transactions.item.updating') }}</template>
+            <template v-else-if="props.nextStage">
+              {{ t('transactions.item.advanceTo', { stage: getStageLabel(props.nextStage) }) }}
+            </template>
+            <template v-else>{{ t('transactions.item.completed') }}</template>
+          </button>
+        </div>
+      </section>
 
       <TransactionFinancialBreakdown
+        v-if="isDetailsVisible"
         :financial-breakdown="props.transaction.financialBreakdown"
         :total-service-fee="props.transaction.totalServiceFee"
       />

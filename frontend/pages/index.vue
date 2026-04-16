@@ -1,3 +1,9 @@
 <script setup lang="ts">
-await navigateTo('/transactions');
+definePageMeta({
+  redirect: '/transactions'
+});
 </script>
+
+<template>
+  <div />
+</template>
