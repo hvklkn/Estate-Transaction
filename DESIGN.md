@@ -7,6 +7,7 @@ This repository implements a real estate operations case with two goals:
 - calculate and persist commission breakdowns
 
 The design is intentionally conservative: clear module boundaries, explicit validation, and simple UI state flow.
+Recent updates also prioritize production reproducibility (pinned frontend dependency versions + lockfile-based install).
 
 ## 2. System Architecture
 
@@ -35,6 +36,7 @@ Why this split:
 - transaction workflows depend on commission and stage rules, but those rules stay in dedicated policy services
 - controllers stay thin (transport only)
 - business logic remains unit-testable without HTTP or database wiring
+- lightweight access endpoints (`agents/register`, `agents/login`) stay in the agents module to avoid introducing a premature auth module
 
 ## 4. MongoDB Schema Decisions
 
@@ -50,6 +52,11 @@ Reasoning:
 - minimal identity model for current requirements
 - unique email prevents duplicate agent records
 - `isActive` supports soft operational control
+
+Access model:
+- login uses existing email (no password in current scope)
+- register creates an `Agent` document and returns MongoDB-generated ObjectId
+- this is intentionally minimal for case scope and can evolve into full auth later
 
 ### 4.2 Transaction Schema
 
@@ -164,8 +171,11 @@ This avoids duplicated parsing logic and keeps store actions readable.
 
 Structure:
 - `pages/transactions.vue`: page composition and interaction wiring
+- `pages/auth.vue`: register/login screen
 - `stores/transactions.ts`: canonical transaction state, derived metrics, async actions
+- `stores/auth.ts`: current user + registered user list + access actions
 - `services/transactions.api.ts`: endpoint calls + strict response normalization
+- `services/agents.api.ts`: agent register/login/list API layer
 - `composables/useApi.ts`: shared fetch client (`baseURL`, JSON headers, timeout)
 - `components/transactions/*`: focused presentational units
 
@@ -173,6 +183,9 @@ Data flow decisions:
 - network and shape normalization stay out of components
 - store is explicit about loading flags (`isLoading`, `isCreating`, per-row stage update)
 - store has `hasLoaded` + `fetchTransactions({ force })` and `refreshTransactions()` to avoid unnecessary repeated fetches
+- auth state is client-hydrated from localStorage, then refreshed from API via plugin startup
+- route middleware redirects unauthenticated users to `/auth`
+- transaction creation UI uses advisor names/emails from `authStore.activeUsers`, while payload keeps ObjectId references
 
 Contract safety:
 - transaction API normalization now fails fast on invalid/missing critical fields
@@ -206,12 +219,12 @@ Current boundary:
 Current trade-offs:
 - stored `financialBreakdown` favors read simplicity and auditability over full normalization
 - number/cents arithmetic is deterministic for current scope, but money libraries/decimal types may be preferable for stricter accounting requirements
-- UI create flow currently requires raw agent ObjectIds (simple, not ideal UX)
+- current access model is intentionally lightweight (email-only register/login, no password/session token)
 - frontend contract validation is strict; schema drift now fails loudly (intentional), but requires coordinated API changes
 
 Next improvements with highest value:
 1. Add backend integration/e2e tests with a test database.
 2. Add pagination/filtering/sorting endpoints for transaction list scale.
-3. Add auth/authorization and audit logging for stage and fee-related updates.
-4. Replace raw agent ID input with searchable agent selection.
+3. Add full authentication/authorization and audit logging for stage and fee-related updates.
+4. Add searchable advisor picker (server-side query for large user sets).
 5. Add shared API contract generation (OpenAPI) to reduce frontend/backend drift risk.

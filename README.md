@@ -12,6 +12,8 @@ Core behaviors implemented:
 - transaction lifecycle stages: `agreement -> earnest_money -> title_deed -> completed`
 - centralized commission calculation policy and persisted financial breakdown
 - centralized stage transition policy with strict forward-only progression
+- lightweight user access flow (register/login by email) backed by MongoDB
+- advisor assignment via registered user selection (name/email in UI, ObjectId mapping in payload)
 - operational dashboard for list/create/transition workflows
 
 ## Architecture Summary
@@ -45,16 +47,16 @@ Frontend:
 
 ## Prerequisites
 
-- Node.js LTS (recommended: `v22.x`)
+- Node.js LTS (recommended: `v20.19+`)
 - npm (recommended: `v10+`)
 - MongoDB Atlas connection string
 
 ## Quick Start (Reviewer Path)
 
-1. Install dependencies:
+1. Install dependencies (deterministic install preferred):
 ```bash
 npm --prefix backend install
-npm --prefix frontend install
+npm --prefix frontend ci
 ```
 
 2. Create environment files:
@@ -137,6 +139,9 @@ npm run test:watch
 npm run test:cov
 ```
 
+Jest note:
+- path aliases (`@/...`) are resolved via `backend/jest.config.ts` with `pathsToModuleNameMapper`
+
 Current status:
 - backend unit tests are implemented
 - frontend automated tests are not implemented yet
@@ -150,6 +155,8 @@ Health:
 - `GET /health`
 
 Agents:
+- `POST /agents/register`
+- `POST /agents/login`
 - `POST /agents`
 - `GET /agents`
 - `GET /agents/:id`
@@ -199,8 +206,7 @@ Suggested targets:
 
 ## Important Assumptions
 
-- Dashboard create form currently accepts raw MongoDB ObjectIds for listing/selling agents.
-- Agents should be created first through API or tooling before creating transactions from the UI.
-- Agent lookup/autocomplete is a planned improvement and is not implemented in this submission.
-- No authentication/authorization is implemented in this case submission.
+- Dashboard create form uses registered advisors from a dropdown and sends mapped ObjectIds to backend.
+- Current access model is lightweight session-less user identification (`register` / `login` by email), not full password-based authentication.
+- Authorization/role control is not implemented yet.
 - This repository is not configured as an npm workspace; `backend` and `frontend` are managed as separate packages.
