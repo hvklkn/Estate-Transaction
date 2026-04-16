@@ -12,9 +12,11 @@ Core behaviors implemented:
 - transaction lifecycle stages: `agreement -> earnest_money -> title_deed -> completed`
 - centralized commission calculation policy and persisted financial breakdown
 - centralized stage transition policy with strict forward-only progression
+- transaction stage history tracking (`fromStage`, `toStage`, `changedAt`, optional `changedBy`)
+- completed transaction earnings summary reporting endpoint
 - lightweight user access flow (register/login by email) backed by MongoDB
 - advisor assignment via registered user selection (name/email in UI, ObjectId mapping in payload)
-- operational dashboard for list/create/transition workflows
+- operational dashboard for list/create/transition workflows with expandable transaction details
 
 ## Architecture Summary
 
@@ -144,6 +146,7 @@ Jest note:
 
 Current status:
 - backend unit tests are implemented
+- transaction service tests include stage history append and completed-earnings summary aggregation coverage
 - frontend automated tests are not implemented yet
 
 ## API Overview
@@ -166,10 +169,22 @@ Agents:
 Transactions:
 - `POST /transactions`
 - `GET /transactions`
+- `GET /transactions/summary`
 - `GET /transactions/:id`
 - `PATCH /transactions/:id` (non-stage fields)
-- `PATCH /transactions/:id/stage`
+- `PATCH /transactions/:id/stage` (optional `x-agent-id` header for `changedBy`)
 - `DELETE /transactions/:id`
+
+Summary endpoint behavior:
+- `GET /transactions/summary` returns aggregates for completed transactions:
+  - `totalAgencyEarnings`
+  - `totalAgentEarnings`
+  - `byAgent[]` (`agentId`, `earnings`)
+
+Stage history behavior:
+- transaction create initializes history with first entry (`fromStage: null`, `toStage: agreement`, `changedAt`)
+- stage update appends a new history entry automatically
+- current stage remains on `stage` for fast filtering and lifecycle checks
 
 Lifecycle behavior:
 - new transactions must start at `agreement`
@@ -203,6 +218,11 @@ Frontend:
 Suggested targets:
 - backend: Render, Railway, Fly.io, ECS/Fargate
 - frontend: Vercel, Netlify, Cloudflare Pages
+
+## UI Notes
+
+- Transaction cards include an expanded detail panel.
+- The detail panel shows current stage, stage history, financial breakdown, listing/selling advisor info, and total service fee.
 
 ## Important Assumptions
 

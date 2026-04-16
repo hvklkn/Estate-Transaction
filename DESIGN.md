@@ -66,6 +66,7 @@ Access model:
 - `listingAgentId` (ObjectId ref `Agent`)
 - `sellingAgentId` (ObjectId ref `Agent`)
 - `stage` enum: `agreement`, `earnest_money`, `title_deed`, `completed`
+- `stageHistory[]` entries with `fromStage`, `toStage`, `changedAt`, optional `changedBy`
 - embedded `financialBreakdown`
 - timestamps
 
@@ -76,6 +77,7 @@ Indexes:
 Reasoning:
 - indexes match dashboard access patterns (stage views and agent-related queries)
 - stage is persisted, not derived, because transitions are explicit operations
+- history is embedded so stage progression remains queryable and traceable from a single transaction document
 
 ### 4.3 Why Financial Breakdown Is Stored on Transaction
 
@@ -92,6 +94,7 @@ Reasons:
 Current behavior:
 - breakdown is recalculated on create and general update (`PATCH /transactions/:id`)
 - stage-only update (`PATCH /transactions/:id/stage`) updates stage only
+- storing the snapshot intentionally avoids historical drift if commission policy changes later
 
 ## 5. Commission Calculation Design
 
@@ -138,8 +141,27 @@ Enforced lifecycle:
 Integration:
 - dedicated DTO and endpoint for stage change: `PATCH /transactions/:id/stage`
 - generic update DTO intentionally excludes stage to avoid bypassing lifecycle policy
+- service appends a history row on create (`null -> agreement`) and on every valid stage transition
+- optional `x-agent-id` header can be passed to stage updates to capture `changedBy` without adding full auth complexity
 
-## 7. Validation and Error Handling
+## 7. Summary Reporting
+
+Scope:
+- a lightweight reporting endpoint was added instead of a separate analytics module
+- endpoint: `GET /transactions/summary`
+
+Behavior:
+- aggregates only `completed` transactions
+- returns:
+  - `totalAgencyEarnings`
+  - `totalAgentEarnings`
+  - `byAgent[]` (`agentId`, `earnings`)
+
+Reasoning:
+- gives an interview-friendly reporting capability with minimal extra surface area
+- keeps controller thin; aggregation logic remains in `TransactionsService`
+
+## 8. Validation and Error Handling
 
 ### 7.1 Backend Validation
 
@@ -167,7 +189,7 @@ Frontend store does not parse backend error payload inline anymore.
 
 This avoids duplicated parsing logic and keeps store actions readable.
 
-## 8. Frontend Architecture (Nuxt 3 + Pinia)
+## 9. Frontend Architecture (Nuxt 3 + Pinia)
 
 Structure:
 - `pages/transactions.vue`: page composition and interaction wiring
@@ -186,12 +208,13 @@ Data flow decisions:
 - auth state is client-hydrated from localStorage, then refreshed from API via plugin startup
 - route middleware redirects unauthenticated users to `/auth`
 - transaction creation UI uses advisor names/emails from `authStore.activeUsers`, while payload keeps ObjectId references
+- transaction cards expose a detail panel for stage history + financial snapshot visibility without introducing route-level complexity
 
 Contract safety:
 - transaction API normalization now fails fast on invalid/missing critical fields
 - this avoids silently injecting corrupted entities into store state
 
-## 9. Testing Strategy
+## 10. Testing Strategy
 
 Backend tests are unit-focused and target business rules, not framework wiring.
 
@@ -209,17 +232,21 @@ Covered suites:
 - `transactions.service.spec.ts`
   - create/update orchestration with commission + agent checks
   - stage update orchestration through policy
+  - stage history append behavior on create and stage transition
+  - completed earnings summary aggregation behavior
   - invalid ObjectId and not-found behavior
 
 Current boundary:
 - no backend e2e tests yet (controller/database integration still future work)
 
-## 10. Trade-offs and Future Improvements
+## 11. Trade-offs and Future Improvements
 
 Current trade-offs:
 - stored `financialBreakdown` favors read simplicity and auditability over full normalization
+- embedded `stageHistory` favors single-document traceability over a separate audit collection
 - number/cents arithmetic is deterministic for current scope, but money libraries/decimal types may be preferable for stricter accounting requirements
 - current access model is intentionally lightweight (email-only register/login, no password/session token)
+- summary reporting is intentionally narrow (completed-only aggregates) to keep this case focused
 - frontend contract validation is strict; schema drift now fails loudly (intentional), but requires coordinated API changes
 
 Next improvements with highest value:
