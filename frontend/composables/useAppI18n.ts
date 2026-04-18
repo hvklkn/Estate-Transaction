@@ -3,33 +3,12 @@ import { computed } from 'vue';
 import { DEFAULT_LOCALE, MESSAGES, SUPPORTED_LOCALES, type AppLocale } from '~/locales/messages';
 import type { TransactionStage } from '~/types/transaction';
 
-export const LOCALE_STORAGE_KEY = 'iceberg.locale';
-
-const SUPPORTED_LOCALE_SET = new Set<AppLocale>(SUPPORTED_LOCALES.map((locale) => locale.code));
-
 const INTL_LOCALE_MAP: Record<AppLocale, string> = {
-  en: 'en-US',
-  tr: 'tr-TR',
-  fr: 'fr-FR',
-  de: 'de-DE'
+  en: 'en-US'
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const normalizeLocaleCandidate = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmedValue = value.trim().toLowerCase();
-
-  if (!trimmedValue) {
-    return null;
-  }
-
-  return trimmedValue.split('-')[0] ?? null;
-};
 
 const resolveMessageTemplate = (locale: AppLocale, key: string): string | null => {
   const segments = key.split('.');
@@ -61,18 +40,10 @@ export const useAppI18n = () => {
 
   const currentIntlLocale = computed(() => INTL_LOCALE_MAP[locale.value]);
 
-  const normalizeLocale = (value: string | null | undefined): AppLocale => {
-    const candidate = normalizeLocaleCandidate(value);
+  const normalizeLocale = (_value: string | null | undefined): AppLocale => DEFAULT_LOCALE;
 
-    if (!candidate || !SUPPORTED_LOCALE_SET.has(candidate as AppLocale)) {
-      return DEFAULT_LOCALE;
-    }
-
-    return candidate as AppLocale;
-  };
-
-  const setLocale = (nextLocale: AppLocale | string) => {
-    locale.value = normalizeLocale(String(nextLocale));
+  const setLocale = (_nextLocale: AppLocale | string) => {
+    locale.value = DEFAULT_LOCALE;
   };
 
   const t = (

@@ -5,13 +5,12 @@ import MetricCard from '~/components/dashboard/MetricCard.vue';
 import TransactionListControls, {
   type TransactionSortOption
 } from '~/components/dashboard/TransactionListControls.vue';
-import TransactionCreateForm from '~/components/transactions/TransactionCreateForm.vue';
 import TransactionList from '~/components/transactions/TransactionList.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
 import { useUserSettings } from '~/composables/useUserSettings';
 import { useAuthStore } from '~/stores/auth';
 import { useTransactionsStore } from '~/stores/transactions';
-import type { CreateTransactionPayload, TransactionStage } from '~/types/transaction';
+import type { TransactionStage } from '~/types/transaction';
 
 const transactionsStore = useTransactionsStore();
 const authStore = useAuthStore();
@@ -111,18 +110,6 @@ const filteredTransactions = computed(() => {
   });
 });
 
-const handleCreateTransaction = async (payload: CreateTransactionPayload) => {
-  try {
-    const transaction = await transactionsStore.createTransaction(payload);
-    await notifyIfEnabled(
-      t('transactions.notifications.createdTitle'),
-      t('transactions.notifications.createdBody', { propertyTitle: transaction.propertyTitle })
-    );
-  } catch {
-    // Errors are stored in Pinia state and rendered by the page.
-  }
-};
-
 const handleStageChange = async (payload: { id: string; stage: TransactionStage }) => {
   try {
     const transaction = await transactionsStore.updateTransactionStage(payload.id, payload.stage);
@@ -143,9 +130,9 @@ const handleRefresh = async () => {
 };
 
 onMounted(async () => {
+  authStore.hydrateFromStorage();
   hydrateFromStorage();
   await transactionsStore.fetchTransactions();
-  await authStore.fetchUsers().catch(() => undefined);
 });
 </script>
 
@@ -169,6 +156,9 @@ onMounted(async () => {
           <span class="status-chip">
             {{ t('transactions.list.recordCount', { count: transactionsStore.items.length }) }}
           </span>
+          <NuxtLink to="/transactions/create" class="btn-primary">
+            {{ t('transactions.actions.create') }}
+          </NuxtLink>
           <a
             v-if="isEmailSummariesEnabled"
             :href="summaryEmailHref"
@@ -236,17 +226,7 @@ onMounted(async () => {
       </button>
     </div>
 
-    <div v-if="isInitialLoading" class="grid gap-6 xl:grid-cols-[380px,minmax(0,1fr)]">
-      <div class="panel">
-        <div class="panel-body space-y-4">
-          <div class="skeleton h-5 w-40"></div>
-          <div class="skeleton h-4 w-full"></div>
-          <div class="skeleton h-12 w-full"></div>
-          <div class="skeleton h-10 w-full"></div>
-          <div class="skeleton h-10 w-full"></div>
-          <div class="skeleton h-10 w-full"></div>
-        </div>
-      </div>
+    <div v-if="isInitialLoading" class="grid gap-6">
       <div class="panel">
         <div class="panel-body space-y-4">
           <div class="skeleton h-5 w-44"></div>
@@ -256,36 +236,25 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-else class="grid gap-6 xl:grid-cols-[380px,minmax(0,1fr)] xl:items-start">
-      <div class="xl:sticky xl:top-24">
-        <TransactionCreateForm
-          :is-submitting="transactionsStore.isCreating"
-          :agents="authStore.activeUsers"
-          :is-agents-loading="authStore.isLoadingUsers"
-          @submit="handleCreateTransaction"
-        />
-      </div>
+    <div v-else class="space-y-4">
+      <TransactionListControls
+        :search-query="searchQuery"
+        :stage-filter="stageFilter"
+        :sort-by="sortBy"
+        :disabled="transactionsStore.isLoading"
+        @update:search-query="searchQuery = $event"
+        @update:stage-filter="stageFilter = $event"
+        @update:sort-by="sortBy = $event"
+      />
 
-      <div class="space-y-4">
-        <TransactionListControls
-          :search-query="searchQuery"
-          :stage-filter="stageFilter"
-          :sort-by="sortBy"
-          :disabled="transactionsStore.isLoading"
-          @update:search-query="searchQuery = $event"
-          @update:stage-filter="stageFilter = $event"
-          @update:sort-by="sortBy = $event"
-        />
-
-        <TransactionList
-          :transactions="filteredTransactions"
-          :stage-update-transaction-id="transactionsStore.stageUpdateTransactionId"
-          :get-next-stage="transactionsStore.getNextStage"
-          :is-refreshing="isRefreshing"
-          :compact-mode="isCompactCardsEnabled"
-          @stage-change="handleStageChange"
-        />
-      </div>
+      <TransactionList
+        :transactions="filteredTransactions"
+        :stage-update-transaction-id="transactionsStore.stageUpdateTransactionId"
+        :get-next-stage="transactionsStore.getNextStage"
+        :is-refreshing="isRefreshing"
+        :compact-mode="isCompactCardsEnabled"
+        @stage-change="handleStageChange"
+      />
     </div>
   </section>
 </template>

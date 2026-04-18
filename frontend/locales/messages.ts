@@ -1,10 +1,7 @@
-export type AppLocale = 'en' | 'tr' | 'fr' | 'de';
+export type AppLocale = 'en';
 
 export const SUPPORTED_LOCALES: Array<{ code: AppLocale; label: string }> = [
-  { code: 'tr', label: 'Türkçe' },
-  { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
-  { code: 'de', label: 'Deutsch' }
+  { code: 'en', label: 'English' }
 ];
 
 export const DEFAULT_LOCALE: AppLocale = 'en';
@@ -237,7 +234,7 @@ export const MESSAGES = {
       header: {
         kicker: 'Workspace Preferences',
         title: 'Settings',
-        description: 'Manage dashboard behavior, visual theme, and language options for daily operations.'
+        description: 'Manage dashboard behavior and visual theme preferences for daily operations.'
       },
       profile: {
         title: 'Profile',
@@ -281,8 +278,8 @@ export const MESSAGES = {
         emailSummariesHint: 'Get a single summary email including open deals and pending stage actions.'
       },
       appearance: {
-        title: 'Appearance & Language',
-        description: 'Choose a visual mode and interface language for your workspace.',
+        title: 'Appearance',
+        description: 'Choose a visual mode for your workspace.',
         themeLabel: 'Theme',
         languageLabel: 'Language',
         light: 'Light',

@@ -2,10 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
-import type { AppLocale } from '~/locales/messages';
 import { useAuthStore } from '~/stores/auth';
 
-const { locale, locales, setLocale, t } = useAppI18n();
+const { t } = useAppI18n();
 const authStore = useAuthStore();
 const route = useRoute();
 const runtimeConfig = useRuntimeConfig();
@@ -29,16 +28,9 @@ const panelClasses = computed(
     'border-white/50 bg-blue-900/20 shadow-sm backdrop-blur hover:border-white/80 hover:bg-blue-900/30'
 );
 
-const selectedLocale = computed({
-  get: () => locale.value,
-  set: (nextLocale: AppLocale) => {
-    setLocale(nextLocale);
-  }
-});
-
 useHead(() => ({
   htmlAttrs: {
-    lang: locale.value,
+    lang: 'en',
     class: colorMode.value === 'dark' ? 'dark' : undefined
   }
 }));
@@ -163,32 +155,6 @@ watch(
               </span>
             </button>
 
-            <label
-              class="flex max-w-[110px] items-center gap-1 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-none sm:gap-2 sm:px-2.5"
-              :class="panelClasses"
-            >
-              <span
-                class="hidden text-xs font-medium sm:inline"
-                :class="'text-white/90'"
-              >
-                {{ t('layout.language') }}
-              </span>
-              <select
-                v-model="selectedLocale"
-                class="w-[72px] truncate rounded border-none bg-transparent py-0.5 pr-4 text-xs font-medium focus:outline-none focus:ring-0 sm:w-auto sm:pr-6"
-                :class="'text-white'"
-                :aria-label="t('layout.language')"
-              >
-                <option
-                  v-for="localeOption in locales"
-                  :key="localeOption.code"
-                  :value="localeOption.code"
-                >
-                  {{ localeOption.label }}
-                </option>
-              </select>
-            </label>
-
             <div
               v-if="currentUserName"
               class="inline-flex max-w-[140px] items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-[240px] sm:px-3"
@@ -269,25 +235,6 @@ watch(
           </nav>
 
           <div class="mt-3 space-y-2 border-t border-white/25 pt-3">
-            <label
-              class="flex items-center justify-between gap-2 rounded-lg border border-white/35 bg-blue-900/25 px-3 py-2"
-            >
-              <span class="text-xs font-medium text-white/90">{{ t('layout.language') }}</span>
-              <select
-                v-model="selectedLocale"
-                class="rounded border-none bg-transparent py-0.5 pr-5 text-xs font-medium text-white focus:outline-none focus:ring-0"
-                :aria-label="t('layout.language')"
-              >
-                <option
-                  v-for="localeOption in locales"
-                  :key="localeOption.code"
-                  :value="localeOption.code"
-                >
-                  {{ localeOption.label }}
-                </option>
-              </select>
-            </label>
-
             <div
               v-if="currentUserName"
               class="flex items-center justify-between gap-3 rounded-lg border border-white/35 bg-blue-900/25 px-3 py-2"

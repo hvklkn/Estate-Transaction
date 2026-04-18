@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
 import { useUserSettings } from '~/composables/useUserSettings';
-import type { AppLocale } from '~/locales/messages';
 import { useAuthStore } from '~/stores/auth';
 
 const PROFILE_STORAGE_KEY = 'iceberg.profile-settings';
@@ -19,17 +18,10 @@ type ProfileForm = {
 
 type ProfileVerification = Record<ProfileField, boolean>;
 
-const { t, locale, locales, setLocale } = useAppI18n();
+const { t } = useAppI18n();
 const { settings, hydrateFromStorage } = useUserSettings();
 const authStore = useAuthStore();
 const colorMode = useState<'light' | 'dark'>('color-mode', () => 'light');
-
-const selectedLocale = computed({
-  get: () => locale.value,
-  set: (nextLocale: AppLocale) => {
-    setLocale(nextLocale);
-  }
-});
 
 const compactCards = computed({
   get: () => settings.value.compactCards,
@@ -420,18 +412,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <label class="block">
-            <span class="field-label">{{ t('settings.appearance.languageLabel') }}</span>
-            <select v-model="selectedLocale" class="input-base">
-              <option
-                v-for="localeOption in locales"
-                :key="localeOption.code"
-                :value="localeOption.code"
-              >
-                {{ localeOption.label }}
-              </option>
-            </select>
-          </label>
         </div>
       </article>
     </div>
