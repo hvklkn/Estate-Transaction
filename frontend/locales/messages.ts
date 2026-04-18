@@ -14,9 +14,18 @@ export const MESSAGES = {
     layout: {
       subtitle: 'Internal Transaction Operations',
       navigation: {
-        transactions: 'Transactions'
+        transactions: 'Transactions',
+        settings: 'Settings'
       },
-      language: 'Language'
+      language: 'Language',
+      menu: {
+        open: 'Open menu',
+        close: 'Close menu'
+      },
+      theme: {
+        switchToLight: 'Switch to light mode',
+        switchToDark: 'Switch to dark mode'
+      }
     },
     auth: {
       meta: {
@@ -38,6 +47,19 @@ export const MESSAGES = {
         register: 'Register',
         registering: 'Registering...',
         logout: 'Logout'
+      },
+      verification: {
+        emailTitle: 'Email Verification',
+        emailDescription: 'Verify your email with the code sent to your inbox before registration.',
+        sendCode: 'Send Verification Code',
+        resendCode: 'Resend Code',
+        verifyCode: 'Verify Code',
+        statusVerified: 'Verified',
+        statusPending: 'Pending verification',
+        codeSentInfo: 'Verification code sent. Demo code:',
+        codePlaceholder: 'Enter 6-digit code',
+        invalidCode: 'Incorrect verification code.',
+        requiredBeforeRegister: 'You must verify your email before creating an account.'
       },
       fields: {
         name: 'Full Name',
@@ -64,7 +86,16 @@ export const MESSAGES = {
         retry: 'Retry',
         clear: 'Clear',
         create: 'Create Transaction',
-        creating: 'Creating...'
+        creating: 'Creating...',
+        sendSummaryEmail: 'Send Summary Email',
+        summaryEmailSubject: 'Daily Transaction Summary',
+        summaryEmailIntro: 'Here is your current transaction summary:'
+      },
+      notifications: {
+        createdTitle: 'Transaction Created',
+        createdBody: '{propertyTitle} was added successfully.',
+        stageChangedTitle: 'Stage Updated',
+        stageChangedBody: '{propertyTitle} moved to {stage}.'
       },
       metrics: {
         totalTransactions: {
@@ -199,6 +230,65 @@ export const MESSAGES = {
         }
       }
     },
+    settings: {
+      meta: {
+        title: 'Settings'
+      },
+      header: {
+        kicker: 'Workspace Preferences',
+        title: 'Settings',
+        description: 'Manage dashboard behavior, visual theme, and language options for daily operations.'
+      },
+      profile: {
+        title: 'Profile',
+        description: 'User identity and payout details used by operations.',
+        status: {
+          verified: 'Verified',
+          pending: 'Pending verification'
+        },
+        fields: {
+          name: 'Full Name',
+          email: 'Email Address',
+          phone: 'Phone Number',
+          iban: 'IBAN'
+        },
+        placeholders: {
+          name: 'Alex Johnson',
+          email: 'name@company.com',
+          phone: '+90 5XX XXX XX XX',
+          iban: 'TR00 0000 0000 0000 0000 0000 00'
+        },
+        actions: {
+          verify: 'Mark Verified',
+          sendSms: 'Send SMS Code',
+          confirmSms: 'Confirm SMS Code'
+        },
+        sms: {
+          codeSent: 'An SMS verification code has been sent.',
+          demoCode: 'Demo code',
+          codePlaceholder: 'Enter 6-digit SMS code',
+          invalidCode: 'Invalid code. Please check and try again.',
+          verified: 'Phone number verified successfully.'
+        }
+      },
+      preferences: {
+        title: 'Workflow Preferences',
+        compactCardsLabel: 'Use compact transaction cards',
+        compactCardsHint: 'Shows denser cards on the dashboard to fit more items on smaller screens.',
+        pushNotificationsLabel: 'Enable mobile push notifications',
+        pushNotificationsHint: 'Receive instant updates for stage transitions and assignment actions.',
+        emailSummariesLabel: 'Send daily email summaries',
+        emailSummariesHint: 'Get a single summary email including open deals and pending stage actions.'
+      },
+      appearance: {
+        title: 'Appearance & Language',
+        description: 'Choose a visual mode and interface language for your workspace.',
+        themeLabel: 'Theme',
+        languageLabel: 'Language',
+        light: 'Light',
+        dark: 'Dark'
+      }
+    },
     stages: {
       agreement: 'Agreement',
       earnest_money: 'Earnest Money',
@@ -213,9 +303,18 @@ export const MESSAGES = {
     layout: {
       subtitle: 'Dahili İşlem Operasyonları',
       navigation: {
-        transactions: 'İşlemler'
+        transactions: 'İşlemler',
+        settings: 'Ayarlar'
       },
-      language: 'Dil'
+      language: 'Dil',
+      menu: {
+        open: 'Menüyü aç',
+        close: 'Menüyü kapat'
+      },
+      theme: {
+        switchToLight: 'Açık temaya geç',
+        switchToDark: 'Koyu temaya geç'
+      }
     },
     auth: {
       meta: {
@@ -237,6 +336,19 @@ export const MESSAGES = {
         register: 'Kayıt Ol',
         registering: 'Kaydediliyor...',
         logout: 'Çıkış Yap'
+      },
+      verification: {
+        emailTitle: 'E-posta Doğrulama',
+        emailDescription: 'Kayıt olmadan önce gelen kod ile e-postanızı doğrulayın.',
+        sendCode: 'Doğrulama Kodu Gönder',
+        resendCode: 'Kodu Tekrar Gönder',
+        verifyCode: 'Kodu Doğrula',
+        statusVerified: 'Onaylandı',
+        statusPending: 'Onaylanmayı bekliyor',
+        codeSentInfo: 'Doğrulama kodu gönderildi. Demo kod:',
+        codePlaceholder: '6 haneli kodu girin',
+        invalidCode: 'Doğrulama kodu hatalı.',
+        requiredBeforeRegister: 'Hesap oluşturmadan önce e-posta doğrulaması zorunludur.'
       },
       fields: {
         name: 'Ad Soyad',
@@ -263,7 +375,16 @@ export const MESSAGES = {
         retry: 'Tekrar Dene',
         clear: 'Temizle',
         create: 'İşlem Oluştur',
-        creating: 'Oluşturuluyor...'
+        creating: 'Oluşturuluyor...',
+        sendSummaryEmail: 'Özet E-postası Gönder',
+        summaryEmailSubject: 'Günlük İşlem Özeti',
+        summaryEmailIntro: 'Mevcut işlem özetiniz aşağıdadır:'
+      },
+      notifications: {
+        createdTitle: 'İşlem Oluşturuldu',
+        createdBody: '{propertyTitle} başarıyla eklendi.',
+        stageChangedTitle: 'Aşama Güncellendi',
+        stageChangedBody: '{propertyTitle}, {stage} aşamasına geçti.'
       },
       metrics: {
         openTransactions: {
@@ -353,6 +474,65 @@ export const MESSAGES = {
           selling: 'Satışı Yapan Danışman',
           listing_and_selling: 'Listeleyen + Satışı Yapan Danışman'
         }
+      }
+    },
+    settings: {
+      meta: {
+        title: 'Ayarlar'
+      },
+      header: {
+        kicker: 'Çalışma Alanı Tercihleri',
+        title: 'Ayarlar',
+        description: 'Günlük operasyon için panel davranışını, görünümü ve dil seçeneklerini yönetin.'
+      },
+      profile: {
+        title: 'Profil',
+        description: 'Operasyonlarda kullanılan kullanıcı kimliği ve ödeme bilgileri.',
+        status: {
+          verified: 'Onaylandı',
+          pending: 'Onaylanmayı bekliyor'
+        },
+        fields: {
+          name: 'Ad Soyad',
+          email: 'E-posta Adresi',
+          phone: 'Telefon Numarası',
+          iban: 'IBAN'
+        },
+        placeholders: {
+          name: 'Ahmet Yılmaz',
+          email: 'isim@sirket.com',
+          phone: '+90 5XX XXX XX XX',
+          iban: 'TR00 0000 0000 0000 0000 0000 00'
+        },
+        actions: {
+          verify: 'Onayla',
+          sendSms: 'SMS Kodu Gönder',
+          confirmSms: 'SMS Kodunu Doğrula'
+        },
+        sms: {
+          codeSent: 'SMS doğrulama kodu gönderildi.',
+          demoCode: 'Demo kod',
+          codePlaceholder: '6 haneli SMS kodunu girin',
+          invalidCode: 'Kod geçersiz. Kontrol edip tekrar deneyin.',
+          verified: 'Telefon numarası başarıyla onaylandı.'
+        }
+      },
+      preferences: {
+        title: 'Çalışma Tercihleri',
+        compactCardsLabel: 'Kompakt işlem kartlarını kullan',
+        compactCardsHint: 'Küçük ekranlarda daha fazla kayıt görmek için daha sıkı kart görünümü kullanır.',
+        pushNotificationsLabel: 'Mobil anlık bildirimleri aç',
+        pushNotificationsHint: 'Aşama geçişleri ve atama işlemleri için anında bildirim alırsınız.',
+        emailSummariesLabel: 'Günlük e-posta özetleri gönder',
+        emailSummariesHint: 'Açık işlemler ve bekleyen aksiyonlar için günlük tek özet e-posta alın.'
+      },
+      appearance: {
+        title: 'Görünüm ve Dil',
+        description: 'Çalışma alanınız için tema ve arayüz dilini seçin.',
+        themeLabel: 'Tema',
+        languageLabel: 'Dil',
+        light: 'Açık',
+        dark: 'Koyu'
       }
     },
     stages: {

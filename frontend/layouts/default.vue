@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
 import type { AppLocale } from '~/locales/messages';
@@ -7,8 +7,10 @@ import { useAuthStore } from '~/stores/auth';
 
 const { locale, locales, setLocale, t } = useAppI18n();
 const authStore = useAuthStore();
+const route = useRoute();
 const runtimeConfig = useRuntimeConfig();
 const colorMode = useState<'light' | 'dark'>('color-mode', () => 'light');
+const isMobileMenuOpen = ref(false);
 const COLOR_MODE_STORAGE_KEY = 'iceberg.color-mode';
 const currentYear = new Date().getFullYear();
 const appEnv = computed(() => String(runtimeConfig.public.appEnv ?? 'development').toUpperCase());
@@ -42,9 +44,20 @@ useHead(() => ({
 }));
 
 const currentUserName = computed(() => authStore.currentUser?.name ?? null);
+const navigationItems = computed(() => [
+  {
+    to: '/transactions',
+    label: t('layout.navigation.transactions')
+  },
+  {
+    to: '/settings',
+    label: t('layout.navigation.settings')
+  }
+]);
 
 const handleLogout = async () => {
   authStore.logout();
+  isMobileMenuOpen.value = false;
   await navigateTo('/auth');
 };
 
@@ -55,6 +68,20 @@ const setColorMode = (mode: 'light' | 'dark') => {
 const toggleColorMode = () => {
   setColorMode(colorMode.value === 'dark' ? 'light' : 'dark');
 };
+
+const toggleMobileMenu = () => {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value;
+};
+
+const isRouteActive = (targetPath: string): boolean =>
+  route.path === targetPath || route.path.startsWith(`${targetPath}/`);
+
+watch(
+  () => route.path,
+  () => {
+    isMobileMenuOpen.value = false;
+  }
+);
 
 onMounted(() => {
   const storedMode = window.localStorage.getItem(COLOR_MODE_STORAGE_KEY);
@@ -87,85 +114,195 @@ watch(
       class="sticky top-0 z-10 border-b backdrop-blur"
       :class="headerThemeClasses"
     >
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-        <div class="min-w-0">
-          <NuxtLink
-            to="/"
-            class="inline-flex items-center rounded-xl border px-3 py-2 text-sm font-semibold tracking-tight shadow-sm transition-all hover:shadow"
-            :class="brandButtonClasses"
-          >
-            <span class="sm:hidden">ET</span>
-            <span class="hidden sm:inline">Estate Transaction</span>
-          </NuxtLink>
-        </div>
+      <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+            <NuxtLink
+              to="/"
+              class="inline-flex items-center rounded-xl border px-3 py-2 text-sm font-semibold tracking-tight shadow-sm transition-all hover:shadow"
+              :class="brandButtonClasses"
+            >
+              <span class="sm:hidden">ET</span>
+              <span class="hidden sm:inline">Estate Transaction</span>
+            </NuxtLink>
 
-        <nav class="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
-          <button
-            type="button"
-            class="relative inline-flex h-8 w-16 items-center rounded-full border border-white/50 bg-blue-900/25 p-1 transition-colors hover:border-white/80 hover:bg-blue-900/35"
-            :aria-label="colorMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-            :aria-pressed="colorMode === 'dark'"
-            @click="toggleColorMode"
-          >
-            <span class="flex w-full items-center justify-between px-1 text-[11px] leading-none text-blue-100">
-              <span>☀</span>
-              <span>🌙</span>
-            </span>
-            <span
-              class="absolute top-1 h-6 w-6 rounded-full bg-white text-center text-sm leading-6 text-blue-700 shadow transition-all"
-              :class="colorMode === 'dark' ? 'left-9' : 'left-1'"
-            >
-              {{ colorMode === 'dark' ? '🌙' : '☀' }}
-            </span>
-          </button>
-
-          <label
-            class="flex max-w-[110px] items-center gap-1 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-none sm:gap-2 sm:px-2.5"
-            :class="panelClasses"
-          >
-            <span
-              class="hidden text-xs font-medium sm:inline"
-              :class="'text-white/90'"
-            >
-              {{ t('layout.language') }}
-            </span>
-            <select
-              v-model="selectedLocale"
-              class="w-[72px] truncate rounded border-none bg-transparent py-0.5 pr-4 text-xs font-medium focus:outline-none focus:ring-0 sm:w-auto sm:pr-6"
-              :class="'text-white'"
-              :aria-label="t('layout.language')"
-            >
-              <option
-                v-for="localeOption in locales"
-                :key="localeOption.code"
-                :value="localeOption.code"
+            <nav class="hidden items-center gap-2 md:flex">
+              <NuxtLink
+                v-for="navigationItem in navigationItems"
+                :key="navigationItem.to"
+                :to="navigationItem.to"
+                class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-colors"
+                :class="
+                  isRouteActive(navigationItem.to)
+                    ? 'border-white bg-white text-blue-700 shadow-sm'
+                    : 'border-white/45 bg-blue-900/20 text-blue-100 hover:border-white/80 hover:bg-blue-900/35 hover:text-white'
+                "
               >
-                {{ localeOption.label }}
-              </option>
-            </select>
-          </label>
+                {{ navigationItem.label }}
+              </NuxtLink>
+            </nav>
+          </div>
 
-          <div
-            v-if="currentUserName"
-            class="inline-flex max-w-[140px] items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-[240px] sm:px-3"
-            :class="panelClasses"
-          >
-            <span
-              class="truncate text-xs font-medium"
-              :class="'text-white'"
-            >
-              {{ currentUserName }}
-            </span>
+          <div class="hidden min-w-0 items-center gap-2 text-sm sm:gap-3 md:flex">
             <button
               type="button"
-              class="shrink-0 text-xs font-medium transition-colors"
-              :class="'text-blue-100 hover:text-white'"
-              @click="handleLogout"
+              class="relative inline-flex h-8 w-16 items-center rounded-full border border-white/50 bg-blue-900/25 p-1 transition-colors hover:border-white/80 hover:bg-blue-900/35"
+              :aria-label="colorMode === 'dark' ? t('layout.theme.switchToLight') : t('layout.theme.switchToDark')"
+              :aria-pressed="colorMode === 'dark'"
+              @click="toggleColorMode"
             >
-              {{ t('auth.actions.logout') }}
+              <span class="flex w-full items-center justify-between px-1 text-[11px] leading-none text-blue-100">
+                <span>☀</span>
+                <span>🌙</span>
+              </span>
+              <span
+                class="absolute top-1 h-6 w-6 rounded-full bg-white text-center text-sm leading-6 text-blue-700 shadow transition-all"
+                :class="colorMode === 'dark' ? 'left-9' : 'left-1'"
+              >
+                {{ colorMode === 'dark' ? '🌙' : '☀' }}
+              </span>
+            </button>
+
+            <label
+              class="flex max-w-[110px] items-center gap-1 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-none sm:gap-2 sm:px-2.5"
+              :class="panelClasses"
+            >
+              <span
+                class="hidden text-xs font-medium sm:inline"
+                :class="'text-white/90'"
+              >
+                {{ t('layout.language') }}
+              </span>
+              <select
+                v-model="selectedLocale"
+                class="w-[72px] truncate rounded border-none bg-transparent py-0.5 pr-4 text-xs font-medium focus:outline-none focus:ring-0 sm:w-auto sm:pr-6"
+                :class="'text-white'"
+                :aria-label="t('layout.language')"
+              >
+                <option
+                  v-for="localeOption in locales"
+                  :key="localeOption.code"
+                  :value="localeOption.code"
+                >
+                  {{ localeOption.label }}
+                </option>
+              </select>
+            </label>
+
+            <div
+              v-if="currentUserName"
+              class="inline-flex max-w-[140px] items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-[240px] sm:px-3"
+              :class="panelClasses"
+            >
+              <span
+                class="truncate text-xs font-medium"
+                :class="'text-white'"
+              >
+                {{ currentUserName }}
+              </span>
+              <button
+                type="button"
+                class="shrink-0 text-xs font-medium transition-colors"
+                :class="'text-blue-100 hover:text-white'"
+                @click="handleLogout"
+              >
+                {{ t('auth.actions.logout') }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 md:hidden">
+            <button
+              type="button"
+              class="relative inline-flex h-8 w-16 items-center rounded-full border border-white/50 bg-blue-900/25 p-1 transition-colors hover:border-white/80 hover:bg-blue-900/35"
+              :aria-label="colorMode === 'dark' ? t('layout.theme.switchToLight') : t('layout.theme.switchToDark')"
+              :aria-pressed="colorMode === 'dark'"
+              @click="toggleColorMode"
+            >
+              <span class="flex w-full items-center justify-between px-1 text-[11px] leading-none text-blue-100">
+                <span>☀</span>
+                <span>🌙</span>
+              </span>
+              <span
+                class="absolute top-1 h-6 w-6 rounded-full bg-white text-center text-sm leading-6 text-blue-700 shadow transition-all"
+                :class="colorMode === 'dark' ? 'left-9' : 'left-1'"
+              >
+                {{ colorMode === 'dark' ? '🌙' : '☀' }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/50 bg-blue-900/25 text-white transition-colors hover:border-white hover:bg-blue-900/35"
+              :aria-label="isMobileMenuOpen ? t('layout.menu.close') : t('layout.menu.open')"
+              :aria-expanded="isMobileMenuOpen"
+              @click="toggleMobileMenu"
+            >
+              <svg v-if="!isMobileMenuOpen" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+              </svg>
             </button>
           </div>
-        </nav>
+        </div>
+
+        <div
+          v-if="isMobileMenuOpen"
+          class="mt-3 rounded-xl border border-white/40 bg-blue-900/40 p-3 md:hidden"
+        >
+          <nav class="grid gap-2">
+            <NuxtLink
+              v-for="navigationItem in navigationItems"
+              :key="navigationItem.to"
+              :to="navigationItem.to"
+              class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
+              :class="
+                isRouteActive(navigationItem.to)
+                  ? 'border-white bg-white text-blue-700'
+                  : 'border-white/40 bg-blue-900/20 text-blue-100 hover:border-white/80 hover:bg-blue-900/30'
+              "
+            >
+              {{ navigationItem.label }}
+            </NuxtLink>
+          </nav>
+
+          <div class="mt-3 space-y-2 border-t border-white/25 pt-3">
+            <label
+              class="flex items-center justify-between gap-2 rounded-lg border border-white/35 bg-blue-900/25 px-3 py-2"
+            >
+              <span class="text-xs font-medium text-white/90">{{ t('layout.language') }}</span>
+              <select
+                v-model="selectedLocale"
+                class="rounded border-none bg-transparent py-0.5 pr-5 text-xs font-medium text-white focus:outline-none focus:ring-0"
+                :aria-label="t('layout.language')"
+              >
+                <option
+                  v-for="localeOption in locales"
+                  :key="localeOption.code"
+                  :value="localeOption.code"
+                >
+                  {{ localeOption.label }}
+                </option>
+              </select>
+            </label>
+
+            <div
+              v-if="currentUserName"
+              class="flex items-center justify-between gap-3 rounded-lg border border-white/35 bg-blue-900/25 px-3 py-2"
+            >
+              <span class="truncate text-xs font-medium text-white">{{ currentUserName }}</span>
+              <button
+                type="button"
+                class="shrink-0 text-xs font-medium text-blue-100 transition-colors hover:text-white"
+                @click="handleLogout"
+              >
+                {{ t('auth.actions.logout') }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -188,6 +325,7 @@ watch(
             <div class="flex flex-col gap-1.5 text-sm">
               <NuxtLink to="/" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Home</NuxtLink>
               <NuxtLink to="/transactions" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Transactions</NuxtLink>
+              <NuxtLink to="/settings" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Settings</NuxtLink>
               <NuxtLink to="/auth" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">User Access</NuxtLink>
             </div>
           </section>

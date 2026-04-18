@@ -8,13 +8,15 @@ import TransactionListControls, {
 import TransactionCreateForm from '~/components/transactions/TransactionCreateForm.vue';
 import TransactionList from '~/components/transactions/TransactionList.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
+import { useUserSettings } from '~/composables/useUserSettings';
 import { useAuthStore } from '~/stores/auth';
 import { useTransactionsStore } from '~/stores/transactions';
 import type { CreateTransactionPayload, TransactionStage } from '~/types/transaction';
 
 const transactionsStore = useTransactionsStore();
 const authStore = useAuthStore();
-const { t, formatCurrency } = useAppI18n();
+const { t, formatCurrency, getStageLabel } = useAppI18n();
+const { settings, hydrateFromStorage } = useUserSettings();
 
 useHead(() => ({
   title: t('transactions.meta.title')
@@ -26,6 +28,47 @@ const isRefreshing = computed(() => transactionsStore.isLoading && hasTransactio
 const searchQuery = ref('');
 const stageFilter = ref<TransactionStage | 'all'>('all');
 const sortBy = ref<TransactionSortOption>('newest');
+const canUseBrowserNotifications = computed(
+  () => import.meta.client && typeof window !== 'undefined' && 'Notification' in window
+);
+const isCompactCardsEnabled = computed(() => settings.value.compactCards);
+const isPushNotificationsEnabled = computed(() => settings.value.pushNotifications);
+const isEmailSummariesEnabled = computed(() => settings.value.emailSummaries);
+const summaryEmailHref = computed(() => {
+  const recipient = authStore.currentUser?.email ?? '';
+  const subject = t('transactions.actions.summaryEmailSubject');
+  const bodyLines = [
+    t('transactions.actions.summaryEmailIntro'),
+    `- ${t('transactions.metrics.totalTransactions.label')}: ${transactionsStore.count}`,
+    `- ${t('transactions.metrics.openTransactions.label')}: ${transactionsStore.openTransactionsCount}`,
+    `- ${t('transactions.metrics.completedTransactions.label')}: ${transactionsStore.completedTransactionsCount}`,
+    `- ${t('transactions.metrics.totalCommissionVolume.label')}: ${formatCurrency(transactionsStore.commissionPipelineAmount)}`
+  ];
+  const body = bodyLines.join('\n');
+
+  return `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+});
+
+const notifyIfEnabled = async (title: string, body: string) => {
+  if (!isPushNotificationsEnabled.value || !canUseBrowserNotifications.value) {
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    return;
+  }
+
+  if (Notification.permission === 'default') {
+    const nextPermission = await Notification.requestPermission();
+    if (nextPermission !== 'granted') {
+      return;
+    }
+  }
+
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body });
+  }
+};
 
 const filteredTransactions = computed(() => {
   const normalizedSearch = searchQuery.value.trim().toLowerCase();
@@ -70,7 +113,11 @@ const filteredTransactions = computed(() => {
 
 const handleCreateTransaction = async (payload: CreateTransactionPayload) => {
   try {
-    await transactionsStore.createTransaction(payload);
+    const transaction = await transactionsStore.createTransaction(payload);
+    await notifyIfEnabled(
+      t('transactions.notifications.createdTitle'),
+      t('transactions.notifications.createdBody', { propertyTitle: transaction.propertyTitle })
+    );
   } catch {
     // Errors are stored in Pinia state and rendered by the page.
   }
@@ -78,7 +125,14 @@ const handleCreateTransaction = async (payload: CreateTransactionPayload) => {
 
 const handleStageChange = async (payload: { id: string; stage: TransactionStage }) => {
   try {
-    await transactionsStore.updateTransactionStage(payload.id, payload.stage);
+    const transaction = await transactionsStore.updateTransactionStage(payload.id, payload.stage);
+    await notifyIfEnabled(
+      t('transactions.notifications.stageChangedTitle'),
+      t('transactions.notifications.stageChangedBody', {
+        propertyTitle: transaction.propertyTitle,
+        stage: getStageLabel(transaction.stage)
+      })
+    );
   } catch {
     // Errors are stored in Pinia state and rendered by the page.
   }
@@ -89,6 +143,7 @@ const handleRefresh = async () => {
 };
 
 onMounted(async () => {
+  hydrateFromStorage();
   await transactionsStore.fetchTransactions();
   await authStore.fetchUsers().catch(() => undefined);
 });
@@ -114,6 +169,13 @@ onMounted(async () => {
           <span class="status-chip">
             {{ t('transactions.list.recordCount', { count: transactionsStore.items.length }) }}
           </span>
+          <a
+            v-if="isEmailSummariesEnabled"
+            :href="summaryEmailHref"
+            class="btn-secondary"
+          >
+            {{ t('transactions.actions.sendSummaryEmail') }}
+          </a>
           <button
             type="button"
             class="btn-secondary"
@@ -220,6 +282,7 @@ onMounted(async () => {
           :stage-update-transaction-id="transactionsStore.stageUpdateTransactionId"
           :get-next-stage="transactionsStore.getNextStage"
           :is-refreshing="isRefreshing"
+          :compact-mode="isCompactCardsEnabled"
           @stage-change="handleStageChange"
         />
       </div>

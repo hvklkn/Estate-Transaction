@@ -11,6 +11,7 @@ const props = defineProps<{
   transaction: Transaction;
   nextStage: TransactionStage | null;
   isUpdatingStage: boolean;
+  compactMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,10 +39,10 @@ const onToggleDetails = () => {
 
 <template>
   <article class="rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
-    <div class="space-y-4 p-5 sm:p-6">
+    <div :class="props.compactMode ? 'space-y-3 p-4 sm:p-5' : 'space-y-4 p-5 sm:p-6'">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-1.5">
-          <h4 class="text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100">
+          <h4 :class="props.compactMode ? 'text-lg font-semibold leading-tight text-slate-900 dark:text-slate-100' : 'text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100'">
             {{ props.transaction.propertyTitle }}
           </h4>
           <p class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
@@ -57,7 +58,7 @@ const onToggleDetails = () => {
         </div>
       </header>
 
-      <section class="grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]">
+      <section :class="props.compactMode ? 'grid gap-2 lg:grid-cols-[1.25fr_1fr_1fr]' : 'grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]'">
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
           <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.totalServiceFee') }}

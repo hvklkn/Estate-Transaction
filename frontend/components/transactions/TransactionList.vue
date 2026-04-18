@@ -8,6 +8,7 @@ const props = defineProps<{
   stageUpdateTransactionId: string | null;
   getNextStage: (stage: TransactionStage) => TransactionStage | null;
   isRefreshing?: boolean;
+  compactMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -54,13 +55,14 @@ const { t } = useAppI18n();
         </p>
       </div>
 
-      <div v-else class="space-y-4">
+      <div v-else :class="props.compactMode ? 'space-y-3' : 'space-y-4'">
         <TransactionListItem
           v-for="transaction in props.transactions"
           :key="transaction.id"
           :transaction="transaction"
           :next-stage="props.getNextStage(transaction.stage)"
           :is-updating-stage="props.stageUpdateTransactionId === transaction.id"
+          :compact-mode="props.compactMode"
           @stage-change="emit('stage-change', $event)"
         />
       </div>
