@@ -15,5 +15,8 @@ export const envValidationSchema = Joi.object({
     .messages({
       'string.pattern.base': 'MONGODB_URI must start with "mongodb://" or "mongodb+srv://"'
     }),
-  MONGODB_DB: Joi.string().trim().default('iceberg')
+  MONGODB_DB: Joi.string().trim().default('iceberg'),
+  RESEND_API_KEY: Joi.string().trim().allow('').optional(),
+  RESEND_FROM_EMAIL: Joi.string().trim().email({ tlds: { allow: false } }).allow('').optional(),
+  RESEND_FROM_NAME: Joi.string().trim().allow('').optional()
 });

@@ -42,13 +42,17 @@ const navigationItems = computed(() => [
     label: t('layout.navigation.transactions')
   },
   {
+    to: '/profile',
+    label: 'Profile'
+  },
+  {
     to: '/settings',
     label: t('layout.navigation.settings')
   }
 ]);
 
 const handleLogout = async () => {
-  authStore.logout();
+  await authStore.logout();
   isMobileMenuOpen.value = false;
   await navigateTo('/auth');
 };
@@ -272,6 +276,7 @@ watch(
             <div class="flex flex-col gap-1.5 text-sm">
               <NuxtLink to="/" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Home</NuxtLink>
               <NuxtLink to="/transactions" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Transactions</NuxtLink>
+              <NuxtLink to="/profile" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Profile</NuxtLink>
               <NuxtLink to="/settings" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Settings</NuxtLink>
               <NuxtLink to="/auth" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">User Access</NuxtLink>
             </div>

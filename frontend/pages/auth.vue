@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
+import { toApiErrorMessage } from '~/services/api.errors';
+import { useAgentsApi } from '~/services/agents.api';
 import { useAuthStore } from '~/stores/auth';
 
 const authStore = useAuthStore();
+const agentsApi = useAgentsApi();
 const { t } = useAppI18n();
 
 useHead(() => ({
@@ -12,100 +15,169 @@ useHead(() => ({
 }));
 
 const mode = ref<'login' | 'register'>('login');
+const forgotStep = ref<'request' | 'confirm'>('request');
+const showForgotPassword = ref(false);
 
 const loginForm = reactive({
-  email: ''
+  email: '',
+  password: '',
+  twoFactorCode: ''
 });
 
 const registerForm = reactive({
   name: '',
-  email: ''
+  email: '',
+  password: '',
+  confirmPassword: ''
 });
-const registerEmailCode = ref('');
-const generatedRegisterCode = ref<string | null>(null);
-const registerVerificationStatus = ref<'idle' | 'sent' | 'invalid' | 'verified'>('idle');
-const verifiedRegisterEmail = ref<string | null>(null);
 
-const isSubmitting = computed(() => authStore.isLoggingIn || authStore.isRegistering);
-const normalizedRegisterEmail = computed(() => registerForm.email.trim().toLowerCase());
-const canSendRegisterCode = computed(() =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedRegisterEmail.value)
-);
-const isRegisterEmailVerified = computed(
-  () =>
-    Boolean(verifiedRegisterEmail.value) &&
-    verifiedRegisterEmail.value === normalizedRegisterEmail.value
+const forgotForm = reactive({
+  email: '',
+  code: '',
+  newPassword: '',
+  confirmNewPassword: ''
+});
+
+const loginTwoFactorRequired = ref(false);
+const loginTwoFactorMethod = ref<'sms' | 'authenticator'>('authenticator');
+const authHint = ref<string | null>(null);
+const forgotError = ref<string | null>(null);
+const forgotSuccess = ref<string | null>(null);
+const isForgotSubmitting = ref(false);
+
+const isSubmitting = computed(
+  () => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value
 );
 
 const onLogin = async () => {
-  await authStore.login({
-    email: loginForm.email.trim().toLowerCase()
+  authHint.value = null;
+
+  const loginResult = await authStore.login({
+    email: loginForm.email.trim().toLowerCase(),
+    password: loginForm.password,
+    twoFactorCode: loginForm.twoFactorCode.trim() || undefined,
+    device: 'Web Browser',
+    location: 'Current Network',
+    userAgent: import.meta.client ? window.navigator.userAgent : 'Unknown User Agent'
   });
 
+  if (loginResult && 'requiresTwoFactor' in loginResult) {
+    loginTwoFactorRequired.value = true;
+    loginTwoFactorMethod.value = loginResult.twoFactorMethod;
+    authHint.value =
+      loginTwoFactorMethod.value === 'authenticator'
+        ? 'Enter the 6-digit code from your authenticator app.'
+        : 'Enter the 6-digit SMS verification code.';
+    return;
+  }
+
+  loginTwoFactorRequired.value = false;
+  loginForm.twoFactorCode = '';
   await navigateTo('/transactions');
 };
 
 const onRegister = async () => {
-  if (!isRegisterEmailVerified.value) {
-    registerVerificationStatus.value = 'invalid';
+  authHint.value = null;
+
+  if (registerForm.password.length < 8) {
+    authStore.setError('Password must be at least 8 characters.');
+    return;
+  }
+
+  if (registerForm.password !== registerForm.confirmPassword) {
+    authStore.setError('Password confirmation does not match.');
     return;
   }
 
   await authStore.register({
     name: registerForm.name.trim(),
-    email: normalizedRegisterEmail.value
+    email: registerForm.email.trim().toLowerCase(),
+    password: registerForm.password
   });
 
   await navigateTo('/transactions');
 };
 
-const sendRegisterVerificationCode = () => {
-  if (!canSendRegisterCode.value) {
-    return;
-  }
-
-  generatedRegisterCode.value = String(Math.floor(100000 + Math.random() * 900000));
-  registerEmailCode.value = '';
-  registerVerificationStatus.value = 'sent';
-  verifiedRegisterEmail.value = null;
+const openForgotPassword = () => {
+  showForgotPassword.value = true;
+  forgotStep.value = 'request';
+  forgotError.value = null;
+  forgotSuccess.value = null;
+  authStore.setError(null);
 };
 
-const verifyRegisterCode = () => {
-  if (!generatedRegisterCode.value) {
-    return;
-  }
-
-  if (registerEmailCode.value.trim() !== generatedRegisterCode.value) {
-    registerVerificationStatus.value = 'invalid';
-    verifiedRegisterEmail.value = null;
-    return;
-  }
-
-  registerVerificationStatus.value = 'verified';
-  verifiedRegisterEmail.value = normalizedRegisterEmail.value;
-  generatedRegisterCode.value = null;
-  registerEmailCode.value = '';
+const closeForgotPassword = () => {
+  showForgotPassword.value = false;
+  forgotStep.value = 'request';
+  forgotError.value = null;
+  forgotSuccess.value = null;
+  forgotForm.code = '';
+  forgotForm.newPassword = '';
+  forgotForm.confirmNewPassword = '';
 };
 
-watch(
-  () => normalizedRegisterEmail.value,
-  (nextEmail, previousEmail) => {
-    if (!nextEmail) {
-      registerVerificationStatus.value = 'idle';
-      generatedRegisterCode.value = null;
-      registerEmailCode.value = '';
-      verifiedRegisterEmail.value = null;
-      return;
-    }
+const onRequestResetCode = async () => {
+  isForgotSubmitting.value = true;
+  forgotError.value = null;
+  forgotSuccess.value = null;
+  authStore.setError(null);
 
-    if (nextEmail !== previousEmail) {
-      registerVerificationStatus.value = 'idle';
-      generatedRegisterCode.value = null;
-      registerEmailCode.value = '';
-      verifiedRegisterEmail.value = null;
+  try {
+    const email = forgotForm.email.trim().toLowerCase();
+    const response = await agentsApi.requestPasswordResetCode({ email });
+    forgotForm.email = email;
+    forgotStep.value = 'confirm';
+    if (response.developmentCode) {
+      forgotSuccess.value = `Development code: ${response.developmentCode}`;
+      forgotForm.code = response.developmentCode;
+    } else {
+      forgotSuccess.value = 'Verification code has been sent to your e-mail address.';
     }
+  } catch (unknownError) {
+    forgotError.value = toApiErrorMessage(unknownError);
+  } finally {
+    isForgotSubmitting.value = false;
   }
-);
+};
+
+const onResetPasswordWithCode = async () => {
+  isForgotSubmitting.value = true;
+  forgotError.value = null;
+  forgotSuccess.value = null;
+  authStore.setError(null);
+
+  if (forgotForm.newPassword.length < 8) {
+    forgotError.value = 'Password must be at least 8 characters.';
+    isForgotSubmitting.value = false;
+    return;
+  }
+
+  if (forgotForm.newPassword !== forgotForm.confirmNewPassword) {
+    forgotError.value = 'Password confirmation does not match.';
+    isForgotSubmitting.value = false;
+    return;
+  }
+
+  try {
+    await agentsApi.resetPasswordWithCode({
+      email: forgotForm.email.trim().toLowerCase(),
+      code: forgotForm.code.trim(),
+      newPassword: forgotForm.newPassword,
+      confirmNewPassword: forgotForm.confirmNewPassword
+    });
+    forgotSuccess.value = 'Password updated. You can now sign in with your new password.';
+    forgotStep.value = 'request';
+    forgotForm.code = '';
+    forgotForm.newPassword = '';
+    forgotForm.confirmNewPassword = '';
+    showForgotPassword.value = false;
+    mode.value = 'login';
+  } catch (unknownError) {
+    forgotError.value = toApiErrorMessage(unknownError);
+  } finally {
+    isForgotSubmitting.value = false;
+  }
+};
 </script>
 
 <template>
@@ -137,7 +209,10 @@ watch(
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+        <div
+          v-if="!showForgotPassword"
+          class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1"
+        >
           <button
             type="button"
             class="rounded-md px-3 py-1.5 text-sm font-medium"
@@ -156,150 +231,213 @@ watch(
           </button>
         </div>
 
-        <div v-if="authStore.error" class="alert-error">
-          {{ authStore.error }}
-        </div>
-
-        <form
-          v-if="mode === 'login'"
-          class="space-y-4"
-          @submit.prevent="onLogin"
-        >
-          <label class="block">
-            <span class="field-label">{{ t('auth.fields.email') }}</span>
-            <input
-              v-model="loginForm.email"
-              type="email"
-              class="input-base"
-              :placeholder="t('auth.placeholders.email')"
-              :disabled="isSubmitting"
-              required
-            />
-          </label>
-
-          <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-            {{ authStore.isLoggingIn ? t('auth.actions.loggingIn') : t('auth.actions.login') }}
-          </button>
-        </form>
-
-        <form
-          v-else
-          class="space-y-4"
-          @submit.prevent="onRegister"
-        >
-          <label class="block">
-            <span class="field-label">{{ t('auth.fields.name') }}</span>
-            <input
-              v-model="registerForm.name"
-              type="text"
-              class="input-base"
-              :placeholder="t('auth.placeholders.name')"
-              :disabled="isSubmitting"
-              required
-            />
-          </label>
-
-          <label class="block">
-            <span class="field-label">{{ t('auth.fields.email') }}</span>
-            <input
-              v-model="registerForm.email"
-              type="email"
-              class="input-base"
-              :placeholder="t('auth.placeholders.email')"
-              :disabled="isSubmitting"
-              required
-            />
-          </label>
-
-          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">
-                  {{ t('auth.verification.emailTitle') }}
-                </p>
-                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {{ t('auth.verification.emailDescription') }}
-                </p>
-              </div>
-              <span
-                class="status-chip text-[11px]"
-                :class="
-                  isRegisterEmailVerified
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300'
-                "
-              >
-                {{
-                  isRegisterEmailVerified
-                    ? t('auth.verification.statusVerified')
-                    : t('auth.verification.statusPending')
-                }}
-              </span>
-            </div>
-
-            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                class="btn-secondary"
-                :disabled="isSubmitting || !canSendRegisterCode"
-                @click="sendRegisterVerificationCode"
-              >
-                {{
-                  registerVerificationStatus === 'sent'
-                    ? t('auth.verification.resendCode')
-                    : t('auth.verification.sendCode')
-                }}
-              </button>
-            </div>
-
-            <div
-              v-if="registerVerificationStatus === 'sent' || registerVerificationStatus === 'invalid'"
-              class="mt-3 space-y-2"
-            >
-              <p class="text-xs text-slate-600 dark:text-slate-300">
-                {{ t('auth.verification.codeSentInfo') }}
-                <span class="font-mono">{{ generatedRegisterCode }}</span>
-              </p>
-              <div class="flex flex-col gap-2 sm:flex-row">
-                <input
-                  v-model="registerEmailCode"
-                  type="text"
-                  inputmode="numeric"
-                  maxlength="6"
-                  class="input-base"
-                  :placeholder="t('auth.verification.codePlaceholder')"
-                  :disabled="isSubmitting"
-                />
-                <button
-                  type="button"
-                  class="btn-primary"
-                  :disabled="isSubmitting || registerEmailCode.trim().length !== 6"
-                  @click="verifyRegisterCode"
-                >
-                  {{ t('auth.verification.verifyCode') }}
-                </button>
-              </div>
-              <p
-                v-if="registerVerificationStatus === 'invalid'"
-                class="text-xs font-medium text-rose-700 dark:text-rose-300"
-              >
-                {{ t('auth.verification.invalidCode') }}
-              </p>
-            </div>
+        <template v-if="!showForgotPassword">
+          <div v-if="authStore.error" class="alert-error">
+            {{ authStore.error }}
+          </div>
+          <div
+            v-else-if="authHint"
+            class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
+          >
+            {{ authHint }}
           </div>
 
-          <p v-if="!isRegisterEmailVerified" class="text-xs text-amber-700 dark:text-amber-300">
-            {{ t('auth.verification.requiredBeforeRegister') }}
-          </p>
+          <form v-if="mode === 'login'" class="space-y-4" @submit.prevent="onLogin">
+            <label class="block">
+              <span class="field-label">{{ t('auth.fields.email') }}</span>
+              <input
+                v-model="loginForm.email"
+                type="email"
+                class="input-base"
+                :placeholder="t('auth.placeholders.email')"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
 
-          <button
-            type="submit"
-            class="btn-primary w-full"
-            :disabled="isSubmitting || !isRegisterEmailVerified"
+            <label class="block">
+              <span class="field-label">Password</span>
+              <input
+                v-model="loginForm.password"
+                type="password"
+                class="input-base"
+                :disabled="isSubmitting"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+
+            <label v-if="loginTwoFactorRequired" class="block">
+              <span class="field-label">
+                {{ loginTwoFactorMethod === 'authenticator' ? 'Authenticator Code' : 'SMS Code' }}
+              </span>
+              <input
+                v-model="loginForm.twoFactorCode"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                class="input-base"
+                :disabled="isSubmitting"
+                placeholder="6-digit code"
+                required
+              />
+            </label>
+
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+              {{ authStore.isLoggingIn ? t('auth.actions.loggingIn') : t('auth.actions.login') }}
+            </button>
+
+            <button
+              type="button"
+              class="w-full text-sm font-medium text-brand-700 hover:text-brand-800"
+              :disabled="isSubmitting"
+              @click="openForgotPassword"
+            >
+              Forgot Password?
+            </button>
+          </form>
+
+          <form v-else class="space-y-4" @submit.prevent="onRegister">
+            <label class="block">
+              <span class="field-label">{{ t('auth.fields.name') }}</span>
+              <input
+                v-model="registerForm.name"
+                type="text"
+                class="input-base"
+                :placeholder="t('auth.placeholders.name')"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">{{ t('auth.fields.email') }}</span>
+              <input
+                v-model="registerForm.email"
+                type="email"
+                class="input-base"
+                :placeholder="t('auth.placeholders.email')"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">Password</span>
+              <input
+                v-model="registerForm.password"
+                type="password"
+                class="input-base"
+                :disabled="isSubmitting"
+                autocomplete="new-password"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">Confirm Password</span>
+              <input
+                v-model="registerForm.confirmPassword"
+                type="password"
+                class="input-base"
+                :disabled="isSubmitting"
+                autocomplete="new-password"
+                required
+              />
+            </label>
+
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+              {{
+                authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.register')
+              }}
+            </button>
+          </form>
+        </template>
+
+        <template v-else>
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-900">Reset Password</h2>
+            <button
+              type="button"
+              class="text-sm font-medium text-slate-600 hover:text-slate-900"
+              :disabled="isSubmitting"
+              @click="closeForgotPassword"
+            >
+              Back
+            </button>
+          </div>
+
+          <div v-if="forgotError" class="alert-error">
+            {{ forgotError }}
+          </div>
+          <div
+            v-else-if="forgotSuccess"
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
           >
-            {{ authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.register') }}
-          </button>
-        </form>
+            {{ forgotSuccess }}
+          </div>
+
+          <form v-if="forgotStep === 'request'" class="space-y-4" @submit.prevent="onRequestResetCode">
+            <label class="block">
+              <span class="field-label">E-mail</span>
+              <input
+                v-model="forgotForm.email"
+                type="email"
+                class="input-base"
+                placeholder="you@example.com"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+              Send Verification Code
+            </button>
+          </form>
+
+          <form v-else class="space-y-4" @submit.prevent="onResetPasswordWithCode">
+            <label class="block">
+              <span class="field-label">Verification Code</span>
+              <input
+                v-model="forgotForm.code"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                class="input-base"
+                placeholder="6-digit code"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">New Password</span>
+              <input
+                v-model="forgotForm.newPassword"
+                type="password"
+                class="input-base"
+                autocomplete="new-password"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">Confirm New Password</span>
+              <input
+                v-model="forgotForm.confirmNewPassword"
+                type="password"
+                class="input-base"
+                autocomplete="new-password"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
+              Reset Password
+            </button>
+          </form>
+        </template>
       </div>
     </article>
   </section>

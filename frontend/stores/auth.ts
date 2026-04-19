@@ -6,6 +6,7 @@ import { useAgentsApi } from '~/services/agents.api';
 import type { AgentUser } from '~/types/agent';
 
 const AUTH_STORAGE_KEY = 'iceberg.currentUser';
+const SESSION_TOKEN_STORAGE_KEY = 'iceberg.session-token';
 
 const safeParseUser = (value: string): AgentUser | null => {
   try {
@@ -26,7 +27,15 @@ const safeParseUser = (value: string): AgentUser | null => {
       id: parsed.id,
       name: parsed.name,
       email: parsed.email,
-      isActive: Boolean(parsed.isActive)
+      isActive: Boolean(parsed.isActive),
+      firstName: typeof parsed.firstName === 'string' ? parsed.firstName : '',
+      lastName: typeof parsed.lastName === 'string' ? parsed.lastName : '',
+      phone: typeof parsed.phone === 'string' ? parsed.phone : '',
+      iban: typeof parsed.iban === 'string' ? parsed.iban : '',
+      twoFactorEnabled: Boolean(parsed.twoFactorEnabled),
+      twoFactorMethod: parsed.twoFactorMethod === 'sms' ? 'sms' : 'authenticator',
+      twoFactorVerifiedAt:
+        typeof parsed.twoFactorVerifiedAt === 'string' ? parsed.twoFactorVerifiedAt : null
     };
   } catch {
     return null;
@@ -37,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
   const api = useAgentsApi();
 
   const currentUser = ref<AgentUser | null>(null);
+  const sessionToken = ref<string | null>(null);
   const users = ref<AgentUser[]>([]);
   const isHydrated = ref(false);
   const isLoggingIn = ref(false);
@@ -60,10 +70,14 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (!currentUser.value) {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
       return;
     }
 
     window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser.value));
+    if (sessionToken.value) {
+      window.localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, sessionToken.value);
+    }
   };
 
   const hydrateFromStorage = () => {
@@ -72,8 +86,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     const rawUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const rawSessionToken = window.localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
     if (rawUser) {
       currentUser.value = safeParseUser(rawUser);
+    }
+    if (typeof rawSessionToken === 'string' && rawSessionToken.trim().length > 0) {
+      sessionToken.value = rawSessionToken.trim();
     }
 
     isHydrated.value = true;
@@ -93,13 +111,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const register = async (payload: { name: string; email: string }) => {
+  const register = async (payload: { name: string; email: string; password: string }) => {
     isRegistering.value = true;
     setError(null);
 
     try {
-      const user = await api.registerAgent(payload);
+      const { user, sessionToken: nextSessionToken } = await api.registerAgent(payload);
       currentUser.value = user;
+      sessionToken.value = nextSessionToken;
       persistCurrentUser();
       await fetchUsers();
       return user;
@@ -111,13 +130,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const login = async (payload: { email: string }) => {
+  const login = async (payload: {
+    email: string;
+    password: string;
+    twoFactorCode?: string;
+    device?: string;
+    location?: string;
+    userAgent?: string;
+  }) => {
     isLoggingIn.value = true;
     setError(null);
 
     try {
-      const user = await api.loginAgent(payload.email);
+      const loginResult = await api.loginAgent(payload);
+
+      if ('requiresTwoFactor' in loginResult) {
+        return loginResult;
+      }
+
+      const user = loginResult.user;
       currentUser.value = user;
+      sessionToken.value = loginResult.sessionToken;
       persistCurrentUser();
       await fetchUsers();
       return user;
@@ -129,13 +162,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (sessionToken.value) {
+      await api.logout(sessionToken.value).catch(() => undefined);
+    }
     currentUser.value = null;
+    sessionToken.value = null;
     persistCurrentUser();
   };
 
   return {
     currentUser,
+    sessionToken,
     users,
     isHydrated,
     isLoggingIn,

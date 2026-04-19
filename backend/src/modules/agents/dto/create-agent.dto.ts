@@ -15,6 +15,10 @@ export class CreateAgentDto {
   @IsEmail()
   email!: string;
 
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

@@ -1,0 +1,662 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue';
+
+import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
+import { useAppI18n } from '~/composables/useAppI18n';
+import { toApiErrorMessage } from '~/services/api.errors';
+import { useAgentsApi } from '~/services/agents.api';
+import { useAuthStore } from '~/stores/auth';
+import { useTransactionsStore } from '~/stores/transactions';
+import { TransactionStage } from '~/types/transaction';
+
+type TwoFactorMethod = 'sms' | 'authenticator';
+
+const authStore = useAuthStore();
+const transactionsStore = useTransactionsStore();
+const agentsApi = useAgentsApi();
+const { formatCurrency, formatDateTime } = useAppI18n();
+
+useHead(() => ({
+  title: 'Profile'
+}));
+
+const profileForm = reactive({
+  name: '',
+  email: '',
+  firstName: '',
+  lastName: '',
+  phone: '',
+  iban: ''
+});
+
+const passwordForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: ''
+});
+
+const twoFactorMethod = ref<TwoFactorMethod>('authenticator');
+const twoFactorSecret = ref<string | null>(null);
+const twoFactorOtpAuthUrl = ref<string | null>(null);
+const twoFactorCode = ref('');
+
+const sessions = ref<
+  Array<{
+    id: string;
+    device: string;
+    location: string;
+    userAgent: string;
+    createdAt: string;
+    lastActiveAt: string;
+    current: boolean;
+  }>
+>([]);
+const currentSessionId = ref<string | null>(null);
+
+const isLoadingProfile = ref(false);
+const isSavingProfile = ref(false);
+const isChangingPassword = ref(false);
+const isSettingUpTwoFactor = ref(false);
+const isVerifyingTwoFactor = ref(false);
+const isDisablingTwoFactor = ref(false);
+const isLoadingSessions = ref(false);
+
+const profileSuccess = ref<string | null>(null);
+const passwordSuccess = ref<string | null>(null);
+const twoFactorSuccess = ref<string | null>(null);
+const sessionsSuccess = ref<string | null>(null);
+const profileError = ref<string | null>(null);
+const passwordError = ref<string | null>(null);
+const twoFactorError = ref<string | null>(null);
+const sessionsError = ref<string | null>(null);
+
+const currentUserId = computed(() => authStore.currentUser?.id ?? null);
+const currentUserName = computed(() => authStore.currentUser?.name ?? '');
+const currentUserEmail = computed(() => authStore.currentUser?.email ?? '');
+const hasSession = computed(() => Boolean(authStore.sessionToken));
+const twoFactorEnabled = computed(() => Boolean(authStore.currentUser?.twoFactorEnabled));
+const twoFactorVerifiedAt = computed(() => authStore.currentUser?.twoFactorVerifiedAt ?? null);
+
+const mySales = computed(() => {
+  if (!currentUserId.value) {
+    return [];
+  }
+
+  return transactionsStore.items
+    .filter((transaction) => transaction.sellingAgentId === currentUserId.value)
+    .sort((left, right) => {
+      const leftDate = left.createdAt ? new Date(left.createdAt).getTime() : 0;
+      const rightDate = right.createdAt ? new Date(right.createdAt).getTime() : 0;
+      return rightDate - leftDate;
+    });
+});
+
+const completedSalesCount = computed(
+  () => mySales.value.filter((transaction) => transaction.stage === TransactionStage.COMPLETED).length
+);
+
+const totalSalesVolume = computed(() =>
+  mySales.value.reduce((sum, transaction) => sum + transaction.totalServiceFee, 0)
+);
+
+const totalEarnings = computed(() => {
+  if (!currentUserId.value) {
+    return 0;
+  }
+
+  return mySales.value.reduce((sum, transaction) => {
+    const earning = transaction.financialBreakdown.agents
+      .filter((agent) => agent.agentId === currentUserId.value)
+      .reduce((agentTotal, agent) => agentTotal + agent.amount, 0);
+
+    return sum + earning;
+  }, 0);
+});
+
+const clearMessages = () => {
+  profileSuccess.value = null;
+  passwordSuccess.value = null;
+  twoFactorSuccess.value = null;
+  sessionsSuccess.value = null;
+  profileError.value = null;
+  passwordError.value = null;
+  twoFactorError.value = null;
+  sessionsError.value = null;
+};
+
+const requireSessionToken = (): string => {
+  const token = authStore.sessionToken?.trim() ?? '';
+  if (!token) {
+    throw new Error('Session token not found. Please sign in again.');
+  }
+  return token;
+};
+
+const applyProfile = (user: {
+  name: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  iban?: string;
+  twoFactorMethod?: TwoFactorMethod;
+}) => {
+  profileForm.name = user.name;
+  profileForm.email = user.email;
+  profileForm.firstName = user.firstName ?? '';
+  profileForm.lastName = user.lastName ?? '';
+  profileForm.phone = user.phone ?? '';
+  profileForm.iban = user.iban ?? '';
+  twoFactorMethod.value = user.twoFactorMethod === 'sms' ? 'sms' : 'authenticator';
+};
+
+const loadProfile = async () => {
+  isLoadingProfile.value = true;
+  profileError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    const user = await agentsApi.getMyProfile(sessionToken);
+    applyProfile(user);
+    authStore.currentUser = user;
+  } catch (error: unknown) {
+    profileError.value = toApiErrorMessage(error);
+  } finally {
+    isLoadingProfile.value = false;
+  }
+};
+
+const saveProfile = async () => {
+  isSavingProfile.value = true;
+  profileSuccess.value = null;
+  profileError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    const user = await agentsApi.updateMyProfile(sessionToken, {
+      name: profileForm.name.trim(),
+      email: profileForm.email.trim().toLowerCase(),
+      firstName: profileForm.firstName.trim(),
+      lastName: profileForm.lastName.trim(),
+      phone: profileForm.phone.trim(),
+      iban: profileForm.iban.trim()
+    });
+
+    authStore.currentUser = user;
+    profileSuccess.value = 'Profile updated successfully.';
+  } catch (error: unknown) {
+    profileError.value = toApiErrorMessage(error);
+  } finally {
+    isSavingProfile.value = false;
+  }
+};
+
+const changePassword = async () => {
+  isChangingPassword.value = true;
+  passwordSuccess.value = null;
+  passwordError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    await agentsApi.changeMyPassword(sessionToken, {
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+      confirmNewPassword: passwordForm.confirmNewPassword
+    });
+    passwordForm.currentPassword = '';
+    passwordForm.newPassword = '';
+    passwordForm.confirmNewPassword = '';
+    passwordSuccess.value = 'Password changed successfully.';
+  } catch (error: unknown) {
+    passwordError.value = toApiErrorMessage(error);
+  } finally {
+    isChangingPassword.value = false;
+  }
+};
+
+const setupTwoFactor = async () => {
+  isSettingUpTwoFactor.value = true;
+  twoFactorSuccess.value = null;
+  twoFactorError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    const result = await agentsApi.setupMyTwoFactor(sessionToken, {
+      method: twoFactorMethod.value
+    });
+    twoFactorSecret.value = result.secret;
+    twoFactorOtpAuthUrl.value = result.otpauthUrl;
+    twoFactorCode.value = '';
+    twoFactorSuccess.value =
+      '2FA secret generated. Scan this key in your authenticator app and verify with a 6-digit code.';
+  } catch (error: unknown) {
+    twoFactorError.value = toApiErrorMessage(error);
+  } finally {
+    isSettingUpTwoFactor.value = false;
+  }
+};
+
+const verifyTwoFactor = async () => {
+  isVerifyingTwoFactor.value = true;
+  twoFactorSuccess.value = null;
+  twoFactorError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    const result = await agentsApi.verifyMyTwoFactor(sessionToken, {
+      code: twoFactorCode.value.trim()
+    });
+
+    twoFactorCode.value = '';
+    twoFactorSecret.value = null;
+    twoFactorOtpAuthUrl.value = null;
+    twoFactorSuccess.value = `2FA enabled at ${formatDateTime(result.verifiedAt)}.`;
+    await loadProfile();
+  } catch (error: unknown) {
+    twoFactorError.value = toApiErrorMessage(error);
+  } finally {
+    isVerifyingTwoFactor.value = false;
+  }
+};
+
+const disableTwoFactor = async () => {
+  isDisablingTwoFactor.value = true;
+  twoFactorSuccess.value = null;
+  twoFactorError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    await agentsApi.disableMyTwoFactor(sessionToken);
+    twoFactorCode.value = '';
+    twoFactorSecret.value = null;
+    twoFactorOtpAuthUrl.value = null;
+    twoFactorSuccess.value = '2FA disabled successfully.';
+    await loadProfile();
+  } catch (error: unknown) {
+    twoFactorError.value = toApiErrorMessage(error);
+  } finally {
+    isDisablingTwoFactor.value = false;
+  }
+};
+
+const loadSessions = async () => {
+  isLoadingSessions.value = true;
+  sessionsError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    const result = await agentsApi.listMySessions(sessionToken);
+    currentSessionId.value = result.currentSessionId;
+    sessions.value = result.sessions;
+  } catch (error: unknown) {
+    sessionsError.value = toApiErrorMessage(error);
+  } finally {
+    isLoadingSessions.value = false;
+  }
+};
+
+const revokeSession = async (sessionId: string) => {
+  sessionsSuccess.value = null;
+  sessionsError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    await agentsApi.revokeMySession(sessionToken, sessionId);
+    sessionsSuccess.value = 'Session revoked successfully.';
+    await loadSessions();
+  } catch (error: unknown) {
+    sessionsError.value = toApiErrorMessage(error);
+  }
+};
+
+const revokeOtherSessions = async () => {
+  sessionsSuccess.value = null;
+  sessionsError.value = null;
+
+  try {
+    const sessionToken = requireSessionToken();
+    await agentsApi.revokeMyOtherSessions(sessionToken);
+    sessionsSuccess.value = 'All other sessions were revoked.';
+    await loadSessions();
+  } catch (error: unknown) {
+    sessionsError.value = toApiErrorMessage(error);
+  }
+};
+
+const loadSales = async () => {
+  await transactionsStore.fetchTransactions();
+};
+
+onMounted(async () => {
+  authStore.hydrateFromStorage();
+  clearMessages();
+
+  if (!hasSession.value) {
+    profileError.value = 'You need to sign in again to manage profile and security settings.';
+    return;
+  }
+
+  await Promise.all([loadProfile(), loadSessions(), loadSales()]);
+});
+</script>
+
+<template>
+  <section class="space-y-6">
+    <header class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7">
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">User Profile</p>
+      <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Profile</h1>
+      <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+        Manage your account details, security settings, active sessions, and assigned sales records.
+      </p>
+      <p v-if="currentUserName" class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        Signed in as
+        <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentUserName }}</span>
+        <span v-if="currentUserEmail">({{ currentUserEmail }})</span>
+      </p>
+    </header>
+
+    <article class="panel">
+      <div class="panel-body space-y-5">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Profil Bilgileri</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Ad, soyad, e-posta, telefon ve IBAN bilgilerinizi güncelleyebilirsiniz.
+            </p>
+          </div>
+          <button type="button" class="btn-primary" :disabled="isSavingProfile || isLoadingProfile" @click="saveProfile">
+            Save Profile
+          </button>
+        </div>
+
+        <div v-if="profileError" class="alert-error">{{ profileError }}</div>
+        <div
+          v-else-if="profileSuccess"
+          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {{ profileSuccess }}
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="field-label">Full Name</span>
+            <input v-model="profileForm.name" type="text" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">E-posta</span>
+            <input v-model="profileForm.email" type="email" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">Ad</span>
+            <input v-model="profileForm.firstName" type="text" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">Soyad</span>
+            <input v-model="profileForm.lastName" type="text" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">Telefon Numarası</span>
+            <input v-model="profileForm.phone" type="tel" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">IBAN</span>
+            <input v-model="profileForm.iban" type="text" class="input-base" />
+          </label>
+        </div>
+      </div>
+    </article>
+
+    <div class="grid gap-4 xl:grid-cols-2">
+      <article class="panel">
+        <div class="panel-body space-y-5">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Şifre Değiştirme</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Mevcut şifrenizi girip yeni şifreyi onaylayarak güncelleyin.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <label class="block">
+              <span class="field-label">Mevcut Şifre</span>
+              <input v-model="passwordForm.currentPassword" type="password" class="input-base" />
+            </label>
+            <label class="block">
+              <span class="field-label">Yeni Şifre</span>
+              <input v-model="passwordForm.newPassword" type="password" class="input-base" />
+            </label>
+            <label class="block">
+              <span class="field-label">Yeni Şifre (Tekrar)</span>
+              <input v-model="passwordForm.confirmNewPassword" type="password" class="input-base" />
+            </label>
+          </div>
+
+          <div v-if="passwordError" class="alert-error">{{ passwordError }}</div>
+          <div
+            v-else-if="passwordSuccess"
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          >
+            {{ passwordSuccess }}
+          </div>
+
+          <button type="button" class="btn-primary" :disabled="isChangingPassword" @click="changePassword">
+            {{ isChangingPassword ? 'Updating...' : 'Şifreyi Güncelle' }}
+          </button>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-body space-y-5">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">İki Faktörlü Doğrulama (2FA)</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Hesaba girişte ekstra güvenlik katmanı için Authenticator tabanlı 2FA ayarlayın.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="status-chip">2FA: {{ twoFactorEnabled ? 'Enabled' : 'Disabled' }}</span>
+            <span v-if="twoFactorVerifiedAt" class="status-chip">
+              Verified: {{ formatDateTime(twoFactorVerifiedAt) }}
+            </span>
+          </div>
+
+          <label class="block">
+            <span class="field-label">2FA Yöntemi</span>
+            <select v-model="twoFactorMethod" class="input-base" :disabled="twoFactorEnabled">
+              <option value="authenticator">Authenticator App</option>
+              <option value="sms">SMS (requires provider)</option>
+            </select>
+          </label>
+
+          <div v-if="twoFactorSecret" class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-800/60">
+            <p class="font-semibold text-slate-700 dark:text-slate-200">Authenticator Secret</p>
+            <p class="mt-1 font-mono text-slate-600 dark:text-slate-300">{{ twoFactorSecret }}</p>
+            <p v-if="twoFactorOtpAuthUrl" class="mt-2 break-all text-slate-500 dark:text-slate-400">
+              {{ twoFactorOtpAuthUrl }}
+            </p>
+          </div>
+
+          <label class="block">
+            <span class="field-label">2FA Verification Code</span>
+            <input
+              v-model="twoFactorCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              class="input-base"
+              placeholder="6-digit code"
+            />
+          </label>
+
+          <div v-if="twoFactorError" class="alert-error">{{ twoFactorError }}</div>
+          <div
+            v-else-if="twoFactorSuccess"
+            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          >
+            {{ twoFactorSuccess }}
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-secondary" :disabled="isSettingUpTwoFactor" @click="setupTwoFactor">
+              {{ isSettingUpTwoFactor ? 'Preparing...' : '2FA Setup Başlat' }}
+            </button>
+            <button
+              type="button"
+              class="btn-primary"
+              :disabled="isVerifyingTwoFactor || twoFactorCode.trim().length !== 6"
+              @click="verifyTwoFactor"
+            >
+              {{ isVerifyingTwoFactor ? 'Verifying...' : '2FA Doğrula' }}
+            </button>
+            <button
+              v-if="twoFactorEnabled"
+              type="button"
+              class="btn-secondary"
+              :disabled="isDisablingTwoFactor"
+              @click="disableTwoFactor"
+            >
+              {{ isDisablingTwoFactor ? 'Disabling...' : '2FA Devre Dışı Bırak' }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <article class="panel">
+      <div class="panel-body space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Oturum Yönetimi</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Aktif oturumlarınızı görüntüleyebilir ve diğer cihazlardan çıkış yapabilirsiniz.
+            </p>
+          </div>
+          <button type="button" class="btn-secondary" :disabled="isLoadingSessions" @click="revokeOtherSessions">
+            Diğer Cihazlardan Çıkış Yap
+          </button>
+        </div>
+
+        <div v-if="sessionsError" class="alert-error">{{ sessionsError }}</div>
+        <div
+          v-else-if="sessionsSuccess"
+          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+        >
+          {{ sessionsSuccess }}
+        </div>
+
+        <div v-if="sessions.length === 0" class="empty-state">
+          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">No active sessions</h4>
+        </div>
+
+        <div v-else class="space-y-3">
+          <article
+            v-for="session in sessions"
+            :key="session.id"
+            class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ session.device }}</p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ session.location }}</p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ session.userAgent }}</p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Last active: {{ formatDateTime(session.lastActiveAt) }}
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="status-chip">{{ session.current ? 'Current Session' : 'Active' }}</span>
+                <button
+                  v-if="!session.current"
+                  type="button"
+                  class="btn-secondary"
+                  @click="revokeSession(session.id)"
+                >
+                  Oturumu Sonlandır
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <p v-if="currentSessionId" class="text-xs text-slate-500 dark:text-slate-400">
+          Current session ID: <span class="font-mono">{{ currentSessionId }}</span>
+        </p>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-body space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Yaptığı Satışların Bilgileri</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Selling agent olarak atandığınız işlemler burada listelenir.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <span class="status-chip">Total Sales: {{ mySales.length }}</span>
+            <span class="status-chip">Completed: {{ completedSalesCount }}</span>
+            <span class="status-chip">Volume: {{ formatCurrency(totalSalesVolume) }}</span>
+            <span class="status-chip">Earnings: {{ formatCurrency(totalEarnings) }}</span>
+          </div>
+        </div>
+
+        <div v-if="transactionsStore.error" class="alert-error">
+          {{ transactionsStore.error }}
+        </div>
+
+        <div v-if="mySales.length === 0" class="empty-state">
+          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">No sales found</h4>
+          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
+            Your assigned sales transactions will appear here.
+          </p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <article
+            v-for="transaction in mySales"
+            :key="transaction.id"
+            class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ transaction.propertyTitle }}</h3>
+                <p class="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                  Transaction ID: {{ transaction.id }}
+                </p>
+              </div>
+              <TransactionStageBadge :stage="transaction.stage" />
+            </div>
+
+            <div class="mt-3 grid gap-3 sm:grid-cols-3">
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Service Fee</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatCurrency(transaction.totalServiceFee) }}</p>
+              </div>
+
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Your Earning</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {{
+                    formatCurrency(
+                      transaction.financialBreakdown.agents
+                        .filter((agent) => agent.agentId === currentUserId)
+                        .reduce((sum, agent) => sum + agent.amount, 0)
+                    )
+                  }}
+                </p>
+              </div>
+
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Created At</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatDateTime(transaction.createdAt) }}</p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </article>
+  </section>
+</template>
