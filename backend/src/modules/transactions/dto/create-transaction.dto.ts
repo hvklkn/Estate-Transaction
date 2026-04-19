@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
+import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 
 export class CreateTransactionDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -28,6 +29,9 @@ export class CreateTransactionDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsMongoId()
   sellingAgentId!: string;
+
+  @IsEnum(TransactionType)
+  transactionType!: TransactionType;
 
   @IsEnum(TransactionStage)
   @IsOptional()

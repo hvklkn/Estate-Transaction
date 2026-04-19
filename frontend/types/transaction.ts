@@ -5,6 +5,11 @@ export enum TransactionStage {
   COMPLETED = 'completed'
 }
 
+export enum TransactionType {
+  SOLD = 'sold',
+  RENTED = 'rented'
+}
+
 export const TRANSACTION_STAGE_ORDER: TransactionStage[] = [
   TransactionStage.AGREEMENT,
   TransactionStage.EARNEST_MONEY,
@@ -48,8 +53,11 @@ export interface Transaction {
   totalServiceFee: number;
   listingAgentId: string;
   sellingAgentId: string;
+  transactionType: TransactionType;
+  createdById?: string;
   listingAgent?: AgentSummary;
   sellingAgent?: AgentSummary;
+  createdBy?: AgentSummary;
   stage: TransactionStage;
   stageHistory: TransactionStageHistoryItem[];
   financialBreakdown: FinancialBreakdown;
@@ -62,6 +70,7 @@ export interface CreateTransactionPayload {
   totalServiceFee: number;
   listingAgentId: string;
   sellingAgentId: string;
+  transactionType: TransactionType;
   stage?: TransactionStage;
 }
 

@@ -4,6 +4,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { Agent } from '@/modules/agents/schemas/agent.schema';
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
+import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 
 export type TransactionDocument = HydratedDocument<Transaction>;
 
@@ -86,6 +87,12 @@ export class Transaction {
   @Prop({ required: true, type: Types.ObjectId, ref: Agent.name })
   sellingAgentId!: Types.ObjectId;
 
+  @Prop({ required: true, enum: TransactionType, default: TransactionType.SOLD })
+  transactionType!: TransactionType;
+
+  @Prop({ type: Types.ObjectId, ref: Agent.name, default: null })
+  createdBy!: Types.ObjectId | null;
+
   @Prop({
     required: true,
     enum: TransactionStage,
@@ -116,3 +123,4 @@ export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 
 TransactionSchema.index({ stage: 1, createdAt: -1 });
 TransactionSchema.index({ listingAgentId: 1, sellingAgentId: 1 });
+TransactionSchema.index({ transactionType: 1, createdAt: -1 });

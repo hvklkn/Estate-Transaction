@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
@@ -7,6 +8,8 @@ import {
   IsString,
   Min
 } from 'class-validator';
+
+import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 
 export class UpdateTransactionDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -29,4 +32,8 @@ export class UpdateTransactionDto {
   @IsMongoId()
   @IsOptional()
   sellingAgentId?: string;
+
+  @IsEnum(TransactionType)
+  @IsOptional()
+  transactionType?: TransactionType;
 }

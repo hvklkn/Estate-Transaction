@@ -8,6 +8,7 @@ import { CommissionCalculatorService } from '@/modules/commissions/commission-ca
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
+import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 import { Transaction } from '@/modules/transactions/schemas/transaction.schema';
 import { TransactionsService } from '@/modules/transactions/services/transactions.service';
 
@@ -58,6 +59,7 @@ const buildExistingTransaction = (
   totalServiceFee: 100000,
   listingAgentId: new Types.ObjectId(LISTING_AGENT_ID),
   sellingAgentId: new Types.ObjectId(SELLING_AGENT_ID),
+  transactionType: TransactionType.SOLD,
   stage: TransactionStage.AGREEMENT,
   ...overrides
 });
@@ -75,7 +77,8 @@ describe('TransactionsService', () => {
   };
 
   const agentsServiceMock = {
-    ensureAgentExists: jest.fn()
+    ensureAgentExists: jest.fn(),
+    getAgentIdBySessionToken: jest.fn()
   };
 
   const commissionCalculatorServiceMock = {
@@ -122,6 +125,7 @@ describe('TransactionsService', () => {
         totalServiceFee: 100000,
         listingAgentId: LISTING_AGENT_ID,
         sellingAgentId: SELLING_AGENT_ID,
+        transactionType: TransactionType.SOLD,
         stage: TransactionStage.TITLE_DEED
       };
 
@@ -144,6 +148,7 @@ describe('TransactionsService', () => {
         totalServiceFee: 100000,
         listingAgentId: LISTING_AGENT_ID,
         sellingAgentId: SELLING_AGENT_ID,
+        transactionType: TransactionType.SOLD,
         stage: TransactionStage.AGREEMENT
       };
 
@@ -171,6 +176,7 @@ describe('TransactionsService', () => {
       });
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
+        createdBy: null,
         stage: TransactionStage.AGREEMENT,
         financialBreakdown,
         stageHistory: [
@@ -189,7 +195,8 @@ describe('TransactionsService', () => {
         propertyTitle: 'Maple Residency #7',
         totalServiceFee: 95000,
         listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID
+        sellingAgentId: SELLING_AGENT_ID,
+        transactionType: TransactionType.SOLD
       };
 
       const financialBreakdown = buildFinancialBreakdown({
@@ -231,6 +238,7 @@ describe('TransactionsService', () => {
       );
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
+        createdBy: null,
         stage: TransactionStage.AGREEMENT,
         financialBreakdown,
         stageHistory: [
@@ -248,7 +256,8 @@ describe('TransactionsService', () => {
         propertyTitle: 'Sunset Villas #12',
         totalServiceFee: 100000,
         listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID
+        sellingAgentId: SELLING_AGENT_ID,
+        transactionType: TransactionType.SOLD
       };
 
       stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockReturnValue(

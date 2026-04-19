@@ -18,9 +18,23 @@ import { TransactionsService } from '@/modules/transactions/services/transaction
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
+  private readSessionToken(authorizationHeader?: string): string {
+    const header = authorizationHeader?.trim() ?? '';
+
+    if (!header.toLowerCase().startsWith('bearer ')) {
+      return '';
+    }
+
+    return header.slice(7).trim();
+  }
+
   @Post()
-  create(@Body() createTransactionDto: CreateTransactionDto) {
-    return this.transactionsService.create(createTransactionDto);
+  create(
+    @Body() createTransactionDto: CreateTransactionDto,
+    @Headers('authorization') authorizationHeader?: string
+  ) {
+    const sessionToken = this.readSessionToken(authorizationHeader);
+    return this.transactionsService.create(createTransactionDto, sessionToken);
   }
 
   @Get()

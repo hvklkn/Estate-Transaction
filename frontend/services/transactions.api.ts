@@ -6,9 +6,10 @@ import type {
   FinancialBreakdown,
   Transaction,
   TransactionStageHistoryItem,
-  TransactionStage
+  TransactionStage,
+  TransactionType
 } from '~/types/transaction';
-import { TransactionStage as TransactionStageEnum } from '~/types/transaction';
+import { TransactionStage as TransactionStageEnum, TransactionType as TransactionTypeEnum } from '~/types/transaction';
 
 const TRANSACTIONS_ENDPOINT = '/transactions';
 const TRANSACTION_STAGE_ENDPOINT = (id: string) => `${TRANSACTIONS_ENDPOINT}/${id}/stage`;
@@ -45,6 +46,8 @@ interface ApiTransaction {
   totalServiceFee?: number;
   listingAgentId?: string | ApiAgent;
   sellingAgentId?: string | ApiAgent;
+  transactionType?: TransactionType;
+  createdBy?: string | ApiAgent | null;
   stage?: TransactionStage;
   stageHistory?: ApiTransactionStageHistoryItem[];
   financialBreakdown?: ApiFinancialBreakdown;
@@ -66,6 +69,7 @@ interface ApiCompletedTransactionEarningsSummary {
 }
 
 const TRANSACTION_STAGE_SET = new Set(Object.values(TransactionStageEnum));
+const TRANSACTION_TYPE_SET = new Set(Object.values(TransactionTypeEnum));
 const COMMISSION_ROLE_SET = new Set<AgentCommissionAllocation['role']>([
   'listing',
   'selling',
@@ -233,6 +237,17 @@ const normalizeOptionalStage = (stage: unknown): TransactionStage | null => {
   return normalizeStage(stage);
 };
 
+const normalizeTransactionType = (transactionType: unknown): TransactionType => {
+  if (
+    typeof transactionType === 'string' &&
+    TRANSACTION_TYPE_SET.has(transactionType as TransactionType)
+  ) {
+    return transactionType as TransactionType;
+  }
+
+  return TransactionTypeEnum.SOLD;
+};
+
 const normalizeChangedBy = (
   changedBy: ApiTransactionStageHistoryItem['changedBy']
 ): Pick<TransactionStageHistoryItem, 'changedBy' | 'changedById'> => {
@@ -283,6 +298,32 @@ const normalizeStageHistory = (
     .sort((left, right) => new Date(left.changedAt).getTime() - new Date(right.changedAt).getTime());
 };
 
+const readSessionTokenFromStorage = (): string | null => {
+  if (!import.meta.client) {
+    return null;
+  }
+
+  const token = window.localStorage.getItem('iceberg.session-token');
+  if (typeof token !== 'string') {
+    return null;
+  }
+
+  const normalizedToken = token.trim();
+  return normalizedToken.length > 0 ? normalizedToken : null;
+};
+
+const createAuthHeaders = (): HeadersInit => {
+  const sessionToken = readSessionTokenFromStorage();
+
+  if (!sessionToken) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${sessionToken}`
+  };
+};
+
 export const normalizeTransaction = (apiTransaction: ApiTransaction): Transaction => {
   const transactionId = toRequiredObjectIdString(
     apiTransaction.id ?? apiTransaction._id,
@@ -313,14 +354,32 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
           'sellingAgentId'
         );
 
+  let createdById: string | undefined;
+  let createdBy: AgentSummary | undefined;
+
+  if (apiTransaction.createdBy) {
+    if (typeof apiTransaction.createdBy === 'string') {
+      createdById = toRequiredObjectIdString(apiTransaction.createdBy, 'createdBy');
+    } else {
+      createdById = toRequiredObjectIdString(
+        apiTransaction.createdBy.id ?? apiTransaction.createdBy._id,
+        'createdBy'
+      );
+      createdBy = normalizeAgentSummary(apiTransaction.createdBy, createdById);
+    }
+  }
+
   return {
     id: transactionId,
     propertyTitle: toRequiredString(apiTransaction.propertyTitle, 'propertyTitle'),
     totalServiceFee: toRequiredNonNegativeNumber(apiTransaction.totalServiceFee, 'totalServiceFee'),
     listingAgentId,
     sellingAgentId,
+    transactionType: normalizeTransactionType(apiTransaction.transactionType),
+    createdById,
     listingAgent: normalizeAgentSummary(apiTransaction.listingAgentId, listingAgentId),
     sellingAgent: normalizeAgentSummary(apiTransaction.sellingAgentId, sellingAgentId),
+    createdBy,
     stage: normalizeStage(apiTransaction.stage),
     stageHistory: normalizeStageHistory(apiTransaction.stageHistory),
     financialBreakdown: normalizeFinancialBreakdown(
@@ -350,6 +409,7 @@ export const useTransactionsApi = () => {
     async createTransaction(payload: CreateTransactionPayload): Promise<Transaction> {
       const response = await api.request<ApiTransaction>(TRANSACTIONS_ENDPOINT, {
         method: 'POST',
+        headers: createAuthHeaders(),
         body: payload
       });
 

@@ -34,7 +34,10 @@ export class TransactionsService {
     private readonly stageTransitionPolicyService: StageTransitionPolicyService
   ) {}
 
-  async create(createTransactionDto: CreateTransactionDto): Promise<TransactionDocument> {
+  async create(
+    createTransactionDto: CreateTransactionDto,
+    creatorSessionToken?: string
+  ): Promise<TransactionDocument> {
     const initialStage = this.stageTransitionPolicyService.resolveInitialStageForCreate(
       createTransactionDto.stage
     );
@@ -48,15 +51,22 @@ export class TransactionsService {
       sellingAgentId: createTransactionDto.sellingAgentId
     });
 
+    const createdByAgentId =
+      typeof creatorSessionToken === 'string' && creatorSessionToken.trim().length > 0
+        ? await this.agentsService.getAgentIdBySessionToken(creatorSessionToken)
+        : null;
+
     const stageHistory = [
       this.createStageHistoryEntry({
         fromStage: null,
-        toStage: initialStage
+        toStage: initialStage,
+        changedBy: createdByAgentId ?? undefined
       })
     ];
 
     return this.transactionModel.create({
       ...createTransactionDto,
+      createdBy: createdByAgentId ? new Types.ObjectId(createdByAgentId) : null,
       stage: initialStage,
       financialBreakdown,
       stageHistory
@@ -68,6 +78,7 @@ export class TransactionsService {
       .find()
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('createdBy', 'name email isActive')
       .populate('stageHistory.changedBy', 'name email isActive')
       .sort({ createdAt: -1 })
       .exec();
@@ -80,6 +91,7 @@ export class TransactionsService {
       .findById(id)
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('createdBy', 'name email isActive')
       .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
@@ -133,6 +145,7 @@ export class TransactionsService {
       )
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('createdBy', 'name email isActive')
       .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
@@ -179,6 +192,7 @@ export class TransactionsService {
       )
       .populate('listingAgentId', 'name email isActive')
       .populate('sellingAgentId', 'name email isActive')
+      .populate('createdBy', 'name email isActive')
       .populate('stageHistory.changedBy', 'name email isActive')
       .exec();
 
