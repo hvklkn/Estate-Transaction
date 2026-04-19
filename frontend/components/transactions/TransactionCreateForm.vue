@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
 import type { AgentUser } from '~/types/agent';
-import { TransactionStage, type CreateTransactionPayload } from '~/types/transaction';
+import { TransactionStage, TransactionType, type CreateTransactionPayload } from '~/types/transaction';
 
 const props = defineProps<{
   isSubmitting: boolean;
@@ -21,14 +21,16 @@ const form = reactive({
   propertyTitle: '',
   totalServiceFee: '',
   listingAgentId: '',
-  sellingAgentId: ''
+  sellingAgentId: '',
+  transactionType: ''
 });
 
 const errors = reactive({
   propertyTitle: '',
   totalServiceFee: '',
   listingAgentId: '',
-  sellingAgentId: ''
+  sellingAgentId: '',
+  transactionType: ''
 });
 
 const showValidationSummary = ref(false);
@@ -40,6 +42,7 @@ const resetErrors = () => {
   errors.totalServiceFee = '';
   errors.listingAgentId = '';
   errors.sellingAgentId = '';
+  errors.transactionType = '';
 };
 
 const resetForm = () => {
@@ -47,6 +50,7 @@ const resetForm = () => {
   form.totalServiceFee = '';
   form.listingAgentId = '';
   form.sellingAgentId = '';
+  form.transactionType = '';
   showValidationSummary.value = false;
   resetErrors();
 };
@@ -72,6 +76,10 @@ const validateForm = (): boolean => {
     errors.sellingAgentId = t('transactions.form.validation.sellingAgentIdRequired');
   }
 
+  if (form.transactionType !== TransactionType.SOLD && form.transactionType !== TransactionType.RENTED) {
+    errors.transactionType = 'Please select whether the property was sold or rented.';
+  }
+
   return !hasErrors.value;
 };
 
@@ -92,9 +100,13 @@ const onSubmit = () => {
     totalServiceFee: Number(form.totalServiceFee),
     listingAgentId: form.listingAgentId.trim(),
     sellingAgentId: form.sellingAgentId.trim(),
+    transactionType: form.transactionType as TransactionType,
     stage: TransactionStage.AGREEMENT
   });
 };
+
+const transactionTypeLabel = (type: TransactionType) =>
+  type === TransactionType.SOLD ? 'Sold' : 'Rented';
 </script>
 
 <template>
@@ -163,6 +175,23 @@ const onSubmit = () => {
                 </div>
                 <p class="field-hint">{{ t('transactions.form.hints.initialStage') }}</p>
               </div>
+
+              <label class="block">
+                <span class="field-label">Transaction Type</span>
+                <select
+                  v-model="form.transactionType"
+                  class="input-base text-sm"
+                  :class="{ 'input-invalid': errors.transactionType }"
+                  :aria-invalid="Boolean(errors.transactionType)"
+                  :disabled="props.isSubmitting"
+                  @change="clearFieldError('transactionType')"
+                >
+                  <option value="">Select Type</option>
+                  <option :value="TransactionType.SOLD">{{ transactionTypeLabel(TransactionType.SOLD) }}</option>
+                  <option :value="TransactionType.RENTED">{{ transactionTypeLabel(TransactionType.RENTED) }}</option>
+                </select>
+                <p v-if="errors.transactionType" class="field-error">{{ errors.transactionType }}</p>
+              </label>
             </div>
           </div>
         </div>

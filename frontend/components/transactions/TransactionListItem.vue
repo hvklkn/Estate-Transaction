@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import TransactionCompactFinancialSummary from '~/components/transactions/TransactionCompactFinancialSummary.vue';
 import TransactionDetailPanel from '~/components/transactions/TransactionDetailPanel.vue';
@@ -20,6 +20,12 @@ const emit = defineEmits<{
 
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 const isDetailsVisible = ref(false);
+const listingAgentName = computed(
+  () => props.transaction.listingAgent?.name?.trim() || 'Unknown Agent'
+);
+const sellingAgentName = computed(
+  () => props.transaction.sellingAgent?.name?.trim() || 'Unknown Agent'
+);
 
 const onAdvanceStage = () => {
   if (!props.nextStage) {
@@ -73,7 +79,7 @@ const onToggleDetails = () => {
             {{ t('transactions.item.listingAgent') }}
           </p>
           <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-            {{ props.transaction.listingAgent?.name ?? props.transaction.listingAgentId }}
+            {{ listingAgentName }}
           </p>
         </div>
 
@@ -82,7 +88,7 @@ const onToggleDetails = () => {
             {{ t('transactions.item.sellingAgent') }}
           </p>
           <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-            {{ props.transaction.sellingAgent?.name ?? props.transaction.sellingAgentId }}
+            {{ sellingAgentName }}
           </p>
         </div>
       </section>

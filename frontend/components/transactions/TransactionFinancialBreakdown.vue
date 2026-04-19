@@ -7,6 +7,8 @@ import type { FinancialBreakdown } from '~/types/transaction';
 const props = defineProps<{
   financialBreakdown: FinancialBreakdown;
   totalServiceFee?: number;
+  listingAgentName?: string;
+  sellingAgentName?: string;
 }>();
 const { t, formatCurrency, formatPercent } = useAppI18n();
 
@@ -25,6 +27,18 @@ const agentPoolPercent = computed(() => {
 
   return (props.financialBreakdown.agentPoolAmount / props.totalServiceFee) * 100;
 });
+
+const resolveAgentName = (role: FinancialBreakdown['agents'][number]['role']): string => {
+  if (role === 'listing') {
+    return props.listingAgentName?.trim() || 'Unknown Agent';
+  }
+
+  if (role === 'selling') {
+    return props.sellingAgentName?.trim() || 'Unknown Agent';
+  }
+
+  return props.listingAgentName?.trim() || props.sellingAgentName?.trim() || 'Unknown Agent';
+};
 </script>
 
 <template>
@@ -73,8 +87,8 @@ const agentPoolPercent = computed(() => {
             <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
               {{ t(`transactions.financial.roles.${agent.role}`) }}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-              {{ t('transactions.financial.agentId') }}: {{ agent.agentId }}
+            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {{ resolveAgentName(agent.role) }}
             </p>
           </div>
           <p class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ formatCurrency(agent.amount) }}</p>

@@ -1,14 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import TransactionFinancialBreakdown from '~/components/transactions/TransactionFinancialBreakdown.vue';
 import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
-import type { Transaction } from '~/types/transaction';
+import { TransactionType, type Transaction } from '~/types/transaction';
 
 const props = defineProps<{
   transaction: Transaction;
 }>();
 
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
+const listingAgentName = computed(
+  () => props.transaction.listingAgent?.name?.trim() || 'Unknown Agent'
+);
+const sellingAgentName = computed(
+  () => props.transaction.sellingAgent?.name?.trim() || 'Unknown Agent'
+);
+const createdByName = computed(
+  () => props.transaction.createdBy?.name?.trim() || null
+);
+const transactionTypeLabel = computed(() =>
+  props.transaction.transactionType === TransactionType.RENTED ? 'Rented' : 'Sold'
+);
 </script>
 
 <template>
@@ -33,13 +47,13 @@ const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
       </div>
     </header>
 
-    <dl class="grid gap-3 md:grid-cols-2">
+    <dl class="grid gap-3 md:grid-cols-3">
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
           {{ t('transactions.detail.listingAgent') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-          {{ props.transaction.listingAgent?.name ?? props.transaction.listingAgentId }}
+          {{ listingAgentName }}
         </dd>
       </div>
 
@@ -48,7 +62,25 @@ const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
           {{ t('transactions.detail.sellingAgent') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-          {{ props.transaction.sellingAgent?.name ?? props.transaction.sellingAgentId }}
+          {{ sellingAgentName }}
+        </dd>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+        <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          Created By
+        </dt>
+        <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+          {{ createdByName ?? 'Unknown' }}
+        </dd>
+      </div>
+
+      <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+        <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          Transaction Type
+        </dt>
+        <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+          {{ transactionTypeLabel }}
         </dd>
       </div>
     </dl>
@@ -76,7 +108,7 @@ const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 
           <p v-if="entry.changedBy?.name || entry.changedById" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {{ t('transactions.history.changedBy') }}:
-            {{ entry.changedBy?.name ?? entry.changedById }}
+            {{ entry.changedBy?.name ?? 'Unknown Agent' }}
           </p>
         </li>
       </ol>
@@ -92,6 +124,8 @@ const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
     <TransactionFinancialBreakdown
       :financial-breakdown="props.transaction.financialBreakdown"
       :total-service-fee="props.transaction.totalServiceFee"
+      :listing-agent-name="listingAgentName"
+      :selling-agent-name="sellingAgentName"
     />
   </section>
 </template>
