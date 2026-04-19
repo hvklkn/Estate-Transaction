@@ -23,8 +23,6 @@ useHead(() => ({
 const profileForm = reactive({
   name: '',
   email: '',
-  firstName: '',
-  lastName: '',
   phone: '',
   iban: ''
 });
@@ -135,16 +133,12 @@ const requireSessionToken = (): string => {
 const applyProfile = (user: {
   name: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
   phone?: string;
   iban?: string;
   twoFactorMethod?: TwoFactorMethod;
 }) => {
   profileForm.name = user.name;
   profileForm.email = user.email;
-  profileForm.firstName = user.firstName ?? '';
-  profileForm.lastName = user.lastName ?? '';
   profileForm.phone = user.phone ?? '';
   profileForm.iban = user.iban ?? '';
   twoFactorMethod.value = user.twoFactorMethod === 'sms' ? 'sms' : 'authenticator';
@@ -176,8 +170,6 @@ const saveProfile = async () => {
     const user = await agentsApi.updateMyProfile(sessionToken, {
       name: profileForm.name.trim(),
       email: profileForm.email.trim().toLowerCase(),
-      firstName: profileForm.firstName.trim(),
-      lastName: profileForm.lastName.trim(),
       phone: profileForm.phone.trim(),
       iban: profileForm.iban.trim()
     });
@@ -359,9 +351,9 @@ onMounted(async () => {
       <div class="panel-body space-y-5">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Profil Bilgileri</h2>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Profile Information</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Ad, soyad, e-posta, telefon ve IBAN bilgilerinizi güncelleyebilirsiniz.
+              Update your account details, email address, phone number, and IBAN.
             </p>
           </div>
           <button type="button" class="btn-primary" :disabled="isSavingProfile || isLoadingProfile" @click="saveProfile">
@@ -383,19 +375,11 @@ onMounted(async () => {
             <input v-model="profileForm.name" type="text" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">E-posta</span>
+            <span class="field-label">Email</span>
             <input v-model="profileForm.email" type="email" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">Ad</span>
-            <input v-model="profileForm.firstName" type="text" class="input-base" />
-          </label>
-          <label class="block">
-            <span class="field-label">Soyad</span>
-            <input v-model="profileForm.lastName" type="text" class="input-base" />
-          </label>
-          <label class="block">
-            <span class="field-label">Telefon Numarası</span>
+            <span class="field-label">Phone Number</span>
             <input v-model="profileForm.phone" type="tel" class="input-base" />
           </label>
           <label class="block">
@@ -410,23 +394,23 @@ onMounted(async () => {
       <article class="panel">
         <div class="panel-body space-y-5">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Şifre Değiştirme</h2>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Change Password</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Mevcut şifrenizi girip yeni şifreyi onaylayarak güncelleyin.
+              Update your password by entering your current password and confirming the new one.
             </p>
           </div>
 
           <div class="space-y-3">
             <label class="block">
-              <span class="field-label">Mevcut Şifre</span>
+              <span class="field-label">Current Password</span>
               <input v-model="passwordForm.currentPassword" type="password" class="input-base" />
             </label>
             <label class="block">
-              <span class="field-label">Yeni Şifre</span>
+              <span class="field-label">New Password</span>
               <input v-model="passwordForm.newPassword" type="password" class="input-base" />
             </label>
             <label class="block">
-              <span class="field-label">Yeni Şifre (Tekrar)</span>
+              <span class="field-label">Confirm New Password</span>
               <input v-model="passwordForm.confirmNewPassword" type="password" class="input-base" />
             </label>
           </div>
@@ -440,7 +424,7 @@ onMounted(async () => {
           </div>
 
           <button type="button" class="btn-primary" :disabled="isChangingPassword" @click="changePassword">
-            {{ isChangingPassword ? 'Updating...' : 'Şifreyi Güncelle' }}
+            {{ isChangingPassword ? 'Updating...' : 'Update Password' }}
           </button>
         </div>
       </article>
@@ -448,9 +432,9 @@ onMounted(async () => {
       <article class="panel">
         <div class="panel-body space-y-5">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">İki Faktörlü Doğrulama (2FA)</h2>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Two-Factor Authentication (2FA)</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Hesaba girişte ekstra güvenlik katmanı için Authenticator tabanlı 2FA ayarlayın.
+              Add an extra security layer to sign-in with authenticator-based 2FA.
             </p>
           </div>
 
@@ -462,7 +446,7 @@ onMounted(async () => {
           </div>
 
           <label class="block">
-            <span class="field-label">2FA Yöntemi</span>
+            <span class="field-label">2FA Method</span>
             <select v-model="twoFactorMethod" class="input-base" :disabled="twoFactorEnabled">
               <option value="authenticator">Authenticator App</option>
               <option value="sms">SMS (requires provider)</option>
@@ -499,7 +483,7 @@ onMounted(async () => {
 
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" :disabled="isSettingUpTwoFactor" @click="setupTwoFactor">
-              {{ isSettingUpTwoFactor ? 'Preparing...' : '2FA Setup Başlat' }}
+              {{ isSettingUpTwoFactor ? 'Preparing...' : 'Start 2FA Setup' }}
             </button>
             <button
               type="button"
@@ -507,7 +491,7 @@ onMounted(async () => {
               :disabled="isVerifyingTwoFactor || twoFactorCode.trim().length !== 6"
               @click="verifyTwoFactor"
             >
-              {{ isVerifyingTwoFactor ? 'Verifying...' : '2FA Doğrula' }}
+              {{ isVerifyingTwoFactor ? 'Verifying...' : 'Verify 2FA' }}
             </button>
             <button
               v-if="twoFactorEnabled"
@@ -516,7 +500,7 @@ onMounted(async () => {
               :disabled="isDisablingTwoFactor"
               @click="disableTwoFactor"
             >
-              {{ isDisablingTwoFactor ? 'Disabling...' : '2FA Devre Dışı Bırak' }}
+              {{ isDisablingTwoFactor ? 'Disabling...' : 'Disable 2FA' }}
             </button>
           </div>
         </div>
@@ -527,13 +511,13 @@ onMounted(async () => {
       <div class="panel-body space-y-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Oturum Yönetimi</h2>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Session Management</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Aktif oturumlarınızı görüntüleyebilir ve diğer cihazlardan çıkış yapabilirsiniz.
+              View active sessions and sign out from other devices.
             </p>
           </div>
           <button type="button" class="btn-secondary" :disabled="isLoadingSessions" @click="revokeOtherSessions">
-            Diğer Cihazlardan Çıkış Yap
+            Sign Out Other Devices
           </button>
         </div>
 
@@ -572,7 +556,7 @@ onMounted(async () => {
                   class="btn-secondary"
                   @click="revokeSession(session.id)"
                 >
-                  Oturumu Sonlandır
+                  Revoke Session
                 </button>
               </div>
             </div>
@@ -589,9 +573,9 @@ onMounted(async () => {
       <div class="panel-body space-y-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Yaptığı Satışların Bilgileri</h2>
+            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Sales Records</h2>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Selling agent olarak atandığınız işlemler burada listelenir.
+              Transactions where you are assigned as the selling agent are listed here.
             </p>
           </div>
 

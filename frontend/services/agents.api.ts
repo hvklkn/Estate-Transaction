@@ -215,10 +215,10 @@ export const useAgentsApi = () => {
       payload: {
         name: string;
         email: string;
-        firstName: string;
-        lastName: string;
-        phone: string;
-        iban: string;
+        firstName?: string;
+        lastName?: string;
+        phone?: string;
+        iban?: string;
       }
     ): Promise<AgentUser> {
       const response = await api.request<ApiAgent>(AGENTS_ME_PROFILE_ENDPOINT, {
