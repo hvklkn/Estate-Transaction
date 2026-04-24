@@ -93,6 +93,9 @@ export class Transaction {
   @Prop({ type: Types.ObjectId, ref: Agent.name, default: null })
   createdBy!: Types.ObjectId | null;
 
+  @Prop({ type: Types.ObjectId, ref: Agent.name, default: null })
+  updatedBy!: Types.ObjectId | null;
+
   @Prop({
     required: true,
     enum: TransactionStage,
@@ -117,6 +120,30 @@ export class Transaction {
     default: []
   })
   stageHistory!: TransactionStageHistoryEntry[];
+
+  @Prop({ required: true, default: false })
+  balanceDistributionApplied!: boolean;
+
+  @Prop({ type: Date, default: null })
+  balanceDistributionAppliedAt!: Date | null;
+
+  @Prop({ type: Types.ObjectId, ref: Agent.name, default: null })
+  balanceDistributionAppliedBy!: Types.ObjectId | null;
+
+  @Prop({ type: [Types.ObjectId], ref: 'BalanceLedger', default: [] })
+  balanceDistributionLedgerIds!: Types.ObjectId[];
+
+  @Prop({ required: true, default: false })
+  isDeleted!: boolean;
+
+  @Prop({ type: Date, default: null })
+  deletedAt!: Date | null;
+
+  @Prop({ type: Types.ObjectId, ref: Agent.name, default: null })
+  deletedBy!: Types.ObjectId | null;
+
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
@@ -124,3 +151,10 @@ export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 TransactionSchema.index({ stage: 1, createdAt: -1 });
 TransactionSchema.index({ listingAgentId: 1, sellingAgentId: 1 });
 TransactionSchema.index({ transactionType: 1, createdAt: -1 });
+TransactionSchema.index({ stage: 1, transactionType: 1, createdAt: -1 });
+TransactionSchema.index({ listingAgentId: 1, createdAt: -1 });
+TransactionSchema.index({ sellingAgentId: 1, createdAt: -1 });
+TransactionSchema.index({ propertyTitle: 1, createdAt: -1 });
+TransactionSchema.index({ balanceDistributionApplied: 1, createdAt: -1 });
+TransactionSchema.index({ isDeleted: 1, createdAt: -1 });
+TransactionSchema.index({ isDeleted: 1, stage: 1, createdAt: -1 });

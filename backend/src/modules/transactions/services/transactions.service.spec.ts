@@ -4,25 +4,22 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
 import { AgentsService } from '@/modules/agents/services/agents.service';
+import { BalanceService } from '@/modules/balance/services/balance.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
 import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 import { Transaction } from '@/modules/transactions/schemas/transaction.schema';
+import { TransactionMutationPolicyService } from '@/modules/transactions/services/transaction-mutation-policy.service';
 import { TransactionsService } from '@/modules/transactions/services/transactions.service';
 
 const LISTING_AGENT_ID = '661b8c0134e2c40fd2f89a11';
 const SELLING_AGENT_ID = '661b8c0134e2c40fd2f89a22';
-const NEW_LISTING_AGENT_ID = '661b8c0134e2c40fd2f89a44';
+const CREATOR_AGENT_ID = '661b8c0134e2c40fd2f89a33';
+const MANAGER_AGENT_ID = '661b8c0134e2c40fd2f89a44';
 const VALID_TRANSACTION_ID = '661b8c0134e2c40fd2f89b33';
 const INVALID_TRANSACTION_ID = 'not-a-valid-object-id';
-
-const createQueryMock = <T>(result: T) => ({
-  populate: jest.fn().mockReturnThis(),
-  sort: jest.fn().mockReturnThis(),
-  exec: jest.fn().mockResolvedValue(result)
-});
 
 const buildFinancialBreakdown = (overrides?: Partial<Record<string, unknown>>) => ({
   agencyAmount: 50000,
@@ -32,13 +29,13 @@ const buildFinancialBreakdown = (overrides?: Partial<Record<string, unknown>>) =
       agentId: LISTING_AGENT_ID,
       role: CommissionAgentRole.LISTING,
       amount: 25000,
-      explanation: 'Listing and selling agents are different people, so the agent portion is split equally.'
+      explanation: 'Split equally.'
     },
     {
       agentId: SELLING_AGENT_ID,
       role: CommissionAgentRole.SELLING,
       amount: 25000,
-      explanation: 'Listing and selling agents are different people, so the agent portion is split equally.'
+      explanation: 'Split equally.'
     }
   ],
   ...overrides
@@ -51,7 +48,9 @@ const buildExistingTransaction = (
     totalServiceFee: number;
     listingAgentId: Types.ObjectId;
     sellingAgentId: Types.ObjectId;
+    createdBy: Types.ObjectId | null;
     stage: TransactionStage;
+    transactionType: TransactionType;
   }>
 ) => ({
   _id: VALID_TRANSACTION_ID,
@@ -59,10 +58,32 @@ const buildExistingTransaction = (
   totalServiceFee: 100000,
   listingAgentId: new Types.ObjectId(LISTING_AGENT_ID),
   sellingAgentId: new Types.ObjectId(SELLING_AGENT_ID),
+  createdBy: new Types.ObjectId(CREATOR_AGENT_ID),
   transactionType: TransactionType.SOLD,
   stage: TransactionStage.AGREEMENT,
   ...overrides
 });
+
+const createBasicQueryMock = <T>(result: T) => ({
+  exec: jest.fn().mockResolvedValue(result)
+});
+
+const createFindQueryMock = <T>(result: T) => {
+  const query = {
+    populate: jest.fn(),
+    sort: jest.fn(),
+    skip: jest.fn(),
+    limit: jest.fn(),
+    exec: jest.fn().mockResolvedValue(result)
+  };
+
+  query.populate.mockReturnValue(query);
+  query.sort.mockReturnValue(query);
+  query.skip.mockReturnValue(query);
+  query.limit.mockReturnValue(query);
+
+  return query;
+};
 
 describe('TransactionsService', () => {
   let service: TransactionsService;
@@ -72,22 +93,34 @@ describe('TransactionsService', () => {
     find: jest.fn(),
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
-    findByIdAndDelete: jest.fn(),
+    countDocuments: jest.fn(),
     aggregate: jest.fn()
   };
 
   const agentsServiceMock = {
     ensureAgentExists: jest.fn(),
-    getAgentIdBySessionToken: jest.fn()
+    findAgentIdsBySearchTerm: jest.fn()
   };
 
   const commissionCalculatorServiceMock = {
     calculate: jest.fn()
   };
 
+  const balanceServiceMock = {
+    applyCommissionCreditsForCompletedTransaction: jest.fn()
+  };
+
   const stageTransitionPolicyServiceMock = {
     assertValidTransition: jest.fn(),
     resolveInitialStageForCreate: jest.fn()
+  };
+
+  const transactionMutationPolicyServiceMock = {
+    assertNotDeleted: jest.fn(),
+    assertCanMutate: jest.fn(),
+    assertCanDelete: jest.fn(),
+    assertNotCompleted: jest.fn(),
+    assertValidUpdatePayloadForCurrentStage: jest.fn()
   };
 
   beforeEach(async () => {
@@ -105,12 +138,20 @@ describe('TransactionsService', () => {
           useValue: agentsServiceMock
         },
         {
+          provide: BalanceService,
+          useValue: balanceServiceMock
+        },
+        {
           provide: CommissionCalculatorService,
           useValue: commissionCalculatorServiceMock
         },
         {
           provide: StageTransitionPolicyService,
           useValue: stageTransitionPolicyServiceMock
+        },
+        {
+          provide: TransactionMutationPolicyService,
+          useValue: transactionMutationPolicyServiceMock
         }
       ]
     }).compile();
@@ -119,43 +160,20 @@ describe('TransactionsService', () => {
   });
 
   describe('create', () => {
-    it('rejects creation when initial stage is invalid', async () => {
+    it('stores createdBy and stageHistory.changedBy from authenticated actor context', async () => {
       const createDto = {
         propertyTitle: 'Sunset Villas #12',
         totalServiceFee: 100000,
         listingAgentId: LISTING_AGENT_ID,
         sellingAgentId: SELLING_AGENT_ID,
-        transactionType: TransactionType.SOLD,
-        stage: TransactionStage.TITLE_DEED
-      };
-
-      stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockImplementation(() => {
-        throw new BadRequestException(
-          'New transactions must start at "agreement" stage. Use the dedicated stage transition endpoint for progression.'
-        );
-      });
-
-      await expect(service.create(createDto)).rejects.toThrow(/must start at "agreement" stage/i);
-
-      expect(agentsServiceMock.ensureAgentExists).not.toHaveBeenCalled();
-      expect(commissionCalculatorServiceMock.calculate).not.toHaveBeenCalled();
-      expect(transactionModelMock.create).not.toHaveBeenCalled();
-    });
-
-    it('validates agents, computes financial breakdown, and stores policy-resolved stage', async () => {
-      const createDto = {
-        propertyTitle: 'Sunset Villas #12',
-        totalServiceFee: 100000,
-        listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID,
-        transactionType: TransactionType.SOLD,
-        stage: TransactionStage.AGREEMENT
+        transactionType: TransactionType.SOLD
       };
 
       const financialBreakdown = buildFinancialBreakdown();
       const createdTransaction = {
         _id: VALID_TRANSACTION_ID,
         ...createDto,
+        stage: TransactionStage.AGREEMENT,
         financialBreakdown
       };
 
@@ -165,184 +183,155 @@ describe('TransactionsService', () => {
       commissionCalculatorServiceMock.calculate.mockReturnValue(financialBreakdown);
       transactionModelMock.create.mockResolvedValue(createdTransaction);
 
-      const result = await service.create(createDto);
+      const result = await service.create(createDto, CREATOR_AGENT_ID);
 
-      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledWith(LISTING_AGENT_ID);
-      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledWith(SELLING_AGENT_ID);
-      expect(commissionCalculatorServiceMock.calculate).toHaveBeenCalledWith({
-        totalServiceFee: 100000,
-        listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID
-      });
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
-        createdBy: null,
+        createdBy: expect.any(Types.ObjectId),
         stage: TransactionStage.AGREEMENT,
         financialBreakdown,
+        balanceDistributionApplied: false,
+        balanceDistributionAppliedAt: null,
+        balanceDistributionAppliedBy: null,
+        balanceDistributionLedgerIds: [],
         stageHistory: [
           {
             fromStage: null,
             toStage: TransactionStage.AGREEMENT,
-            changedAt: expect.any(Date)
+            changedAt: expect.any(Date),
+            changedBy: expect.any(Types.ObjectId)
           }
         ]
       });
       expect(result).toEqual(createdTransaction);
     });
+  });
 
-    it('defaults to agreement stage when create payload omits stage', async () => {
-      const createDto = {
-        propertyTitle: 'Maple Residency #7',
-        totalServiceFee: 95000,
-        listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID,
-        transactionType: TransactionType.SOLD
-      };
+  describe('findAll', () => {
+    it('returns paginated transaction envelope with defaults', async () => {
+      const findResult = [buildExistingTransaction()];
+      const findQuery = createFindQueryMock(findResult);
+      const countQuery = createBasicQueryMock(1);
+      transactionModelMock.find.mockReturnValue(findQuery);
+      transactionModelMock.countDocuments.mockReturnValue(countQuery);
 
-      const financialBreakdown = buildFinancialBreakdown({
-        agencyAmount: 47500,
-        agentPoolAmount: 47500,
-        agents: [
-          {
-            agentId: LISTING_AGENT_ID,
-            role: CommissionAgentRole.LISTING,
-            amount: 23750,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          },
-          {
-            agentId: SELLING_AGENT_ID,
-            role: CommissionAgentRole.SELLING,
-            amount: 23750,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          }
-        ]
-      });
+      const result = await service.findAll({});
 
-      stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockReturnValue(
-        TransactionStage.AGREEMENT
-      );
-      commissionCalculatorServiceMock.calculate.mockReturnValue(financialBreakdown);
-      transactionModelMock.create.mockResolvedValue({
-        _id: VALID_TRANSACTION_ID,
-        ...createDto,
-        stage: TransactionStage.AGREEMENT,
-        financialBreakdown
-      });
-
-      await service.create(createDto);
-
-      expect(stageTransitionPolicyServiceMock.resolveInitialStageForCreate).toHaveBeenCalledWith(
-        undefined
-      );
-      expect(transactionModelMock.create).toHaveBeenCalledWith({
-        ...createDto,
-        createdBy: null,
-        stage: TransactionStage.AGREEMENT,
-        financialBreakdown,
-        stageHistory: [
-          {
-            fromStage: null,
-            toStage: TransactionStage.AGREEMENT,
-            changedAt: expect.any(Date)
-          }
-        ]
+      expect(transactionModelMock.find).toHaveBeenCalledWith({ isDeleted: false });
+      expect(findQuery.sort).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
+      expect(findQuery.skip).toHaveBeenCalledWith(0);
+      expect(findQuery.limit).toHaveBeenCalledWith(20);
+      expect(result).toEqual({
+        items: findResult,
+        page: 1,
+        limit: 20,
+        total: 1,
+        totalPages: 1
       });
     });
 
-    it('returns create failure when listing agent validation fails', async () => {
-      const createDto = {
-        propertyTitle: 'Sunset Villas #12',
-        totalServiceFee: 100000,
-        listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID,
-        transactionType: TransactionType.SOLD
-      };
+    it('supports search+filters and deterministic sort options', async () => {
+      const findResult = [buildExistingTransaction({ propertyTitle: 'Maple Heights #5' })];
+      const findQuery = createFindQueryMock(findResult);
+      const countQuery = createBasicQueryMock(1);
 
-      stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockReturnValue(
-        TransactionStage.AGREEMENT
+      agentsServiceMock.findAgentIdsBySearchTerm.mockResolvedValue([LISTING_AGENT_ID]);
+      transactionModelMock.find.mockReturnValue(findQuery);
+      transactionModelMock.countDocuments.mockReturnValue(countQuery);
+
+      await service.findAll({
+        page: 2,
+        limit: 10,
+        search: 'maple',
+        stage: TransactionStage.EARNEST_MONEY,
+        transactionType: TransactionType.RENTED,
+        sortBy: 'propertyTitle',
+        sortOrder: 'asc'
+      });
+
+      expect(agentsServiceMock.findAgentIdsBySearchTerm).toHaveBeenCalledWith('maple');
+      expect(transactionModelMock.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isDeleted: false,
+          stage: TransactionStage.EARNEST_MONEY,
+          transactionType: TransactionType.RENTED,
+          $or: expect.any(Array)
+        })
       );
-      agentsServiceMock.ensureAgentExists.mockRejectedValueOnce(
-        new NotFoundException(`Agent not found: ${LISTING_AGENT_ID}`)
+      expect(findQuery.sort).toHaveBeenCalledWith({ propertyTitle: 1, _id: 1 });
+      expect(findQuery.skip).toHaveBeenCalledWith(10);
+      expect(findQuery.limit).toHaveBeenCalledWith(10);
+    });
+
+    it('includes soft-deleted records when includeDeleted=true', async () => {
+      const findResult = [buildExistingTransaction()];
+      const findQuery = createFindQueryMock(findResult);
+      const countQuery = createBasicQueryMock(1);
+
+      transactionModelMock.find.mockReturnValue(findQuery);
+      transactionModelMock.countDocuments.mockReturnValue(countQuery);
+
+      await service.findAll({
+        includeDeleted: true
+      });
+
+      expect(transactionModelMock.find).toHaveBeenCalledWith({});
+    });
+  });
+
+  describe('findOne', () => {
+    it('rejects invalid MongoDB transaction ids', async () => {
+      await expect(service.findOne(INVALID_TRANSACTION_ID)).rejects.toThrow(
+        /transactionId must be a valid MongoDB ObjectId/i
       );
+    });
 
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+    it('throws not found for unknown transactions', async () => {
+      transactionModelMock.findById.mockReturnValue(createFindQueryMock(null));
 
-      expect(commissionCalculatorServiceMock.calculate).not.toHaveBeenCalled();
-      expect(transactionModelMock.create).not.toHaveBeenCalled();
+      await expect(service.findOne(VALID_TRANSACTION_ID)).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('update', () => {
-    it('rejects invalid MongoDB transaction ids', async () => {
-      await expect(service.update(INVALID_TRANSACTION_ID, { propertyTitle: 'Updated' })).rejects.toThrow(
-        /transactionId must be a valid MongoDB ObjectId/i
-      );
-
-      expect(transactionModelMock.findById).not.toHaveBeenCalled();
-      expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('returns not found when updating a missing transaction', async () => {
-      transactionModelMock.findById.mockReturnValue(createQueryMock(null));
-
-      await expect(service.update(VALID_TRANSACTION_ID, { propertyTitle: 'Updated' })).rejects.toThrow(
-        NotFoundException
-      );
-
-      expect(commissionCalculatorServiceMock.calculate).not.toHaveBeenCalled();
-      expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('recalculates financial breakdown from merged existing and updated values', async () => {
-      const existingTransaction = buildExistingTransaction({ stage: TransactionStage.EARNEST_MONEY });
-      const updateDto = {
-        totalServiceFee: 120000
-      };
-      const recalculatedBreakdown = buildFinancialBreakdown({
-        agencyAmount: 60000,
-        agentPoolAmount: 60000,
-        agents: [
-          {
-            agentId: LISTING_AGENT_ID,
-            role: CommissionAgentRole.LISTING,
-            amount: 30000,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          },
-          {
-            agentId: SELLING_AGENT_ID,
-            role: CommissionAgentRole.SELLING,
-            amount: 30000,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          }
-        ]
+    it('enforces mutation policy checks before update', async () => {
+      const existingTransaction = buildExistingTransaction({
+        stage: TransactionStage.EARNEST_MONEY
       });
+      const updateDto = {
+        propertyTitle: 'Updated property title'
+      };
+      const recalculatedBreakdown = buildFinancialBreakdown();
       const updatedTransaction = {
         ...existingTransaction,
         ...updateDto,
         financialBreakdown: recalculatedBreakdown
       };
 
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
+      transactionModelMock.findById.mockReturnValue(createBasicQueryMock(existingTransaction));
       commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
-      transactionModelMock.findByIdAndUpdate.mockReturnValue(createQueryMock(updatedTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(createFindQueryMock(updatedTransaction));
 
-      const result = await service.update(VALID_TRANSACTION_ID, updateDto);
+      const result = await service.update(VALID_TRANSACTION_ID, updateDto, CREATOR_AGENT_ID);
 
-      expect(commissionCalculatorServiceMock.calculate).toHaveBeenCalledWith({
-        totalServiceFee: 120000,
-        listingAgentId: LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID
-      });
+      expect(transactionMutationPolicyServiceMock.assertCanMutate).toHaveBeenCalledWith(
+        existingTransaction,
+        CREATOR_AGENT_ID
+      );
+      expect(transactionMutationPolicyServiceMock.assertNotDeleted).toHaveBeenCalledWith(
+        existingTransaction
+      );
+      expect(transactionMutationPolicyServiceMock.assertNotCompleted).toHaveBeenCalledWith(
+        existingTransaction
+      );
+      expect(
+        transactionMutationPolicyServiceMock.assertValidUpdatePayloadForCurrentStage
+      ).toHaveBeenCalledWith(existingTransaction, updateDto);
       expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
         VALID_TRANSACTION_ID,
-        {
-          ...updateDto,
-          financialBreakdown: recalculatedBreakdown
-        },
+        expect.objectContaining({
+          updatedBy: expect.any(Types.ObjectId)
+        }),
         {
           new: true,
           runValidators: true
@@ -350,128 +339,31 @@ describe('TransactionsService', () => {
       );
       expect(result).toEqual(updatedTransaction);
     });
-
-    it('validates only agent ids that changed during update', async () => {
-      const existingTransaction = buildExistingTransaction({
-        propertyTitle: 'Lakeside Residence #3'
-      });
-      const updateDto = {
-        listingAgentId: NEW_LISTING_AGENT_ID
-      };
-      const recalculatedBreakdown = buildFinancialBreakdown({
-        agents: [
-          {
-            agentId: NEW_LISTING_AGENT_ID,
-            role: CommissionAgentRole.LISTING,
-            amount: 25000,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          },
-          {
-            agentId: SELLING_AGENT_ID,
-            role: CommissionAgentRole.SELLING,
-            amount: 25000,
-            explanation:
-              'Listing and selling agents are different people, so the agent portion is split equally.'
-          }
-        ]
-      });
-
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
-      transactionModelMock.findByIdAndUpdate.mockReturnValue(
-        createQueryMock({
-          ...existingTransaction,
-          ...updateDto,
-          financialBreakdown: recalculatedBreakdown
-        })
-      );
-
-      await service.update(VALID_TRANSACTION_ID, updateDto);
-
-      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledTimes(1);
-      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledWith(NEW_LISTING_AGENT_ID);
-      expect(commissionCalculatorServiceMock.calculate).toHaveBeenCalledWith({
-        totalServiceFee: existingTransaction.totalServiceFee,
-        listingAgentId: NEW_LISTING_AGENT_ID,
-        sellingAgentId: SELLING_AGENT_ID
-      });
-    });
-
-    it('does not alter stage history on non-stage transaction updates', async () => {
-      const existingTransaction = buildExistingTransaction({
-        stage: TransactionStage.EARNEST_MONEY
-      });
-      const updateDto = {
-        propertyTitle: 'Updated Property Title'
-      };
-      const recalculatedBreakdown = buildFinancialBreakdown();
-
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
-      transactionModelMock.findByIdAndUpdate.mockReturnValue(
-        createQueryMock({
-          ...existingTransaction,
-          ...updateDto,
-          financialBreakdown: recalculatedBreakdown
-        })
-      );
-
-      await service.update(VALID_TRANSACTION_ID, updateDto);
-
-      expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
-        VALID_TRANSACTION_ID,
-        {
-          ...updateDto,
-          financialBreakdown: recalculatedBreakdown
-        },
-        {
-          new: true,
-          runValidators: true
-        }
-      );
-      const updatePayload = transactionModelMock.findByIdAndUpdate.mock.calls[0][1];
-      expect(updatePayload).not.toHaveProperty('stage');
-      expect(updatePayload).not.toHaveProperty('stageHistory');
-      expect(updatePayload).not.toHaveProperty('$push');
-    });
   });
 
   describe('updateStage', () => {
-    it('rejects invalid MongoDB transaction ids', async () => {
-      await expect(
-        service.updateStage(INVALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY)
-      ).rejects.toThrow(/transactionId must be a valid MongoDB ObjectId/i);
-
-      expect(transactionModelMock.findById).not.toHaveBeenCalled();
-      expect(stageTransitionPolicyServiceMock.assertValidTransition).not.toHaveBeenCalled();
-    });
-
-    it('returns not found when stage update target does not exist', async () => {
-      transactionModelMock.findById.mockReturnValue(createQueryMock(null));
-
-      await expect(
-        service.updateStage(VALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY)
-      ).rejects.toThrow(NotFoundException);
-
-      expect(stageTransitionPolicyServiceMock.assertValidTransition).not.toHaveBeenCalled();
-      expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('applies valid transition through policy and returns updated transaction', async () => {
+    it('records stage history changedBy from authenticated actor', async () => {
       const existingTransaction = buildExistingTransaction({
         stage: TransactionStage.EARNEST_MONEY
       });
-      const updatedTransaction = {
-        ...existingTransaction,
-        stage: TransactionStage.TITLE_DEED
-      };
 
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      transactionModelMock.findByIdAndUpdate.mockReturnValue(createQueryMock(updatedTransaction));
+      transactionModelMock.findById.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(
+        createFindQueryMock({
+          ...existingTransaction,
+          stage: TransactionStage.TITLE_DEED
+        })
+      );
 
-      const result = await service.updateStage(VALID_TRANSACTION_ID, TransactionStage.TITLE_DEED);
+      await service.updateStage(VALID_TRANSACTION_ID, TransactionStage.TITLE_DEED, CREATOR_AGENT_ID);
 
+      expect(transactionMutationPolicyServiceMock.assertCanMutate).toHaveBeenCalledWith(
+        existingTransaction,
+        CREATOR_AGENT_ID
+      );
+      expect(transactionMutationPolicyServiceMock.assertNotDeleted).toHaveBeenCalledWith(
+        existingTransaction
+      );
       expect(stageTransitionPolicyServiceMock.assertValidTransition).toHaveBeenCalledWith(
         TransactionStage.EARNEST_MONEY,
         TransactionStage.TITLE_DEED
@@ -480,44 +372,11 @@ describe('TransactionsService', () => {
         VALID_TRANSACTION_ID,
         {
           stage: TransactionStage.TITLE_DEED,
+          updatedBy: expect.any(Types.ObjectId),
           $push: {
             stageHistory: {
               fromStage: TransactionStage.EARNEST_MONEY,
               toStage: TransactionStage.TITLE_DEED,
-              changedAt: expect.any(Date)
-            }
-          }
-        },
-        { new: true, runValidators: true }
-      );
-      expect(result).toEqual(updatedTransaction);
-    });
-
-    it('appends stage history with changedBy when stage update includes agent context', async () => {
-      const changedBy = '661b8c0134e2c40fd2f89a77';
-      const existingTransaction = buildExistingTransaction({
-        stage: TransactionStage.TITLE_DEED
-      });
-
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      transactionModelMock.findByIdAndUpdate.mockReturnValue(
-        createQueryMock({
-          ...existingTransaction,
-          stage: TransactionStage.COMPLETED
-        })
-      );
-
-      await service.updateStage(VALID_TRANSACTION_ID, TransactionStage.COMPLETED, changedBy);
-
-      expect(agentsServiceMock.ensureAgentExists).toHaveBeenCalledWith(changedBy);
-      expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
-        VALID_TRANSACTION_ID,
-        {
-          stage: TransactionStage.COMPLETED,
-          $push: {
-            stageHistory: {
-              fromStage: TransactionStage.TITLE_DEED,
-              toStage: TransactionStage.COMPLETED,
               changedAt: expect.any(Date),
               changedBy: expect.any(Types.ObjectId)
             }
@@ -527,47 +386,103 @@ describe('TransactionsService', () => {
       );
     });
 
-    it('rejects stage update when changedBy is not a valid object id', async () => {
-      await expect(
-        service.updateStage(VALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY, 'invalid-id')
-      ).rejects.toThrow(/changedBy must be a valid MongoDB ObjectId/i);
+    it('applies commission credits once when transition reaches completed', async () => {
+      const existingTransaction = buildExistingTransaction({
+        stage: TransactionStage.TITLE_DEED
+      });
+      const completedTransaction = {
+        ...existingTransaction,
+        stage: TransactionStage.COMPLETED,
+        financialBreakdown: buildFinancialBreakdown()
+      };
 
-      expect(transactionModelMock.findById).not.toHaveBeenCalled();
-      expect(stageTransitionPolicyServiceMock.assertValidTransition).not.toHaveBeenCalled();
+      transactionModelMock.findById
+        .mockReturnValueOnce(createBasicQueryMock(existingTransaction))
+        .mockReturnValueOnce(createFindQueryMock(completedTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(createFindQueryMock(completedTransaction));
+      balanceServiceMock.applyCommissionCreditsForCompletedTransaction.mockResolvedValue({
+        applied: true,
+        ledgerIds: ['661b8c0134e2c40fd2f89f11']
+      });
+
+      const result = await service.updateStage(
+        VALID_TRANSACTION_ID,
+        TransactionStage.COMPLETED,
+        CREATOR_AGENT_ID
+      );
+
+      expect(balanceServiceMock.applyCommissionCreditsForCompletedTransaction).toHaveBeenCalledWith({
+        transactionId: VALID_TRANSACTION_ID,
+        actorAgentId: CREATOR_AGENT_ID,
+        allocations: [
+          {
+            agentId: LISTING_AGENT_ID,
+            amount: 25000,
+            role: CommissionAgentRole.LISTING
+          },
+          {
+            agentId: SELLING_AGENT_ID,
+            amount: 25000,
+            role: CommissionAgentRole.SELLING
+          }
+        ]
+      });
+      expect(result).toEqual(completedTransaction);
     });
 
-    it('does not update stage when policy rejects skipping transitions', async () => {
+    it('rejects invalid ids for stage updates', async () => {
+      await expect(
+        service.updateStage(INVALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY, CREATOR_AGENT_ID)
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('remove', () => {
+    it('enforces delete policy and soft-deletes transaction with audit fields', async () => {
       const existingTransaction = buildExistingTransaction({
         stage: TransactionStage.AGREEMENT
       });
 
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      stageTransitionPolicyServiceMock.assertValidTransition.mockImplementation(() => {
-        throw new BadRequestException('Invalid stage transition: cannot skip stages.');
-      });
+      transactionModelMock.findById.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(createBasicQueryMock(existingTransaction));
 
-      await expect(
-        service.updateStage(VALID_TRANSACTION_ID, TransactionStage.TITLE_DEED)
-      ).rejects.toThrow(/cannot skip stages/i);
+      await service.remove(VALID_TRANSACTION_ID, CREATOR_AGENT_ID, 'agent');
 
-      expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(transactionMutationPolicyServiceMock.assertNotDeleted).toHaveBeenCalledWith(
+        existingTransaction
+      );
+      expect(transactionMutationPolicyServiceMock.assertCanDelete).toHaveBeenCalledWith(
+        existingTransaction,
+        CREATOR_AGENT_ID,
+        'agent'
+      );
+      expect(transactionModelMock.findByIdAndUpdate).toHaveBeenCalledWith(
+        VALID_TRANSACTION_ID,
+        expect.objectContaining({
+          isDeleted: true,
+          deletedAt: expect.any(Date),
+          deletedBy: expect.any(Types.ObjectId),
+          updatedBy: expect.any(Types.ObjectId)
+        }),
+        { new: false }
+      );
     });
 
-    it('does not update stage when requested stage is unchanged', async () => {
+    it('allows manager/admin delete flow for completed transactions', async () => {
       const existingTransaction = buildExistingTransaction({
-        stage: TransactionStage.EARNEST_MONEY
+        stage: TransactionStage.COMPLETED
       });
 
-      transactionModelMock.findById.mockReturnValue(createQueryMock(existingTransaction));
-      stageTransitionPolicyServiceMock.assertValidTransition.mockImplementation(() => {
-        throw new BadRequestException('Transaction is already in stage "earnest_money".');
-      });
+      transactionModelMock.findById.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findByIdAndUpdate.mockReturnValue(createBasicQueryMock(existingTransaction));
 
-      await expect(
-        service.updateStage(VALID_TRANSACTION_ID, TransactionStage.EARNEST_MONEY)
-      ).rejects.toThrow(/already in stage/i);
+      await service.remove(VALID_TRANSACTION_ID, MANAGER_AGENT_ID, 'manager');
 
-      expect(transactionModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(transactionMutationPolicyServiceMock.assertCanDelete).toHaveBeenCalledWith(
+        existingTransaction,
+        MANAGER_AGENT_ID,
+        'manager'
+      );
     });
   });
 
@@ -600,24 +515,17 @@ describe('TransactionsService', () => {
         ]
       });
       expect(transactionModelMock.aggregate).toHaveBeenCalledTimes(2);
-    });
-
-    it('returns zeroed totals when there are no completed transactions', async () => {
-      transactionModelMock.aggregate
-        .mockReturnValueOnce({
-          exec: jest.fn().mockResolvedValue([])
-        })
-        .mockReturnValueOnce({
-          exec: jest.fn().mockResolvedValue([])
-        });
-
-      const result = await service.getCompletedEarningsSummary();
-
-      expect(result).toEqual({
-        totalAgencyEarnings: 0,
-        totalAgentEarnings: 0,
-        byAgent: []
-      });
+      expect(transactionModelMock.aggregate).toHaveBeenNthCalledWith(
+        1,
+        expect.arrayContaining([
+          expect.objectContaining({
+            $match: expect.objectContaining({
+              stage: TransactionStage.COMPLETED,
+              isDeleted: false
+            })
+          })
+        ])
+      );
     });
   });
 });

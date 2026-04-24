@@ -5,6 +5,7 @@ const env =
     ?.env ?? {};
 const nodeEnv = env.NODE_ENV ?? 'development';
 const isProduction = nodeEnv === 'production';
+const nitroPreset = env.NITRO_PRESET?.trim();
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-04-16',
@@ -29,6 +30,9 @@ export default defineNuxtConfig({
         (isProduction ? '' : 'http://localhost:3001/api'),
       appEnv: env.NUXT_PUBLIC_APP_ENV ?? nodeEnv
     }
+  },
+  nitro: {
+    preset: nitroPreset || undefined
   },
   app: {
     head: {

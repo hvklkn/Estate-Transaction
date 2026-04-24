@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Headers, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
+import { CurrentSession } from '@/common/auth/current-session.decorator';
+import { SessionAuthGuard } from '@/common/auth/session-auth.guard';
 import { ChangePasswordDto } from '@/modules/agents/dto/change-password.dto';
 import { CreateAgentDto } from '@/modules/agents/dto/create-agent.dto';
 import { ForgotPasswordDto } from '@/modules/agents/dto/forgot-password.dto';
@@ -13,16 +15,6 @@ import { AgentsService } from '@/modules/agents/services/agents.service';
 @Controller('agents')
 export class AgentsController {
   constructor(private readonly agentsService: AgentsService) {}
-
-  private readSessionToken(authorizationHeader?: string): string {
-    const header = authorizationHeader?.trim() ?? '';
-
-    if (!header.toLowerCase().startsWith('bearer ')) {
-      return '';
-    }
-
-    return header.slice(7).trim();
-  }
 
   @Post('register')
   register(@Body() createAgentDto: CreateAgentDto) {
@@ -44,9 +36,9 @@ export class AgentsController {
     return this.agentsService.resetPasswordWithCode(resetPasswordWithCodeDto);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Post('logout')
-  async logout(@Headers('authorization') authorizationHeader?: string) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
+  async logout(@CurrentSession('sessionToken') sessionToken: string) {
     await this.agentsService.logoutBySessionToken(sessionToken);
 
     return {
@@ -64,72 +56,72 @@ export class AgentsController {
     return this.agentsService.findAll();
   }
 
+  @UseGuards(SessionAuthGuard)
   @Get('me/profile')
-  getMyProfile(@Headers('authorization') authorizationHeader?: string) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
+  getMyProfile(@CurrentSession('sessionToken') sessionToken: string) {
     return this.agentsService.getMe(sessionToken);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Patch('me/profile')
   updateMyProfile(
     @Body() updateAgentDto: UpdateAgentDto,
-    @Headers('authorization') authorizationHeader?: string
+    @CurrentSession('sessionToken') sessionToken: string
   ) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
     return this.agentsService.updateMyProfile(sessionToken, updateAgentDto);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Patch('me/password')
   changeMyPassword(
     @Body() payload: ChangePasswordDto,
-    @Headers('authorization') authorizationHeader?: string
+    @CurrentSession('sessionToken') sessionToken: string
   ) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
     return this.agentsService.changeMyPassword(sessionToken, payload);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Post('me/2fa/setup')
   setupMyTwoFactor(
     @Body() payload: SetupTwoFactorDto,
-    @Headers('authorization') authorizationHeader?: string
+    @CurrentSession('sessionToken') sessionToken: string
   ) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
     return this.agentsService.setupMyTwoFactor(sessionToken, payload);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Post('me/2fa/verify')
   verifyMyTwoFactor(
     @Body() payload: VerifyTwoFactorDto,
-    @Headers('authorization') authorizationHeader?: string
+    @CurrentSession('sessionToken') sessionToken: string
   ) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
     return this.agentsService.verifyMyTwoFactor(sessionToken, payload);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Post('me/2fa/disable')
-  disableMyTwoFactor(@Headers('authorization') authorizationHeader?: string) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
+  disableMyTwoFactor(@CurrentSession('sessionToken') sessionToken: string) {
     return this.agentsService.disableMyTwoFactor(sessionToken);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Get('me/sessions')
-  getMySessions(@Headers('authorization') authorizationHeader?: string) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
+  getMySessions(@CurrentSession('sessionToken') sessionToken: string) {
     return this.agentsService.listMySessions(sessionToken);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Delete('me/sessions/:sessionId')
   revokeMySession(
     @Param('sessionId') sessionId: string,
-    @Headers('authorization') authorizationHeader?: string
+    @CurrentSession('sessionToken') sessionToken: string
   ) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
     return this.agentsService.revokeMySession(sessionToken, sessionId);
   }
 
+  @UseGuards(SessionAuthGuard)
   @Delete('me/sessions')
-  revokeMyOtherSessions(@Headers('authorization') authorizationHeader?: string) {
-    const sessionToken = this.readSessionToken(authorizationHeader);
+  revokeMyOtherSessions(@CurrentSession('sessionToken') sessionToken: string) {
     return this.agentsService.revokeMyOtherSessions(sessionToken);
   }
 

@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
 import { toApiErrorMessage } from '~/services/api.errors';
 import { useAgentsApi } from '~/services/agents.api';
 import { useAuthStore } from '~/stores/auth';
-import { useTransactionsStore } from '~/stores/transactions';
-import { TransactionStage } from '~/types/transaction';
 
 type TwoFactorMethod = 'sms' | 'authenticator';
 
 const authStore = useAuthStore();
-const transactionsStore = useTransactionsStore();
 const agentsApi = useAgentsApi();
-const { formatCurrency, formatDateTime } = useAppI18n();
+const { formatDateTime } = useAppI18n();
 
 useHead(() => ({
   title: 'Profile'
@@ -68,48 +64,11 @@ const passwordError = ref<string | null>(null);
 const twoFactorError = ref<string | null>(null);
 const sessionsError = ref<string | null>(null);
 
-const currentUserId = computed(() => authStore.currentUser?.id ?? null);
 const currentUserName = computed(() => authStore.currentUser?.name ?? '');
 const currentUserEmail = computed(() => authStore.currentUser?.email ?? '');
 const hasSession = computed(() => Boolean(authStore.sessionToken));
 const twoFactorEnabled = computed(() => Boolean(authStore.currentUser?.twoFactorEnabled));
 const twoFactorVerifiedAt = computed(() => authStore.currentUser?.twoFactorVerifiedAt ?? null);
-
-const mySales = computed(() => {
-  if (!currentUserId.value) {
-    return [];
-  }
-
-  return transactionsStore.items
-    .filter((transaction) => transaction.sellingAgentId === currentUserId.value)
-    .sort((left, right) => {
-      const leftDate = left.createdAt ? new Date(left.createdAt).getTime() : 0;
-      const rightDate = right.createdAt ? new Date(right.createdAt).getTime() : 0;
-      return rightDate - leftDate;
-    });
-});
-
-const completedSalesCount = computed(
-  () => mySales.value.filter((transaction) => transaction.stage === TransactionStage.COMPLETED).length
-);
-
-const totalSalesVolume = computed(() =>
-  mySales.value.reduce((sum, transaction) => sum + transaction.totalServiceFee, 0)
-);
-
-const totalEarnings = computed(() => {
-  if (!currentUserId.value) {
-    return 0;
-  }
-
-  return mySales.value.reduce((sum, transaction) => {
-    const earning = transaction.financialBreakdown.agents
-      .filter((agent) => agent.agentId === currentUserId.value)
-      .reduce((agentTotal, agent) => agentTotal + agent.amount, 0);
-
-    return sum + earning;
-  }, 0);
-});
 
 const clearMessages = () => {
   profileSuccess.value = null;
@@ -315,10 +274,6 @@ const revokeOtherSessions = async () => {
   }
 };
 
-const loadSales = async () => {
-  await transactionsStore.fetchTransactions();
-};
-
 onMounted(async () => {
   authStore.hydrateFromStorage();
   clearMessages();
@@ -328,7 +283,7 @@ onMounted(async () => {
     return;
   }
 
-  await Promise.all([loadProfile(), loadSessions(), loadSales()]);
+  await Promise.all([loadProfile(), loadSessions()]);
 });
 </script>
 
@@ -338,7 +293,7 @@ onMounted(async () => {
       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">User Profile</p>
       <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Profile</h1>
       <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-        Manage your account details, security settings, active sessions, and assigned sales records.
+        Manage your account details, security settings, and active sessions.
       </p>
       <p v-if="currentUserName" class="mt-3 text-xs text-slate-500 dark:text-slate-400">
         Signed in as
@@ -569,78 +524,5 @@ onMounted(async () => {
       </div>
     </article>
 
-    <article class="panel">
-      <div class="panel-body space-y-5">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Sales Records</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Transactions where you are assigned as the selling agent are listed here.
-            </p>
-          </div>
-
-          <div class="flex flex-wrap gap-2">
-            <span class="status-chip">Total Sales: {{ mySales.length }}</span>
-            <span class="status-chip">Completed: {{ completedSalesCount }}</span>
-            <span class="status-chip">Volume: {{ formatCurrency(totalSalesVolume) }}</span>
-            <span class="status-chip">Earnings: {{ formatCurrency(totalEarnings) }}</span>
-          </div>
-        </div>
-
-        <div v-if="transactionsStore.error" class="alert-error">
-          {{ transactionsStore.error }}
-        </div>
-
-        <div v-if="mySales.length === 0" class="empty-state">
-          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">No sales found</h4>
-          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-            Your assigned sales transactions will appear here.
-          </p>
-        </div>
-
-        <div v-else class="space-y-3">
-          <article
-            v-for="transaction in mySales"
-            :key="transaction.id"
-            class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
-          >
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ transaction.propertyTitle }}</h3>
-                <p class="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                  Transaction ID: {{ transaction.id }}
-                </p>
-              </div>
-              <TransactionStageBadge :stage="transaction.stage" />
-            </div>
-
-            <div class="mt-3 grid gap-3 sm:grid-cols-3">
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Service Fee</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatCurrency(transaction.totalServiceFee) }}</p>
-              </div>
-
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Your Earning</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {{
-                    formatCurrency(
-                      transaction.financialBreakdown.agents
-                        .filter((agent) => agent.agentId === currentUserId)
-                        .reduce((sum, agent) => sum + agent.amount, 0)
-                    )
-                  }}
-                </p>
-              </div>
-
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Created At</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatDateTime(transaction.createdAt) }}</p>
-              </div>
-            </div>
-          </article>
-        </div>
-      </div>
-    </article>
   </section>
 </template>

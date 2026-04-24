@@ -29,6 +29,9 @@ interface ApiAgent {
   twoFactorEnabled?: boolean;
   twoFactorMethod?: 'sms' | 'authenticator';
   twoFactorVerifiedAt?: string | null;
+  role?: 'agent' | 'manager' | 'admin';
+  balance?: number;
+  balanceCents?: number;
 }
 
 interface ApiSession {
@@ -70,6 +73,14 @@ const toRequiredString = (value: unknown, fieldName: string): string => {
   return normalizedValue;
 };
 
+const toOptionalFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return value;
+};
+
 const toOptionalObjectIdString = (value: unknown): string | null => {
   if (typeof value === 'string') {
     return toNonEmptyString(value);
@@ -97,6 +108,10 @@ const normalizeAgent = (apiAgent: ApiAgent): AgentUser => ({
   name: toRequiredString(apiAgent.name, 'agent.name'),
   email: toRequiredString(apiAgent.email, 'agent.email'),
   isActive: Boolean(apiAgent.isActive),
+  role:
+    apiAgent.role === 'admin' || apiAgent.role === 'manager' ? apiAgent.role : 'agent',
+  balance: toOptionalFiniteNumber(apiAgent.balance) ?? 0,
+  balanceCents: toOptionalFiniteNumber(apiAgent.balanceCents) ?? 0,
   firstName: typeof apiAgent.firstName === 'string' ? apiAgent.firstName : '',
   lastName: typeof apiAgent.lastName === 'string' ? apiAgent.lastName : '',
   phone: typeof apiAgent.phone === 'string' ? apiAgent.phone : '',

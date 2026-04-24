@@ -36,6 +36,10 @@ const errors = reactive({
 const showValidationSummary = ref(false);
 
 const hasErrors = computed(() => Object.values(errors).some((value) => value.length > 0));
+const hasAgents = computed(() => props.agents.length > 0);
+const canSubmit = computed(
+  () => !props.isSubmitting && !props.isAgentsLoading && hasAgents.value
+);
 
 const resetErrors = () => {
   errors.propertyTitle = '';
@@ -59,9 +63,12 @@ const validateForm = (): boolean => {
   resetErrors();
 
   const totalServiceFee = Number(form.totalServiceFee);
+  const trimmedPropertyTitle = form.propertyTitle.trim();
 
-  if (!form.propertyTitle.trim()) {
+  if (!trimmedPropertyTitle) {
     errors.propertyTitle = t('transactions.form.validation.propertyTitleRequired');
+  } else if (trimmedPropertyTitle.length < 3) {
+    errors.propertyTitle = 'Property title must be at least 3 characters.';
   }
 
   if (Number.isNaN(totalServiceFee) || totalServiceFee <= 0) {
@@ -77,7 +84,7 @@ const validateForm = (): boolean => {
   }
 
   if (form.transactionType !== TransactionType.SOLD && form.transactionType !== TransactionType.RENTED) {
-    errors.transactionType = 'Please select whether the property was sold or rented.';
+    errors.transactionType = 'Please select a transaction type.';
   }
 
   return !hasErrors.value;
@@ -265,9 +272,15 @@ const transactionTypeLabel = (type: TransactionType) =>
           >
             {{ t('transactions.actions.clear') }}
           </button>
-          <button type="submit" class="btn-primary min-w-[180px]" :disabled="props.isSubmitting">
+          <button type="submit" class="btn-primary min-w-[180px]" :disabled="!canSubmit">
             {{ props.isSubmitting ? t('transactions.actions.creating') : t('transactions.actions.create') }}
           </button>
+          <p
+            v-if="!hasAgents && !props.isAgentsLoading"
+            class="text-xs text-amber-700 dark:text-amber-300"
+          >
+            Register at least one active agent before creating a transaction.
+          </p>
         </div>
       </form>
     </div>

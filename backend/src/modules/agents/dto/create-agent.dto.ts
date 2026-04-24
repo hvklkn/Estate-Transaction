@@ -1,5 +1,15 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength
+} from 'class-validator';
+
+import { AgentRole } from '@/modules/agents/schemas/agent.schema';
 
 export class CreateAgentDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -22,4 +32,8 @@ export class CreateAgentDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsIn(['agent', 'manager', 'admin'])
+  @IsOptional()
+  role?: AgentRole;
 }

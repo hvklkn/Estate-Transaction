@@ -55,12 +55,21 @@ export interface Transaction {
   sellingAgentId: string;
   transactionType: TransactionType;
   createdById?: string;
+  updatedById?: string | null;
+  deletedById?: string | null;
   listingAgent?: AgentSummary;
   sellingAgent?: AgentSummary;
   createdBy?: AgentSummary;
+  updatedBy?: AgentSummary;
+  deletedBy?: AgentSummary;
   stage: TransactionStage;
   stageHistory: TransactionStageHistoryItem[];
   financialBreakdown: FinancialBreakdown;
+  balanceDistributionApplied: boolean;
+  balanceDistributionAppliedAt?: string | null;
+  balanceDistributionAppliedById?: string | null;
+  isDeleted: boolean;
+  deletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -72,6 +81,14 @@ export interface CreateTransactionPayload {
   sellingAgentId: string;
   transactionType: TransactionType;
   stage?: TransactionStage;
+}
+
+export interface UpdateTransactionPayload {
+  propertyTitle?: string;
+  totalServiceFee?: number;
+  listingAgentId?: string;
+  sellingAgentId?: string;
+  transactionType?: TransactionType;
 }
 
 export interface UpdateTransactionStagePayload {
@@ -87,4 +104,26 @@ export interface CompletedTransactionEarningsSummary {
   totalAgencyEarnings: number;
   totalAgentEarnings: number;
   byAgent: TransactionEarningsByAgent[];
+}
+
+export type TransactionSortBy = 'createdAt' | 'updatedAt' | 'totalServiceFee' | 'propertyTitle';
+export type TransactionSortOrder = 'asc' | 'desc';
+
+export interface TransactionListQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  stage?: TransactionStage;
+  transactionType?: TransactionType;
+  sortBy?: TransactionSortBy;
+  sortOrder?: TransactionSortOrder;
+  includeDeleted?: boolean;
+}
+
+export interface PaginatedTransactionsResponse {
+  items: Transaction[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }

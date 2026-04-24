@@ -5,6 +5,9 @@ Purpose:
 - Provide lightweight access endpoints:
   - `POST /agents/register`
   - `POST /agents/login`
+- Provide session-auth protected self-service endpoints:
+  - `POST /agents/logout`
+  - `/agents/me/*`
 
 Guideline:
 - Controllers delegate to service methods only.

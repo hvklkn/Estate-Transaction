@@ -26,13 +26,16 @@ import { ResetPasswordWithCodeDto } from '@/modules/agents/dto/reset-password-wi
 import { SetupTwoFactorDto } from '@/modules/agents/dto/setup-two-factor.dto';
 import { UpdateAgentDto } from '@/modules/agents/dto/update-agent.dto';
 import { VerifyTwoFactorDto } from '@/modules/agents/dto/verify-two-factor.dto';
-import { Agent, AgentDocument, TwoFactorMethod } from '@/modules/agents/schemas/agent.schema';
+import { Agent, AgentDocument, AgentRole, TwoFactorMethod } from '@/modules/agents/schemas/agent.schema';
 
 type SanitizedAgent = {
   id: string;
   name: string;
   email: string;
   isActive: boolean;
+  role: AgentRole;
+  balance: number;
+  balanceCents: number;
   firstName: string;
   lastName: string;
   phone: string;
@@ -71,6 +74,8 @@ export class AgentsService {
     try {
       const nextAgent = await this.agentModel.create({
         ...createAgentDto,
+        role: createAgentDto.role ?? 'agent',
+        balanceCents: 0,
         passwordHash: this.hashPassword(createAgentDto.password),
         firstName: '',
         lastName: '',
@@ -97,7 +102,10 @@ export class AgentsService {
     agent: SanitizedAgent;
     sessionToken: string;
   }> {
-    const createdAgent = await this.create(createAgentDto);
+    const createdAgent = await this.create({
+      ...createAgentDto,
+      role: 'agent'
+    });
     const loginResult = await this.login({
       email: createdAgent.email,
       password: createAgentDto.password
@@ -256,6 +264,41 @@ export class AgentsService {
   async getAgentIdBySessionToken(sessionToken: string): Promise<string> {
     const { agent } = await this.resolveAgentBySessionToken(sessionToken);
     return agent._id.toString();
+  }
+
+  async getSessionContextByToken(
+    sessionToken: string
+  ): Promise<{ agentId: string; sessionId: string; role: AgentRole }> {
+    const { agent, currentSessionId } = await this.resolveAgentBySessionToken(sessionToken);
+    return {
+      agentId: agent._id.toString(),
+      sessionId: currentSessionId,
+      role: (agent.role as AgentRole) ?? 'agent'
+    };
+  }
+
+  async findAgentIdsBySearchTerm(searchTerm: string): Promise<string[]> {
+    const normalizedSearchTerm = searchTerm.trim();
+    if (!normalizedSearchTerm) {
+      return [];
+    }
+
+    const escapedSearchTerm = this.escapeRegex(normalizedSearchTerm);
+    const regex = new RegExp(escapedSearchTerm, 'i');
+
+    const matchedAgents = await this.agentModel
+      .find({
+        $or: [
+          { name: { $regex: regex } },
+          { email: { $regex: regex } }
+        ]
+      })
+      .select('_id')
+      .limit(100)
+      .lean()
+      .exec();
+
+    return matchedAgents.map((agent) => agent._id.toString());
   }
 
   async updateMyProfile(sessionToken: string, updateAgentDto: UpdateAgentDto): Promise<SanitizedAgent> {
@@ -663,11 +706,19 @@ export class AgentsService {
   }
 
   private sanitizeAgent(agent: AgentDocument): SanitizedAgent {
+    const balanceCents =
+      typeof agent.balanceCents === 'number' && Number.isFinite(agent.balanceCents)
+        ? Math.trunc(agent.balanceCents)
+        : 0;
+
     return {
       id: agent._id.toString(),
       name: agent.name,
       email: agent.email,
       isActive: agent.isActive,
+      role: (agent.role as AgentRole) ?? 'agent',
+      balance: balanceCents / 100,
+      balanceCents,
       firstName: agent.firstName ?? '',
       lastName: agent.lastName ?? '',
       phone: agent.phone ?? '',
@@ -781,5 +832,9 @@ export class AgentsService {
 
   private isDuplicateEmailError(error: unknown): boolean {
     return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

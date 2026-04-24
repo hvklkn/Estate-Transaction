@@ -6,13 +6,21 @@ import type { Transaction, TransactionStage } from '~/types/transaction';
 const props = defineProps<{
   transactions: Transaction[];
   stageUpdateTransactionId: string | null;
+  updateTransactionId?: string | null;
+  deleteTransactionId?: string | null;
   getNextStage: (stage: TransactionStage) => TransactionStage | null;
+  canViewDeletedMetadata?: boolean;
   isRefreshing?: boolean;
   compactMode?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }>();
 
 const emit = defineEmits<{
   'stage-change': [payload: { id: string; stage: TransactionStage }];
+  view: [id: string];
+  edit: [id: string];
+  delete: [id: string];
 }>();
 
 const { t } = useAppI18n();
@@ -49,9 +57,11 @@ const { t } = useAppI18n();
             />
           </svg>
         </div>
-        <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ t('transactions.list.emptyTitle') }}</h4>
+        <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">
+          {{ props.emptyTitle ?? t('transactions.list.emptyTitle') }}
+        </h4>
         <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-          {{ t('transactions.list.emptyDescription') }}
+          {{ props.emptyDescription ?? t('transactions.list.emptyDescription') }}
         </p>
       </div>
 
@@ -62,8 +72,14 @@ const { t } = useAppI18n();
           :transaction="transaction"
           :next-stage="props.getNextStage(transaction.stage)"
           :is-updating-stage="props.stageUpdateTransactionId === transaction.id"
+          :is-updating-transaction="props.updateTransactionId === transaction.id"
+          :is-deleting-transaction="props.deleteTransactionId === transaction.id"
+          :can-view-deleted-metadata="props.canViewDeletedMetadata"
           :compact-mode="props.compactMode"
           @stage-change="emit('stage-change', $event)"
+          @view="emit('view', $event)"
+          @edit="emit('edit', $event)"
+          @delete="emit('delete', $event)"
         />
       </div>
     </div>

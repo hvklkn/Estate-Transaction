@@ -1,17 +1,24 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 
+import { AgentRole } from '@/modules/agents/schemas/agent.schema';
 import { AgentsService } from '@/modules/agents/services/agents.service';
+import { BalanceService } from '@/modules/balance/services/balance.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
 import { CreateTransactionDto } from '@/modules/transactions/dto/create-transaction.dto';
+import {
+  ListTransactionsQueryDto,
+  TransactionSortByField
+} from '@/modules/transactions/dto/list-transactions-query.dto';
 import { UpdateTransactionDto } from '@/modules/transactions/dto/update-transaction.dto';
 import {
   Transaction,
   TransactionDocument
 } from '@/modules/transactions/schemas/transaction.schema';
+import { TransactionMutationPolicyService } from '@/modules/transactions/services/transaction-mutation-policy.service';
 
 export interface CompletedAgentEarningsSummaryItem {
   agentId: string;
@@ -24,19 +31,42 @@ export interface CompletedTransactionEarningsSummary {
   byAgent: CompletedAgentEarningsSummaryItem[];
 }
 
+export interface PaginatedTransactionsResult {
+  items: TransactionDocument[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const SORT_DIRECTION_BY_ORDER = {
+  asc: 1,
+  desc: -1
+} as const;
+const SORT_FIELD_BY_OPTION: Record<TransactionSortByField, string> = {
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  totalServiceFee: 'totalServiceFee',
+  propertyTitle: 'propertyTitle'
+};
+
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectModel(Transaction.name)
     private readonly transactionModel: Model<TransactionDocument>,
     private readonly agentsService: AgentsService,
+    private readonly balanceService: BalanceService,
     private readonly commissionCalculatorService: CommissionCalculatorService,
-    private readonly stageTransitionPolicyService: StageTransitionPolicyService
+    private readonly stageTransitionPolicyService: StageTransitionPolicyService,
+    private readonly transactionMutationPolicyService: TransactionMutationPolicyService
   ) {}
 
   async create(
     createTransactionDto: CreateTransactionDto,
-    creatorSessionToken?: string
+    creatorAgentId: string
   ): Promise<TransactionDocument> {
     const initialStage = this.stageTransitionPolicyService.resolveInitialStageForCreate(
       createTransactionDto.stage
@@ -51,49 +81,57 @@ export class TransactionsService {
       sellingAgentId: createTransactionDto.sellingAgentId
     });
 
-    const createdByAgentId =
-      typeof creatorSessionToken === 'string' && creatorSessionToken.trim().length > 0
-        ? await this.agentsService.getAgentIdBySessionToken(creatorSessionToken)
-        : null;
-
     const stageHistory = [
       this.createStageHistoryEntry({
         fromStage: null,
         toStage: initialStage,
-        changedBy: createdByAgentId ?? undefined
+        changedBy: creatorAgentId
       })
     ];
 
     return this.transactionModel.create({
       ...createTransactionDto,
-      createdBy: createdByAgentId ? new Types.ObjectId(createdByAgentId) : null,
+      createdBy: new Types.ObjectId(creatorAgentId),
       stage: initialStage,
       financialBreakdown,
-      stageHistory
+      stageHistory,
+      balanceDistributionApplied: false,
+      balanceDistributionAppliedAt: null,
+      balanceDistributionAppliedBy: null,
+      balanceDistributionLedgerIds: []
     });
   }
 
-  async findAll(): Promise<TransactionDocument[]> {
-    return this.transactionModel
-      .find()
-      .populate('listingAgentId', 'name email isActive')
-      .populate('sellingAgentId', 'name email isActive')
-      .populate('createdBy', 'name email isActive')
-      .populate('stageHistory.changedBy', 'name email isActive')
-      .sort({ createdAt: -1 })
-      .exec();
+  async findAll(query: ListTransactionsQueryDto): Promise<PaginatedTransactionsResult> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const normalizedSearch = query.search?.trim() ?? '';
+    const filter = await this.buildFilter(query, normalizedSearch);
+    const sort = this.resolveSort(query.sortBy, query.sortOrder);
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.withPopulation(this.transactionModel.find(filter))
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.transactionModel.countDocuments(filter).exec()
+    ]);
+
+    return {
+      items,
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit)
+    };
   }
 
   async findOne(id: string): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
 
-    const transaction = await this.transactionModel
-      .findById(id)
-      .populate('listingAgentId', 'name email isActive')
-      .populate('sellingAgentId', 'name email isActive')
-      .populate('createdBy', 'name email isActive')
-      .populate('stageHistory.changedBy', 'name email isActive')
-      .exec();
+    const transaction = await this.withPopulation(this.transactionModel.findById(id)).exec();
 
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
@@ -104,7 +142,8 @@ export class TransactionsService {
 
   async update(
     id: string,
-    updateTransactionDto: UpdateTransactionDto
+    updateTransactionDto: UpdateTransactionDto,
+    actorAgentId: string
   ): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
 
@@ -112,6 +151,14 @@ export class TransactionsService {
     if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
+
+    this.transactionMutationPolicyService.assertNotDeleted(existingTransaction);
+    this.transactionMutationPolicyService.assertCanMutate(existingTransaction, actorAgentId);
+    this.transactionMutationPolicyService.assertNotCompleted(existingTransaction);
+    this.transactionMutationPolicyService.assertValidUpdatePayloadForCurrentStage(
+      existingTransaction,
+      updateTransactionDto
+    );
 
     if (updateTransactionDto.listingAgentId) {
       await this.agentsService.ensureAgentExists(updateTransactionDto.listingAgentId);
@@ -134,20 +181,20 @@ export class TransactionsService {
       sellingAgentId
     });
 
-    const updatedTransaction = await this.transactionModel
-      .findByIdAndUpdate(
+    const updatedTransaction = await this.withPopulation(
+      this.transactionModel.findByIdAndUpdate(
         id,
-        { ...updateTransactionDto, financialBreakdown },
+        {
+          ...updateTransactionDto,
+          financialBreakdown,
+          updatedBy: new Types.ObjectId(actorAgentId)
+        },
         {
           new: true,
           runValidators: true
         }
       )
-      .populate('listingAgentId', 'name email isActive')
-      .populate('sellingAgentId', 'name email isActive')
-      .populate('createdBy', 'name email isActive')
-      .populate('stageHistory.changedBy', 'name email isActive')
-      .exec();
+    ).exec();
 
     if (!updatedTransaction) {
       throw new NotFoundException('Transaction not found');
@@ -159,57 +206,94 @@ export class TransactionsService {
   async updateStage(
     id: string,
     stage: TransactionStage,
-    changedBy?: string
+    actorAgentId: string
   ): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
-
-    if (changedBy) {
-      this.validateObjectId(changedBy, 'changedBy');
-      await this.agentsService.ensureAgentExists(changedBy);
-    }
 
     const existingTransaction = await this.transactionModel.findById(id).exec();
     if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
 
+    this.transactionMutationPolicyService.assertNotDeleted(existingTransaction);
+    this.transactionMutationPolicyService.assertCanMutate(existingTransaction, actorAgentId);
+    this.transactionMutationPolicyService.assertNotCompleted(existingTransaction);
     this.stageTransitionPolicyService.assertValidTransition(existingTransaction.stage, stage);
 
     const stageHistoryEntry = this.createStageHistoryEntry({
       fromStage: existingTransaction.stage,
       toStage: stage,
-      changedBy
+      changedBy: actorAgentId
     });
 
-    const updatedTransaction = await this.transactionModel
-      .findByIdAndUpdate(
+    const updatedTransaction = await this.withPopulation(
+      this.transactionModel.findByIdAndUpdate(
         id,
         {
           stage,
+          updatedBy: new Types.ObjectId(actorAgentId),
           $push: { stageHistory: stageHistoryEntry }
         },
         { new: true, runValidators: true }
       )
-      .populate('listingAgentId', 'name email isActive')
-      .populate('sellingAgentId', 'name email isActive')
-      .populate('createdBy', 'name email isActive')
-      .populate('stageHistory.changedBy', 'name email isActive')
-      .exec();
+    ).exec();
 
     if (!updatedTransaction) {
       throw new NotFoundException('Transaction not found');
     }
 
+    if (stage === TransactionStage.COMPLETED) {
+      await this.balanceService.applyCommissionCreditsForCompletedTransaction({
+        transactionId: id,
+        actorAgentId,
+        allocations: updatedTransaction.financialBreakdown.agents.map((allocation) => ({
+          agentId: allocation.agentId.toString(),
+          amount: allocation.amount,
+          role: allocation.role
+        }))
+      });
+
+      const refreshedTransaction = await this.withPopulation(
+        this.transactionModel.findById(id)
+      ).exec();
+
+      if (!refreshedTransaction) {
+        throw new NotFoundException('Transaction not found');
+      }
+
+      return refreshedTransaction;
+    }
+
     return updatedTransaction;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorAgentId: string, actorRole: AgentRole): Promise<void> {
     this.validateObjectId(id, 'transactionId');
 
-    const deleted = await this.transactionModel.findByIdAndDelete(id).exec();
-    if (!deleted) {
+    const existingTransaction = await this.transactionModel.findById(id).exec();
+    if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
+
+    this.transactionMutationPolicyService.assertNotDeleted(existingTransaction);
+    this.transactionMutationPolicyService.assertCanDelete(
+      existingTransaction,
+      actorAgentId,
+      actorRole
+    );
+
+    await this.transactionModel
+      .findByIdAndUpdate(
+        id,
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: new Types.ObjectId(actorAgentId),
+          updatedBy: new Types.ObjectId(actorAgentId)
+        },
+        { new: false }
+      )
+      .exec();
   }
 
   async getCompletedEarningsSummary(): Promise<CompletedTransactionEarningsSummary> {
@@ -221,7 +305,8 @@ export class TransactionsService {
         }>([
           {
             $match: {
-              stage: TransactionStage.COMPLETED
+              stage: TransactionStage.COMPLETED,
+              isDeleted: false
             }
           },
           {
@@ -237,7 +322,8 @@ export class TransactionsService {
         .aggregate<CompletedAgentEarningsSummaryItem>([
           {
             $match: {
-              stage: TransactionStage.COMPLETED
+              stage: TransactionStage.COMPLETED,
+              isDeleted: false
             }
           },
           {
@@ -277,6 +363,79 @@ export class TransactionsService {
     };
   }
 
+  private async buildFilter(
+    query: ListTransactionsQueryDto,
+    normalizedSearch: string
+  ): Promise<FilterQuery<Transaction>> {
+    const filter: FilterQuery<Transaction> = {
+      ...(query.includeDeleted ? {} : { isDeleted: false })
+    };
+
+    if (query.stage) {
+      filter.stage = query.stage;
+    }
+
+    if (query.transactionType) {
+      filter.transactionType = query.transactionType;
+    }
+
+    if (!normalizedSearch) {
+      return filter;
+    }
+
+    const escapedSearch = this.escapeRegex(normalizedSearch);
+    const searchRegex = new RegExp(escapedSearch, 'i');
+    const matchedAgentIds = await this.agentsService.findAgentIdsBySearchTerm(normalizedSearch);
+    const matchedAgentObjectIds = matchedAgentIds.map((agentId) => new Types.ObjectId(agentId));
+    const matchesTransactionId = Types.ObjectId.isValid(normalizedSearch)
+      ? [new Types.ObjectId(normalizedSearch)]
+      : [];
+
+    filter.$or = [
+      { propertyTitle: { $regex: searchRegex } },
+      ...(matchesTransactionId.length > 0 ? [{ _id: { $in: matchesTransactionId } }] : []),
+      ...(matchedAgentObjectIds.length > 0
+        ? [
+            { listingAgentId: { $in: matchedAgentObjectIds } },
+            { sellingAgentId: { $in: matchedAgentObjectIds } }
+          ]
+        : [])
+    ];
+
+    return filter;
+  }
+
+  private resolveSort(
+    sortBy: TransactionSortByField | undefined,
+    sortOrder: 'asc' | 'desc' | undefined
+  ): Record<string, 1 | -1> {
+    const resolvedSortBy = sortBy ?? 'createdAt';
+    const resolvedSortOrder = sortOrder ?? 'desc';
+    const direction = SORT_DIRECTION_BY_ORDER[resolvedSortOrder];
+    const field = SORT_FIELD_BY_OPTION[resolvedSortBy];
+
+    return {
+      [field]: direction,
+      _id: direction
+    };
+  }
+
+  private withPopulation<T>(query: T): T {
+    const queryWithPopulate = query as {
+      populate(field: string, projection: string): unknown;
+    };
+
+    queryWithPopulate.populate('listingAgentId', 'name email isActive');
+    queryWithPopulate.populate('sellingAgentId', 'name email isActive');
+    queryWithPopulate.populate('createdBy', 'name email isActive');
+    queryWithPopulate.populate('updatedBy', 'name email isActive');
+    queryWithPopulate.populate('deletedBy', 'name email isActive');
+    queryWithPopulate.populate('stageHistory.changedBy', 'name email isActive');
+    queryWithPopulate.populate('balanceDistributionAppliedBy', 'name email isActive');
+
+    return query;
+  }
+
   private validateObjectId(value: string, field: string): void {
     if (!Types.ObjectId.isValid(value)) {
       throw new BadRequestException(`${field} must be a valid MongoDB ObjectId`);
@@ -286,13 +445,17 @@ export class TransactionsService {
   private createStageHistoryEntry(params: {
     fromStage: TransactionStage | null;
     toStage: TransactionStage;
-    changedBy?: string;
+    changedBy: string;
   }) {
     return {
       fromStage: params.fromStage,
       toStage: params.toStage,
       changedAt: new Date(),
-      ...(params.changedBy ? { changedBy: new Types.ObjectId(params.changedBy) } : {})
+      changedBy: new Types.ObjectId(params.changedBy)
     };
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

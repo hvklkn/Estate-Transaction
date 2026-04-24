@@ -28,6 +28,16 @@ const safeParseUser = (value: string): AgentUser | null => {
       name: parsed.name,
       email: parsed.email,
       isActive: Boolean(parsed.isActive),
+      role:
+        parsed.role === 'admin' || parsed.role === 'manager' ? parsed.role : 'agent',
+      balance:
+        typeof parsed.balance === 'number' && Number.isFinite(parsed.balance)
+          ? parsed.balance
+          : 0,
+      balanceCents:
+        typeof parsed.balanceCents === 'number' && Number.isFinite(parsed.balanceCents)
+          ? parsed.balanceCents
+          : 0,
       firstName: typeof parsed.firstName === 'string' ? parsed.firstName : '',
       lastName: typeof parsed.lastName === 'string' ? parsed.lastName : '',
       phone: typeof parsed.phone === 'string' ? parsed.phone : '',

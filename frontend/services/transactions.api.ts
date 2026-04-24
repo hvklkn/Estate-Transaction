@@ -4,14 +4,18 @@ import type {
   CompletedTransactionEarningsSummary,
   CreateTransactionPayload,
   FinancialBreakdown,
+  PaginatedTransactionsResponse,
   Transaction,
+  TransactionListQueryParams,
   TransactionStageHistoryItem,
   TransactionStage,
-  TransactionType
+  TransactionType,
+  UpdateTransactionPayload
 } from '~/types/transaction';
 import { TransactionStage as TransactionStageEnum, TransactionType as TransactionTypeEnum } from '~/types/transaction';
 
 const TRANSACTIONS_ENDPOINT = '/transactions';
+const TRANSACTION_ENDPOINT = (id: string) => `${TRANSACTIONS_ENDPOINT}/${id}`;
 const TRANSACTION_STAGE_ENDPOINT = (id: string) => `${TRANSACTIONS_ENDPOINT}/${id}/stage`;
 const TRANSACTIONS_SUMMARY_ENDPOINT = `${TRANSACTIONS_ENDPOINT}/summary`;
 const OBJECT_ID_REGEX = /^[a-f\d]{24}$/i;
@@ -48,9 +52,16 @@ interface ApiTransaction {
   sellingAgentId?: string | ApiAgent;
   transactionType?: TransactionType;
   createdBy?: string | ApiAgent | null;
+  updatedBy?: string | ApiAgent | null;
+  deletedBy?: string | ApiAgent | null;
   stage?: TransactionStage;
   stageHistory?: ApiTransactionStageHistoryItem[];
   financialBreakdown?: ApiFinancialBreakdown;
+  balanceDistributionApplied?: boolean;
+  balanceDistributionAppliedAt?: string | null;
+  balanceDistributionAppliedBy?: ObjectIdLike | ApiAgent | null;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -66,6 +77,14 @@ interface ApiCompletedTransactionEarningsSummary {
   totalAgencyEarnings?: number;
   totalAgentEarnings?: number;
   byAgent?: Array<{ agentId?: ObjectIdLike; earnings?: number }>;
+}
+
+interface ApiPaginatedTransactionsResponse {
+  items?: ApiTransaction[];
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
 }
 
 const TRANSACTION_STAGE_SET = new Set(Object.values(TransactionStageEnum));
@@ -116,6 +135,16 @@ const toRequiredNonNegativeNumber = (value: unknown, fieldName: string): number 
   return normalizedValue;
 };
 
+const toRequiredIntegerAtLeast = (value: unknown, fieldName: string, min: number): number => {
+  const normalizedValue = toRequiredNumber(value, fieldName);
+
+  if (!Number.isInteger(normalizedValue) || normalizedValue < min) {
+    throw new Error(`Invalid API response: "${fieldName}" must be an integer >= ${min}.`);
+  }
+
+  return normalizedValue;
+};
+
 const toOptionalNonNegativeNumber = (value: unknown, fieldName: string): number | null => {
   if (value === undefined || value === null) {
     return null;
@@ -144,6 +173,31 @@ const toRequiredObjectIdString = (value: unknown, fieldName: string): string => 
   }
 
   return normalizedValue;
+};
+
+const resolveOptionalObjectIdReference = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return OBJECT_ID_REGEX.test(value) ? value : null;
+  }
+
+  if (isObject(value)) {
+    const record = value as Record<string, unknown>;
+    const fromKnownKeys = toOptionalObjectIdString(record.id ?? record._id);
+    if (fromKnownKeys && OBJECT_ID_REGEX.test(fromKnownKeys)) {
+      return fromKnownKeys;
+    }
+
+    const fromToString = toOptionalObjectIdString(value);
+    if (fromToString && OBJECT_ID_REGEX.test(fromToString)) {
+      return fromToString;
+    }
+  }
+
+  return null;
 };
 
 const normalizeAgentSummary = (
@@ -248,6 +302,20 @@ const normalizeTransactionType = (transactionType: unknown): TransactionType => 
   return TransactionTypeEnum.SOLD;
 };
 
+const normalizeOptionalIsoDate = (value: unknown, fieldName: string): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const stringValue = toRequiredString(value, fieldName);
+  const dateValue = new Date(stringValue);
+  if (Number.isNaN(dateValue.getTime())) {
+    throw new Error(`Invalid API response: invalid "${fieldName}".`);
+  }
+
+  return dateValue.toISOString();
+};
+
 const normalizeChangedBy = (
   changedBy: ApiTransactionStageHistoryItem['changedBy']
 ): Pick<TransactionStageHistoryItem, 'changedBy' | 'changedById'> => {
@@ -324,6 +392,63 @@ const createAuthHeaders = (): HeadersInit => {
   };
 };
 
+const normalizeListQueryParams = (
+  params: TransactionListQueryParams
+): Record<string, string | number> => {
+  const query: Record<string, string | number> = {};
+
+  if (typeof params.page === 'number') {
+    query.page = params.page;
+  }
+
+  if (typeof params.limit === 'number') {
+    query.limit = params.limit;
+  }
+
+  const normalizedSearch = typeof params.search === 'string' ? params.search.trim() : '';
+  if (normalizedSearch) {
+    query.search = normalizedSearch;
+  }
+
+  if (params.stage) {
+    query.stage = params.stage;
+  }
+
+  if (params.transactionType) {
+    query.transactionType = params.transactionType;
+  }
+
+  if (params.sortBy) {
+    query.sortBy = params.sortBy;
+  }
+
+  if (params.sortOrder) {
+    query.sortOrder = params.sortOrder;
+  }
+
+  if (typeof params.includeDeleted === 'boolean') {
+    query.includeDeleted = params.includeDeleted ? 'true' : 'false';
+  }
+
+  return query;
+};
+
+const normalizePaginatedTransactionsResponse = (
+  response: ApiPaginatedTransactionsResponse
+): PaginatedTransactionsResponse => {
+  if (!Array.isArray(response.items)) {
+    throw new Error('Invalid API response: expected "items" array in paginated response.');
+  }
+
+  return {
+    items: response.items.map(normalizeTransaction),
+    page: toRequiredIntegerAtLeast(response.page, 'page', 1),
+    limit: toRequiredIntegerAtLeast(response.limit, 'limit', 1),
+    total: toRequiredIntegerAtLeast(response.total, 'total', 0),
+    totalPages: toRequiredIntegerAtLeast(response.totalPages, 'totalPages', 0)
+  };
+};
+
 export const normalizeTransaction = (apiTransaction: ApiTransaction): Transaction => {
   const transactionId = toRequiredObjectIdString(
     apiTransaction.id ?? apiTransaction._id,
@@ -356,18 +481,44 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
 
   let createdById: string | undefined;
   let createdBy: AgentSummary | undefined;
+  let updatedById: string | null = null;
+  let updatedBy: AgentSummary | undefined;
+  let deletedById: string | null = null;
+  let deletedBy: AgentSummary | undefined;
+  let balanceDistributionAppliedById: string | null | undefined;
 
   if (apiTransaction.createdBy) {
-    if (typeof apiTransaction.createdBy === 'string') {
-      createdById = toRequiredObjectIdString(apiTransaction.createdBy, 'createdBy');
-    } else {
-      createdById = toRequiredObjectIdString(
-        apiTransaction.createdBy.id ?? apiTransaction.createdBy._id,
-        'createdBy'
-      );
-      createdBy = normalizeAgentSummary(apiTransaction.createdBy, createdById);
+    const normalizedCreatedById = resolveOptionalObjectIdReference(apiTransaction.createdBy);
+    if (normalizedCreatedById) {
+      createdById = normalizedCreatedById;
+      if (typeof apiTransaction.createdBy !== 'string') {
+        createdBy = normalizeAgentSummary(apiTransaction.createdBy, createdById);
+      }
     }
   }
+
+  if (apiTransaction.updatedBy) {
+    const normalizedUpdatedById = resolveOptionalObjectIdReference(apiTransaction.updatedBy);
+    if (normalizedUpdatedById) {
+      updatedById = normalizedUpdatedById;
+      if (typeof apiTransaction.updatedBy !== 'string') {
+        updatedBy = normalizeAgentSummary(apiTransaction.updatedBy, normalizedUpdatedById);
+      }
+    }
+  }
+
+  if (apiTransaction.deletedBy) {
+    const normalizedDeletedById = resolveOptionalObjectIdReference(apiTransaction.deletedBy);
+    if (normalizedDeletedById) {
+      deletedById = normalizedDeletedById;
+      if (typeof apiTransaction.deletedBy !== 'string') {
+        deletedBy = normalizeAgentSummary(apiTransaction.deletedBy, normalizedDeletedById);
+      }
+    }
+  }
+
+  balanceDistributionAppliedById =
+    resolveOptionalObjectIdReference(apiTransaction.balanceDistributionAppliedBy) ?? null;
 
   return {
     id: transactionId,
@@ -377,9 +528,13 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
     sellingAgentId,
     transactionType: normalizeTransactionType(apiTransaction.transactionType),
     createdById,
+    updatedById,
+    deletedById,
     listingAgent: normalizeAgentSummary(apiTransaction.listingAgentId, listingAgentId),
     sellingAgent: normalizeAgentSummary(apiTransaction.sellingAgentId, sellingAgentId),
     createdBy,
+    updatedBy,
+    deletedBy,
     stage: normalizeStage(apiTransaction.stage),
     stageHistory: normalizeStageHistory(apiTransaction.stageHistory),
     financialBreakdown: normalizeFinancialBreakdown(
@@ -387,6 +542,14 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
       listingAgentId,
       sellingAgentId
     ),
+    balanceDistributionApplied: Boolean(apiTransaction.balanceDistributionApplied),
+    balanceDistributionAppliedAt: normalizeOptionalIsoDate(
+      apiTransaction.balanceDistributionAppliedAt,
+      'balanceDistributionAppliedAt'
+    ),
+    balanceDistributionAppliedById,
+    isDeleted: Boolean(apiTransaction.isDeleted),
+    deletedAt: normalizeOptionalIsoDate(apiTransaction.deletedAt, 'deletedAt'),
     createdAt: apiTransaction.createdAt,
     updatedAt: apiTransaction.updatedAt
   };
@@ -396,14 +559,15 @@ export const useTransactionsApi = () => {
   const api = useApi();
 
   return {
-    async listTransactions(): Promise<Transaction[]> {
-      const response = await api.request<ApiTransaction[]>(TRANSACTIONS_ENDPOINT);
+    async listTransactions(
+      params: TransactionListQueryParams = {}
+    ): Promise<PaginatedTransactionsResponse> {
+      const response = await api.request<ApiPaginatedTransactionsResponse>(TRANSACTIONS_ENDPOINT, {
+        headers: createAuthHeaders(),
+        query: normalizeListQueryParams(params)
+      });
 
-      if (!Array.isArray(response)) {
-        throw new Error('Invalid API response: expected a transaction array.');
-      }
-
-      return response.map(normalizeTransaction);
+      return normalizePaginatedTransactionsResponse(response);
     },
 
     async createTransaction(payload: CreateTransactionPayload): Promise<Transaction> {
@@ -416,9 +580,31 @@ export const useTransactionsApi = () => {
       return normalizeTransaction(response);
     },
 
+    async updateTransaction(id: string, payload: UpdateTransactionPayload): Promise<Transaction> {
+      const response = await api.request<ApiTransaction>(TRANSACTION_ENDPOINT(id), {
+        method: 'PATCH',
+        headers: createAuthHeaders(),
+        body: payload
+      });
+
+      return normalizeTransaction(response);
+    },
+
+    async deleteTransaction(id: string): Promise<{ success: boolean }> {
+      const response = await api.request<{ success?: boolean }>(TRANSACTION_ENDPOINT(id), {
+        method: 'DELETE',
+        headers: createAuthHeaders()
+      });
+
+      return {
+        success: Boolean(response.success)
+      };
+    },
+
     async updateTransactionStage(id: string, stage: TransactionStage): Promise<Transaction> {
       const response = await api.request<ApiTransaction>(TRANSACTION_STAGE_ENDPOINT(id), {
         method: 'PATCH',
+        headers: createAuthHeaders(),
         body: { stage }
       });
 
@@ -427,7 +613,10 @@ export const useTransactionsApi = () => {
 
     async getCompletedEarningsSummary(): Promise<CompletedTransactionEarningsSummary> {
       const response = await api.request<ApiCompletedTransactionEarningsSummary>(
-        TRANSACTIONS_SUMMARY_ENDPOINT
+        TRANSACTIONS_SUMMARY_ENDPOINT,
+        {
+          headers: createAuthHeaders()
+        }
       );
 
       return {

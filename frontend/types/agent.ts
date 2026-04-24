@@ -3,6 +3,9 @@ export interface AgentUser {
   name: string;
   email: string;
   isActive: boolean;
+  role: 'agent' | 'manager' | 'admin';
+  balance?: number;
+  balanceCents?: number;
   firstName?: string;
   lastName?: string;
   phone?: string;

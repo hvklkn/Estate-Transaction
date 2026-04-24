@@ -1,150 +1,217 @@
 # Design
 
-## 1. Goal
+## 1. Summary
 
-This project models operational real estate workflows with two core guarantees:
+Iceberg models the real estate transaction lifecycle with strict workflow safety, commission determinism, and auditable mutation trails.
 
-- lifecycle transitions are policy-controlled
-- commission distribution is deterministic and explicit
+Primary design goals:
 
-The system is split into backend policy/services and frontend dashboard/state layers.
+- keep business policy out of controllers/UI
+- centralize lifecycle + mutation rules in dedicated services
+- enforce explicit auth and authorization on protected workflows
+- provide queryable, dashboard-friendly APIs
 
 ## 2. Architecture
 
-- `backend/`: NestJS + Mongoose, source of truth for domain rules
-- `frontend/`: Nuxt 3 + Pinia, dashboard and workflow UI
+- `backend/`: NestJS + Mongoose domain boundary
+- `frontend/`: Nuxt 3 + Pinia dashboard boundary
 
-Design principles:
-- thin controllers
-- explicit DTO validation
-- business rules centralized in focused services
-- frontend API normalization isolated from components
+Core principles:
 
-## 3. Backend Modules
+- thin controllers, policy-heavy services
+- DTO-driven explicit validation
+- traceability fields are write-protected from client spoofing
+- frontend service layer normalizes API contracts before state writes
 
-- `agents`: account/profile/session/2FA/password-reset flows
-- `transactions`: transaction CRUD, orchestration, summary
-- `commissions`: commission calculation policy
-- `stage-policy`: lifecycle stage transition policy
-- `health`: liveness endpoint
+## 3. Auth and Authorization
 
-### Why this split
+### Authentication model
 
-`transactions` depends on both stage policy and commission policy, but does not own those rules. This keeps behavior testable and reduces controller complexity.
+- Session tokens are generated at login and stored hashed in `Agent.sessions[]`.
+- Protected routes use bearer auth: `Authorization: Bearer <sessionToken>`.
+- `SessionAuthGuard` resolves authenticated session context and attaches it to request.
+- `CurrentSession` decorator exposes `agentId` / `sessionToken` to controllers.
 
-## 4. Data Model Decisions
+### Protected surface
 
-### 4.1 Agent
+- All transaction routes (`/transactions/*`)
+- Self-service profile/session routes (`/agents/me/*`)
+- `POST /agents/logout`
 
-Agent includes identity, security, and session fields:
-- identity: `name`, `email`, `isActive`, `firstName`, `lastName`, `phone`, `iban`
-- security: `passwordHash`, `twoFactorEnabled`, `twoFactorMethod`, `twoFactorSecret`, `twoFactorVerifiedAt`
-- session tracking: `sessions[]`
-- password reset tracking: `passwordResetCodeHash`, `passwordResetExpiresAt`, `passwordResetRequestedAt`
+### Authorization model for transaction mutations
 
-Rationale:
-- keep authentication/session state close to user identity
-- enable revocable sessions and auditable security actions
+Mutations are allowed only if authenticated actor is one of:
 
-### 4.2 Transaction
+- `createdBy`
+- `listingAgentId`
+- `sellingAgentId`
 
-Transaction stores:
-- `propertyTitle`, `totalServiceFee`
-- `listingAgentId`, `sellingAgentId`
-- `transactionType` (`sold` or `rented`)
-- `createdBy` (agent who created record)
-- `stage`
-- `stageHistory[]`
-- embedded `financialBreakdown`
+Enforcement is centralized in `TransactionMutationPolicyService`.
 
-Indexes:
-- `{ stage: 1, createdAt: -1 }`
-- `{ listingAgentId: 1, sellingAgentId: 1 }`
-- `{ transactionType: 1, createdAt: -1 }`
+## 4. Transaction Immutability and Workflow Safety
 
-Rationale:
-- dashboard reads are stage- and type-driven
-- creator tracking supports accountability
-- stage and financial snapshots keep document self-contained
+### Stage policy (`StageTransitionPolicyService`)
 
-## 5. Transaction Stages
+- Create must start at `agreement`
+- Only immediate forward transitions are allowed
+- No backward, no skip, no same-stage transitions
+- `completed` is terminal
 
-Stages:
-- `agreement`
-- `earnest_money`
-- `title_deed`
-- `completed`
+### Mutation policy (`TransactionMutationPolicyService`)
 
-Rules are enforced in `StageTransitionPolicyService`:
-- create must start at `agreement`
-- transitions are forward-only
-- no skip, no backward, no same-stage, no transition from `completed`
+- Completed transactions are immutable:
+  - no `PATCH /transactions/:id`
+  - no `PATCH /transactions/:id/stage`
+  - `DELETE /transactions/:id` is blocked for normal agents
+- `manager`/`admin` can soft-delete completed transactions for audit/legal exceptions.
+- After leaving `agreement`, workflow-critical fields are locked:
+  - `listingAgentId`
+  - `sellingAgentId`
+  - `transactionType`
+  - `totalServiceFee`
+- Soft-deleted transactions are immutable for all mutation routes.
 
-`stageHistory` is appended automatically at creation and each valid stage change.
+This prevents participant/fee/type changes that break lifecycle semantics mid-flow.
 
-## 6. Financial Distribution
+## 5. Audit and Traceability Decisions
 
-Financial breakdown is stored as an embedded snapshot in each transaction:
-- `agencyAmount`
-- `agentPoolAmount`
-- `agents[]`: `agentId`, `role`, `amount`, `explanation`
+- `createdBy` is always derived from authenticated session actor at creation.
+- `updatedBy` is always derived from authenticated session actor on edit/stage/delete mutations.
+- Stage history is append-only and system-generated on create + each valid transition.
+- `stageHistory.changedBy` is always server-derived from bearer session actor.
+- Soft-delete trail is explicit on transaction:
+  - `isDeleted`
+  - `deletedAt`
+  - `deletedBy`
+- Header-based actor spoofing (`x-agent-id`) is intentionally removed.
 
-Choice: **embedded storage**.
+These decisions ensure actor fields are trustworthy for interview-level audit discussion.
 
-Reason:
-- UI can read exact historical distribution without recomputation
-- breakdown explanations remain tied to the transaction state that produced them
+## 6. Query and List Strategy
 
-## 7. Commission Policy
+`GET /transactions` supports dashboard-grade server querying:
 
-Implemented in `CommissionCalculatorService`:
-- 50% of service fee to company
-- 50% to agent pool
-- if listing and selling agent are same person: that person receives 100% of agent pool
-- if different: agent pool split equally
+- pagination: `page`, `limit`
+- filters: `stage`, `transactionType`
+- soft-delete visibility: `includeDeleted`
+- search: property title + listing/selling agent name/email
+- sorting: `createdAt|updatedAt|totalServiceFee|propertyTitle` + `asc|desc`
 
-Calculation uses deterministic cent-based arithmetic to avoid floating drift.
+Response envelope:
 
-## 8. Authentication and Security Flows
+```json
+{
+  "items": [],
+  "page": 1,
+  "limit": 20,
+  "total": 0,
+  "totalPages": 0
+}
+```
 
-- register/login with password hashing
-- bearer session tokens with per-device session entries
-- logout removes current session
-- profile update endpoint for personal/contact fields
-- password change requires current password
-- 2FA (authenticator): setup -> verify -> enable/disable
-- session management: list active sessions, revoke specific/other sessions
-- forgot password:
-  - request code via email provider
-  - reset password with code + confirmation
-  - in development, fallback code can be returned when provider is unavailable
+Indexing priorities:
 
-## 9. API and Frontend Contract
+- stage/date and type/date combinations
+- listing/selling agent date patterns
+- property title reads for search support
+- soft-delete-aware read patterns (`isDeleted` + stage/date)
 
-Frontend services normalize API responses before writing to Pinia store.
-Invalid critical fields fail fast to avoid corrupt local state.
+## 7. Frontend Dashboard Contract
 
-Transaction creation sends bearer token; backend resolves creator from session and writes `createdBy`.
+- Pinia store is server-driven for transactions list (not client-only filtering).
+- Query state (search/filter/sort/page) maps directly to backend API params.
+- UI states are explicit: loading, refresh, error, empty-with-filters, empty-initial.
+- Lifecycle UX emphasizes next allowed action and terminal completed visuals.
+- Detail panel prioritizes stage timeline and readable commission role breakdown.
 
-## 10. Testing Strategy
+## 8. Testing Strategy
 
-Implemented backend unit tests cover:
-- commission policy scenarios
-- stage transition policy rules
-- transaction service orchestration (validation, calculations, summary, stage updates)
+### Unit tests
 
-Current gap:
-- no end-to-end API tests yet
-- frontend automated tests are not implemented yet
+Covered:
 
-## 11. Trade-offs and Next Steps
+- commission distribution policy
+- stage transition policy
+- transaction mutation policy
+- transaction service orchestration
 
-Current trade-offs:
-- embedded financial/stage snapshots favor read clarity over full normalization
-- custom session/auth flow is lightweight but not JWT/OAuth-based
+### E2E tests
 
-Practical next steps:
-1. Add backend e2e test suite (auth + transactions + summary).
-2. Add pagination/filtering/sorting for transaction list endpoints.
-3. Add role-based authorization for critical mutation routes.
-4. Add frontend test coverage for auth and create-transaction workflows.
+Added suite covering:
+
+- register/login flow
+- authenticated create transaction
+- stage update and summary
+- invalid transition and payload handling
+- unauthorized and forbidden scenarios
+
+Note: in restricted sandbox environments where local port binding is disabled, `mongodb-memory-server` cannot start. The suite is intended for normal local/CI runtime.
+
+## 9. Deployment Readiness
+
+Frontend (Vercel):
+
+- `frontend/vercel.json`
+- Nuxt Vercel build path via `build:vercel`
+
+Backend (Render/Railway):
+
+- Dockerized backend with `backend/Dockerfile`
+- Render blueprint: `render.yaml`
+- Railway config: `railway.json`
+
+Production checklist:
+
+- set real `MONGODB_URI`
+- set deployed `CORS_ORIGIN`
+- set `NUXT_PUBLIC_API_BASE_URL`
+- configure Resend variables if password reset email delivery is required
+
+## 10. Balance and Ledger Design
+
+### Data model
+
+- `Agent.balanceCents`: current wallet balance in integer cents.
+- `balance_ledger` collection: append-only movement records for every credit/adjustment/reversal.
+
+Ledger record fields:
+
+- `userId`
+- `transactionId` (nullable)
+- `type` (`commission_credit | manual_adjustment | reversal`)
+- `amount` (cents, signed)
+- `previousBalance` (cents)
+- `newBalance` (cents)
+- `description`
+- `createdAt`
+- `createdBy`
+
+### Why ledger + balance (instead of only balance)
+
+- Balance alone gives current state but not audit explainability.
+- Ledger gives immutable movement timeline, actor trace, and transaction linkage.
+- `previousBalance`/`newBalance` snapshots make each row independently verifiable.
+
+### Commission credit integration
+
+- On transition to `completed`, transaction service calls balance service with commission allocations.
+- Balance service claims distribution once using transaction-level flag:
+  - `balanceDistributionApplied`
+  - `balanceDistributionAppliedAt`
+  - `balanceDistributionAppliedBy`
+  - `balanceDistributionLedgerIds`
+- Claim check prevents duplicate wallet credit under retried/concurrent completion requests.
+
+### Duplicate credit prevention
+
+- Credit flow starts with atomic `findOneAndUpdate` claim on:
+  - transaction id
+  - `stage = completed`
+  - `balanceDistributionApplied = false`
+- If claim fails, flow is treated as already applied and exits without new credits.
+
+### Immutability and reversal safety decision
+
+- Chosen policy: completed transactions are immutable.
+- No silent balance mutation on post-completion edits because post-completion edits are blocked.
+- Manual corrections are explicit via privileged ledger adjustment endpoint, preserving audit trail.

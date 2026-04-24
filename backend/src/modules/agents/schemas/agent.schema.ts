@@ -4,6 +4,7 @@ import { HydratedDocument } from 'mongoose';
 export type AgentDocument = HydratedDocument<Agent>;
 
 export type TwoFactorMethod = 'sms' | 'authenticator';
+export type AgentRole = 'agent' | 'manager' | 'admin';
 
 @Schema({
   _id: false
@@ -58,6 +59,12 @@ export class Agent {
 
   @Prop({ trim: true, default: '' })
   iban!: string;
+
+  @Prop({ required: true, enum: ['agent', 'manager', 'admin'], default: 'agent' })
+  role!: AgentRole;
+
+  @Prop({ required: true, default: 0 })
+  balanceCents!: number;
 
   @Prop({ required: true, select: false })
   passwordHash!: string;
