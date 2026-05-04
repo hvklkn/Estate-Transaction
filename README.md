@@ -15,8 +15,10 @@ Production-minded real estate transaction lifecycle and commission dashboard.
 - Append-only stage history with server-authenticated `changedBy`
 - Commission breakdown persisted on each transaction
 - Agent wallet/balance system with append-only ledger
+- Organization-based multi-tenancy for agents, transactions, and balance ledger rows
 - Completed earnings summary endpoint
-- Session-token auth (bearer token), profile/session/2FA/password flows
+- Session-token auth (bearer token), profile/session/2FA/password flows with tenant-aware session context
+- Role-based authorization for protected team and finance actions
 - Transaction mutation authorization and immutability protections:
   - Only creator, listing agent, or selling agent can mutate
   - Completed transactions are immutable for edit/stage updates
@@ -98,7 +100,48 @@ Protected routes (require `Authorization: Bearer <sessionToken>`):
 
 - `POST /agents/logout`
 - `/agents/me/*` profile, password, 2FA, sessions routes
+- `POST /agents`, `GET /agents`, `GET /agents/:id`, `PATCH /agents/:id`, `DELETE /agents/:id`
 - all `/transactions/*` routes
+- all `/balance/*` routes and `GET /agents/:id/balance`
+
+Session context exposes `agentId`, `role`, `organizationId`, `sessionId`, and `sessionToken`.
+
+## Multi-Tenancy
+
+Every signed-in agent belongs to one organization. Tenant-owned records carry `organizationId`:
+
+- `Agent`
+- `Transaction`
+- `BalanceLedger`
+
+Transaction list/detail/mutation queries always include the current session organization. Balance summaries and ledger queries also require the session organization. Agent listing returns only the current organization unless the actor is `super_admin`.
+
+Registration supports two paths:
+
+- Create a new organization by sending `organizationName` (first user becomes `office_owner`).
+- Join an existing organization by sending `organizationSlug` or `organizationId` (new user becomes `agent`).
+
+For legacy accounts without `organizationId`, the next successful session resolution creates a default organization for that agent so existing users can still sign in.
+
+## Roles
+
+Supported roles:
+
+- `super_admin`
+- `office_owner`
+- `manager`
+- `agent`
+- `finance`
+- `assistant`
+- `admin` (legacy compatibility alias for tenant admin behavior)
+
+Authorization summary:
+
+- `super_admin`: global team listing, can assign any role.
+- `office_owner` / legacy `admin`: tenant admin; can create/update/deactivate users in their organization and assign non-super-admin roles.
+- `manager`: can list team members and create lower-privilege team members.
+- `finance`: can access privileged balance actions.
+- `agent` / `assistant`: self-service profile/session access plus transaction actions allowed by transaction participation rules.
 
 ## API Overview
 
@@ -145,8 +188,8 @@ Base URL: `http://localhost:3001/api`
 
 - `GET /balance/me`
 - `GET /balance/me/ledger`
-- `GET /agents/:id/balance` (manager/admin only)
-- `POST /balance/manual-adjustment` (manager/admin only)
+- `GET /agents/:id/balance` (`super_admin`, `office_owner`, `admin`, `manager`, `finance`)
+- `POST /balance/manual-adjustment` (`super_admin`, `office_owner`, `admin`, `manager`, `finance`)
 
 #### GET /balance/me response
 
@@ -175,11 +218,11 @@ Base URL: `http://localhost:3001/api`
 
 ### Agents
 
-- `POST /agents`
-- `GET /agents`
-- `GET /agents/:id`
-- `PATCH /agents/:id`
-- `DELETE /agents/:id`
+- `POST /agents` (`super_admin`, `office_owner`, `admin`, `manager`)
+- `GET /agents` (`super_admin`, `office_owner`, `admin`, `manager`)
+- `GET /agents/:id` (`super_admin`, `office_owner`, `admin`, `manager`)
+- `PATCH /agents/:id` (`super_admin`, `office_owner`, `admin`)
+- `DELETE /agents/:id` (`super_admin`, `office_owner`, `admin`; deactivates user and clears sessions)
 - `GET /agents/me/profile`
 - `PATCH /agents/me/profile`
 - `PATCH /agents/me/password`
@@ -192,6 +235,8 @@ Base URL: `http://localhost:3001/api`
 
 ## Business Rules
 
+- All tenant-owned reads and writes are scoped to the current session `organizationId`.
+- Users cannot read or mutate another organization's transactions, balance ledger, or team members.
 - New transactions must start at `agreement`.
 - Stage updates are forward-only, no skip/back/no-op.
 - `changedBy` is derived from authenticated bearer session.
@@ -200,7 +245,7 @@ Base URL: `http://localhost:3001/api`
   - listing agent,
   - selling agent.
 - Completed transactions cannot be edited or stage-updated.
-- Completed transactions can only be soft-deleted by manager/admin.
+- Completed transactions can only be soft-deleted by `super_admin`, `office_owner`, legacy `admin`, or `manager`.
 - `DELETE /transactions/:id` performs soft delete (record stays queryable with `includeDeleted=true`).
 - Every edit/delete writes server-derived actor audit fields (`updatedBy`, `deletedBy`).
 - When a transaction reaches `completed`, commission credits are applied to agent balances.
@@ -212,6 +257,18 @@ Base URL: `http://localhost:3001/api`
   - 50% agent pool
   - same listing/selling agent: single-agent pool
   - different agents: equal split (cent-safe deterministic rounding)
+
+## Migration Notes
+
+Existing databases need a one-time tenant backfill before production rollout:
+
+1. Create at least one organization document with `name`, unique `slug`, `ownerId`, and `isActive: true`.
+2. Backfill `organizationId` on every existing `agents`, `transactions`, and `balance_ledger` document.
+3. Map legacy role `admin` to `office_owner` when you are ready to remove the compatibility alias.
+4. Verify every transaction participant (`listingAgentId`, `sellingAgentId`, `createdBy`) belongs to the same organization as the transaction.
+5. Create or rebuild the new tenant indexes after the backfill.
+
+Until data is backfilled, legacy users without an organization can still sign in; the app creates a default organization for that user. Existing transactions and ledger rows still need explicit `organizationId` migration to appear in tenant-scoped queries.
 
 ## Tests and Checks
 
@@ -227,7 +284,7 @@ Includes:
 - stage policy
 - transaction mutation policy
 - transaction orchestration
-- balance service (crediting, duplicate prevention, ledger correctness, role checks)
+- balance service (crediting, duplicate prevention, ledger correctness, tenant scoping, role checks)
 
 Backend e2e tests:
 
@@ -239,6 +296,8 @@ E2E suite covers auth + transaction + balance critical paths:
 
 - register/login
 - authenticated transaction creation
+- organization-scoped team and transaction isolation
+- protected agent endpoints and role permissions
 - stage updates
 - summary retrieval
 - invalid transitions/payloads

@@ -66,14 +66,15 @@ export class TransactionsService {
 
   async create(
     createTransactionDto: CreateTransactionDto,
-    creatorAgentId: string
+    creatorAgentId: string,
+    organizationId: string
   ): Promise<TransactionDocument> {
     const initialStage = this.stageTransitionPolicyService.resolveInitialStageForCreate(
       createTransactionDto.stage
     );
 
-    await this.agentsService.ensureAgentExists(createTransactionDto.listingAgentId);
-    await this.agentsService.ensureAgentExists(createTransactionDto.sellingAgentId);
+    await this.agentsService.ensureAgentExists(createTransactionDto.listingAgentId, organizationId);
+    await this.agentsService.ensureAgentExists(createTransactionDto.sellingAgentId, organizationId);
 
     const financialBreakdown = this.commissionCalculatorService.calculate({
       totalServiceFee: createTransactionDto.totalServiceFee,
@@ -91,6 +92,7 @@ export class TransactionsService {
 
     return this.transactionModel.create({
       ...createTransactionDto,
+      organizationId: new Types.ObjectId(organizationId),
       createdBy: new Types.ObjectId(creatorAgentId),
       stage: initialStage,
       financialBreakdown,
@@ -102,11 +104,14 @@ export class TransactionsService {
     });
   }
 
-  async findAll(query: ListTransactionsQueryDto): Promise<PaginatedTransactionsResult> {
+  async findAll(
+    query: ListTransactionsQueryDto,
+    organizationId: string
+  ): Promise<PaginatedTransactionsResult> {
     const page = query.page ?? DEFAULT_PAGE;
     const limit = query.limit ?? DEFAULT_LIMIT;
     const normalizedSearch = query.search?.trim() ?? '';
-    const filter = await this.buildFilter(query, normalizedSearch);
+    const filter = await this.buildFilter(query, normalizedSearch, organizationId);
     const sort = this.resolveSort(query.sortBy, query.sortOrder);
     const skip = (page - 1) * limit;
 
@@ -128,10 +133,15 @@ export class TransactionsService {
     };
   }
 
-  async findOne(id: string): Promise<TransactionDocument> {
+  async findOne(id: string, organizationId: string): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
 
-    const transaction = await this.withPopulation(this.transactionModel.findById(id)).exec();
+    const transaction = await this.withPopulation(
+      this.transactionModel.findOne({
+        _id: id,
+        organizationId: new Types.ObjectId(organizationId)
+      })
+    ).exec();
 
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
@@ -143,11 +153,16 @@ export class TransactionsService {
   async update(
     id: string,
     updateTransactionDto: UpdateTransactionDto,
-    actorAgentId: string
+    actorAgentId: string,
+    organizationId: string
   ): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
 
-    const existingTransaction = await this.transactionModel.findById(id).exec();
+    const tenantFilter = {
+      _id: id,
+      organizationId: new Types.ObjectId(organizationId)
+    };
+    const existingTransaction = await this.transactionModel.findOne(tenantFilter).exec();
     if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
@@ -161,11 +176,11 @@ export class TransactionsService {
     );
 
     if (updateTransactionDto.listingAgentId) {
-      await this.agentsService.ensureAgentExists(updateTransactionDto.listingAgentId);
+      await this.agentsService.ensureAgentExists(updateTransactionDto.listingAgentId, organizationId);
     }
 
     if (updateTransactionDto.sellingAgentId) {
-      await this.agentsService.ensureAgentExists(updateTransactionDto.sellingAgentId);
+      await this.agentsService.ensureAgentExists(updateTransactionDto.sellingAgentId, organizationId);
     }
 
     const listingAgentId =
@@ -182,8 +197,8 @@ export class TransactionsService {
     });
 
     const updatedTransaction = await this.withPopulation(
-      this.transactionModel.findByIdAndUpdate(
-        id,
+      this.transactionModel.findOneAndUpdate(
+        tenantFilter,
         {
           ...updateTransactionDto,
           financialBreakdown,
@@ -206,11 +221,17 @@ export class TransactionsService {
   async updateStage(
     id: string,
     stage: TransactionStage,
-    actorAgentId: string
+    actorAgentId: string,
+    organizationId: string
   ): Promise<TransactionDocument> {
     this.validateObjectId(id, 'transactionId');
 
-    const existingTransaction = await this.transactionModel.findById(id).exec();
+    const existingTransaction = await this.transactionModel
+      .findOne({
+        _id: id,
+        organizationId: new Types.ObjectId(organizationId)
+      })
+      .exec();
     if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
@@ -227,8 +248,11 @@ export class TransactionsService {
     });
 
     const updatedTransaction = await this.withPopulation(
-      this.transactionModel.findByIdAndUpdate(
-        id,
+      this.transactionModel.findOneAndUpdate(
+        {
+          _id: id,
+          organizationId: new Types.ObjectId(organizationId)
+        },
         {
           stage,
           updatedBy: new Types.ObjectId(actorAgentId),
@@ -246,6 +270,7 @@ export class TransactionsService {
       await this.balanceService.applyCommissionCreditsForCompletedTransaction({
         transactionId: id,
         actorAgentId,
+        organizationId,
         allocations: updatedTransaction.financialBreakdown.agents.map((allocation) => ({
           agentId: allocation.agentId.toString(),
           amount: allocation.amount,
@@ -254,7 +279,10 @@ export class TransactionsService {
       });
 
       const refreshedTransaction = await this.withPopulation(
-        this.transactionModel.findById(id)
+        this.transactionModel.findOne({
+          _id: id,
+          organizationId: new Types.ObjectId(organizationId)
+        })
       ).exec();
 
       if (!refreshedTransaction) {
@@ -267,10 +295,20 @@ export class TransactionsService {
     return updatedTransaction;
   }
 
-  async remove(id: string, actorAgentId: string, actorRole: AgentRole): Promise<void> {
+  async remove(
+    id: string,
+    actorAgentId: string,
+    actorRole: AgentRole,
+    organizationId: string
+  ): Promise<void> {
     this.validateObjectId(id, 'transactionId');
 
-    const existingTransaction = await this.transactionModel.findById(id).exec();
+    const existingTransaction = await this.transactionModel
+      .findOne({
+        _id: id,
+        organizationId: new Types.ObjectId(organizationId)
+      })
+      .exec();
     if (!existingTransaction) {
       throw new NotFoundException('Transaction not found');
     }
@@ -283,8 +321,11 @@ export class TransactionsService {
     );
 
     await this.transactionModel
-      .findByIdAndUpdate(
-        id,
+      .findOneAndUpdate(
+        {
+          _id: id,
+          organizationId: new Types.ObjectId(organizationId)
+        },
         {
           isDeleted: true,
           deletedAt: new Date(),
@@ -296,7 +337,10 @@ export class TransactionsService {
       .exec();
   }
 
-  async getCompletedEarningsSummary(): Promise<CompletedTransactionEarningsSummary> {
+  async getCompletedEarningsSummary(
+    organizationId: string
+  ): Promise<CompletedTransactionEarningsSummary> {
+    const organizationObjectId = new Types.ObjectId(organizationId);
     const [totalsResult, agentBreakdownResult] = await Promise.all([
       this.transactionModel
         .aggregate<{
@@ -305,6 +349,7 @@ export class TransactionsService {
         }>([
           {
             $match: {
+              organizationId: organizationObjectId,
               stage: TransactionStage.COMPLETED,
               isDeleted: false
             }
@@ -322,6 +367,7 @@ export class TransactionsService {
         .aggregate<CompletedAgentEarningsSummaryItem>([
           {
             $match: {
+              organizationId: organizationObjectId,
               stage: TransactionStage.COMPLETED,
               isDeleted: false
             }
@@ -365,9 +411,11 @@ export class TransactionsService {
 
   private async buildFilter(
     query: ListTransactionsQueryDto,
-    normalizedSearch: string
+    normalizedSearch: string,
+    organizationId: string
   ): Promise<FilterQuery<Transaction>> {
     const filter: FilterQuery<Transaction> = {
+      organizationId: new Types.ObjectId(organizationId),
       ...(query.includeDeleted ? {} : { isDeleted: false })
     };
 
@@ -385,7 +433,10 @@ export class TransactionsService {
 
     const escapedSearch = this.escapeRegex(normalizedSearch);
     const searchRegex = new RegExp(escapedSearch, 'i');
-    const matchedAgentIds = await this.agentsService.findAgentIdsBySearchTerm(normalizedSearch);
+    const matchedAgentIds = await this.agentsService.findAgentIdsBySearchTerm(
+      normalizedSearch,
+      organizationId
+    );
     const matchedAgentObjectIds = matchedAgentIds.map((agentId) => new Types.ObjectId(agentId));
     const matchesTransactionId = Types.ObjectId.isValid(normalizedSearch)
       ? [new Types.ObjectId(normalizedSearch)]

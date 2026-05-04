@@ -14,6 +14,7 @@ const AGENT_A_ID = '661b8c0134e2c40fd2f89a11';
 const AGENT_B_ID = '661b8c0134e2c40fd2f89a22';
 const ACTOR_ID = '661b8c0134e2c40fd2f89a33';
 const TRANSACTION_ID = '661b8c0134e2c40fd2f89b44';
+const ORGANIZATION_ID = '661b8c0134e2c40fd2f89c11';
 
 const createLeanSelectQuery = <T>(result: T) => {
   const query = {
@@ -61,8 +62,10 @@ describe('BalanceService', () => {
 
   const agentModelMock = {
     findById: jest.fn(),
+    findOne: jest.fn(),
     find: jest.fn(),
-    findByIdAndUpdate: jest.fn()
+    findByIdAndUpdate: jest.fn(),
+    findOneAndUpdate: jest.fn()
   };
 
   const balanceLedgerModelMock = {
@@ -103,7 +106,7 @@ describe('BalanceService', () => {
   });
 
   it('returns zero balance for newly created user balance state', async () => {
-    agentModelMock.findById.mockReturnValue(
+    agentModelMock.findOne.mockReturnValue(
       createLeanSelectQuery({
         _id: new Types.ObjectId(AGENT_A_ID),
         balanceCents: 0
@@ -114,7 +117,7 @@ describe('BalanceService', () => {
       exec: jest.fn().mockResolvedValue([])
     });
 
-    const result = await service.getMyBalance(AGENT_A_ID);
+    const result = await service.getMyBalance(AGENT_A_ID, ORGANIZATION_ID);
 
     expect(result.balanceCents).toBe(0);
     expect(result.balance).toBe(0);
@@ -132,7 +135,8 @@ describe('BalanceService', () => {
     agentModelMock.find.mockReturnValue(
       createLeanSelectQuery([{ _id: new Types.ObjectId(AGENT_A_ID) }])
     );
-    agentModelMock.findByIdAndUpdate.mockImplementation((agentId: string, update: { $inc: { balanceCents: number } }) => {
+    agentModelMock.findOneAndUpdate.mockImplementation((filter: { _id: string }, update: { $inc: { balanceCents: number } }) => {
+      const agentId = filter._id;
       const nextBalance = (balances.get(agentId) ?? 0) + update.$inc.balanceCents;
       balances.set(agentId, nextBalance);
       return createSelectQuery({ _id: new Types.ObjectId(agentId), balanceCents: nextBalance });
@@ -151,6 +155,7 @@ describe('BalanceService', () => {
     const result = await service.applyCommissionCreditsForCompletedTransaction({
       transactionId: TRANSACTION_ID,
       actorAgentId: ACTOR_ID,
+      organizationId: ORGANIZATION_ID,
       allocations: [
         {
           agentId: AGENT_A_ID,
@@ -166,6 +171,7 @@ describe('BalanceService', () => {
     expect(createdLedgerEntries[0]).toEqual(
       expect.objectContaining({
         type: BalanceLedgerType.COMMISSION_CREDIT,
+        organizationId: expect.any(Types.ObjectId),
         amount: 50000,
         previousBalance: 0,
         newBalance: 50000,
@@ -190,7 +196,8 @@ describe('BalanceService', () => {
         { _id: new Types.ObjectId(AGENT_B_ID) }
       ])
     );
-    agentModelMock.findByIdAndUpdate.mockImplementation((agentId: string, update: { $inc: { balanceCents: number } }) => {
+    agentModelMock.findOneAndUpdate.mockImplementation((filter: { _id: string }, update: { $inc: { balanceCents: number } }) => {
+      const agentId = filter._id;
       const nextBalance = (balances.get(agentId) ?? 0) + update.$inc.balanceCents;
       balances.set(agentId, nextBalance);
       return createSelectQuery({ _id: new Types.ObjectId(agentId), balanceCents: nextBalance });
@@ -205,6 +212,7 @@ describe('BalanceService', () => {
     await service.applyCommissionCreditsForCompletedTransaction({
       transactionId: TRANSACTION_ID,
       actorAgentId: ACTOR_ID,
+      organizationId: ORGANIZATION_ID,
       allocations: [
         {
           agentId: AGENT_A_ID,
@@ -230,6 +238,7 @@ describe('BalanceService', () => {
     const result = await service.applyCommissionCreditsForCompletedTransaction({
       transactionId: TRANSACTION_ID,
       actorAgentId: ACTOR_ID,
+      organizationId: ORGANIZATION_ID,
       allocations: [
         {
           agentId: AGENT_A_ID,
@@ -243,13 +252,13 @@ describe('BalanceService', () => {
       applied: false,
       ledgerIds: []
     });
-    expect(agentModelMock.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(agentModelMock.findOneAndUpdate).not.toHaveBeenCalled();
     expect(balanceLedgerModelMock.create).not.toHaveBeenCalled();
   });
 
   it('blocks non-admin roles from viewing other user balances', async () => {
-    await expect(service.getAgentBalanceForViewer(AGENT_A_ID, 'agent', AGENT_B_ID)).rejects.toThrow(
-      ForbiddenException
-    );
+    await expect(
+      service.getAgentBalanceForViewer(AGENT_A_ID, 'agent', ORGANIZATION_ID, AGENT_B_ID)
+    ).rejects.toThrow(ForbiddenException);
   });
 });

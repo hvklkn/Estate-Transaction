@@ -1,10 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type AgentDocument = HydratedDocument<Agent>;
 
 export type TwoFactorMethod = 'sms' | 'authenticator';
-export type AgentRole = 'agent' | 'manager' | 'admin';
+export const AGENT_ROLES = [
+  'super_admin',
+  'office_owner',
+  'manager',
+  'agent',
+  'finance',
+  'assistant',
+  'admin'
+] as const;
+export type AgentRole = (typeof AGENT_ROLES)[number];
 
 @Schema({
   _id: false
@@ -60,8 +69,11 @@ export class Agent {
   @Prop({ trim: true, default: '' })
   iban!: string;
 
-  @Prop({ required: true, enum: ['agent', 'manager', 'admin'], default: 'agent' })
+  @Prop({ required: true, enum: AGENT_ROLES, default: 'agent' })
   role!: AgentRole;
+
+  @Prop({ type: Types.ObjectId, ref: 'Organization', default: null })
+  organizationId!: Types.ObjectId | null;
 
   @Prop({ required: true, default: 0 })
   balanceCents!: number;

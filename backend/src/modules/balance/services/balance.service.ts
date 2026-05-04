@@ -7,6 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 
+import { canManageBalances } from '@/common/auth/role-permissions';
 import { Agent, AgentDocument, AgentRole } from '@/modules/agents/schemas/agent.schema';
 import { BalanceLedgerType } from '@/modules/balance/domain/balance-ledger-type.enum';
 import { ListBalanceLedgerQueryDto } from '@/modules/balance/dto/list-balance-ledger-query.dto';
@@ -35,6 +36,7 @@ type LedgerViewSource = {
   description: string;
   createdAt?: Date | string;
   createdBy: Types.ObjectId | string;
+  organizationId?: Types.ObjectId | string;
 };
 
 export interface BalanceLedgerItemView {
@@ -51,6 +53,7 @@ export interface BalanceLedgerItemView {
   description: string;
   createdAt: string;
   createdBy: string;
+  organizationId: string | null;
 }
 
 export interface PaginatedBalanceLedgerResult {
@@ -85,13 +88,19 @@ export class BalanceService {
     private readonly transactionModel: Model<TransactionDocument>
   ) {}
 
-  async getMyBalance(agentId: string): Promise<BalanceSummaryResult> {
+  async getMyBalance(agentId: string, organizationId: string): Promise<BalanceSummaryResult> {
     this.validateObjectId(agentId, 'agentId');
+    this.validateObjectId(organizationId, 'organizationId');
+    const organizationObjectId = new Types.ObjectId(organizationId);
 
     const [agent, recentEntries, totalEarnedResult] = await Promise.all([
-      this.agentModel.findById(agentId).select('_id balanceCents').lean().exec(),
+      this.agentModel
+        .findOne({ _id: agentId, organizationId: organizationObjectId })
+        .select('_id balanceCents')
+        .lean()
+        .exec(),
       this.balanceLedgerModel
-        .find({ userId: new Types.ObjectId(agentId) })
+        .find({ userId: new Types.ObjectId(agentId), organizationId: organizationObjectId })
         .sort({ createdAt: -1 })
         .limit(DEFAULT_RECENT_LEDGER_LIMIT)
         .lean()
@@ -101,6 +110,7 @@ export class BalanceService {
           {
             $match: {
               userId: new Types.ObjectId(agentId),
+              organizationId: organizationObjectId,
               type: BalanceLedgerType.COMMISSION_CREDIT
             }
           },
@@ -134,13 +144,15 @@ export class BalanceService {
 
   async getMyLedger(
     agentId: string,
+    organizationId: string,
     query: ListBalanceLedgerQueryDto
   ): Promise<PaginatedBalanceLedgerResult> {
     this.validateObjectId(agentId, 'agentId');
+    this.validateObjectId(organizationId, 'organizationId');
 
     const page = query.page ?? DEFAULT_PAGE;
     const limit = query.limit ?? DEFAULT_LIMIT;
-    const filter = this.buildLedgerFilter(agentId, query);
+    const filter = this.buildLedgerFilter(agentId, organizationId, query);
     const skip = (page - 1) * limit;
 
     const [entries, total] = await Promise.all([
@@ -160,18 +172,21 @@ export class BalanceService {
   async getAgentBalanceForViewer(
     viewerAgentId: string,
     viewerRole: AgentRole,
+    organizationId: string,
     targetAgentId: string
   ): Promise<BalanceSummaryResult> {
     this.assertPrivilegedViewer(viewerRole);
     this.validateObjectId(viewerAgentId, 'viewerAgentId');
     this.validateObjectId(targetAgentId, 'targetAgentId');
+    this.validateObjectId(organizationId, 'organizationId');
 
-    return this.getMyBalance(targetAgentId);
+    return this.getMyBalance(targetAgentId, organizationId);
   }
 
   async createManualAdjustment(
     viewerAgentId: string,
     viewerRole: AgentRole,
+    organizationId: string,
     payload: ManualBalanceAdjustmentDto
   ): Promise<{
     userId: string;
@@ -181,7 +196,9 @@ export class BalanceService {
   }> {
     this.assertPrivilegedViewer(viewerRole);
     this.validateObjectId(viewerAgentId, 'viewerAgentId');
+    this.validateObjectId(organizationId, 'organizationId');
     this.validateObjectId(payload.userId, 'userId');
+    const organizationObjectId = new Types.ObjectId(organizationId);
 
     const amountCents = this.toCents(payload.amount, 'amount');
     if (amountCents === 0) {
@@ -189,8 +206,11 @@ export class BalanceService {
     }
 
     const updatedAgent = await this.agentModel
-      .findByIdAndUpdate(
-        payload.userId,
+      .findOneAndUpdate(
+        {
+          _id: payload.userId,
+          organizationId: organizationObjectId
+        },
         {
           $inc: {
             balanceCents: amountCents
@@ -214,6 +234,7 @@ export class BalanceService {
       amountCents < 0 ? BalanceLedgerType.REVERSAL : BalanceLedgerType.MANUAL_ADJUSTMENT;
 
     const ledgerEntry = await this.balanceLedgerModel.create({
+      organizationId: organizationObjectId,
       userId: new Types.ObjectId(payload.userId),
       transactionId: transactionObjectId,
       type: ledgerType,
@@ -235,10 +256,13 @@ export class BalanceService {
   async applyCommissionCreditsForCompletedTransaction(params: {
     transactionId: string;
     actorAgentId: string;
+    organizationId: string;
     allocations: CommissionAllocation[];
   }): Promise<{ applied: boolean; ledgerIds: string[] }> {
     this.validateObjectId(params.transactionId, 'transactionId');
     this.validateObjectId(params.actorAgentId, 'actorAgentId');
+    this.validateObjectId(params.organizationId, 'organizationId');
+    const organizationObjectId = new Types.ObjectId(params.organizationId);
 
     const normalizedAllocations = params.allocations
       .map((allocation) => {
@@ -261,7 +285,8 @@ export class BalanceService {
         .find({
           _id: {
             $in: uniqueAgentIds.map((agentId) => new Types.ObjectId(agentId))
-          }
+          },
+          organizationId: organizationObjectId
         })
         .select('_id')
         .lean()
@@ -279,6 +304,7 @@ export class BalanceService {
       .findOneAndUpdate(
         {
           _id: params.transactionId,
+          organizationId: organizationObjectId,
           stage: TransactionStage.COMPLETED,
           balanceDistributionApplied: false
         },
@@ -309,8 +335,11 @@ export class BalanceService {
     try {
       for (const allocation of normalizedAllocations) {
         const updatedAgent = await this.agentModel
-          .findByIdAndUpdate(
-            allocation.agentId,
+          .findOneAndUpdate(
+            {
+              _id: allocation.agentId,
+              organizationId: organizationObjectId
+            },
             {
               $inc: {
                 balanceCents: allocation.amountCents
@@ -330,6 +359,7 @@ export class BalanceService {
 
         const previousBalanceCents = updatedAgent.balanceCents - allocation.amountCents;
         const ledgerEntry = await this.balanceLedgerModel.create({
+          organizationId: organizationObjectId,
           userId: new Types.ObjectId(allocation.agentId),
           transactionId: new Types.ObjectId(params.transactionId),
           type: BalanceLedgerType.COMMISSION_CREDIT,
@@ -349,22 +379,34 @@ export class BalanceService {
       }
 
       await this.transactionModel
-        .findByIdAndUpdate(params.transactionId, {
-          $set: {
-            balanceDistributionLedgerIds: ledgerIds
+        .findOneAndUpdate(
+          {
+            _id: params.transactionId,
+            organizationId: organizationObjectId
+          },
+          {
+            $set: {
+              balanceDistributionLedgerIds: ledgerIds
+            }
           }
-        })
+        )
         .exec();
     } catch (error) {
       // Best-effort compensation for partial failures without DB-level transactions.
       await Promise.all(
         appliedAdjustments.map((adjustment) =>
           this.agentModel
-            .findByIdAndUpdate(adjustment.agentId, {
-              $inc: {
-                balanceCents: -adjustment.amountCents
+            .findOneAndUpdate(
+              {
+                _id: adjustment.agentId,
+                organizationId: organizationObjectId
+              },
+              {
+                $inc: {
+                  balanceCents: -adjustment.amountCents
+                }
               }
-            })
+            )
             .exec()
         )
       );
@@ -372,6 +414,7 @@ export class BalanceService {
       if (appliedAdjustments.length > 0) {
         await this.balanceLedgerModel
           .deleteMany({
+            organizationId: organizationObjectId,
             _id: {
               $in: appliedAdjustments.map((adjustment) => adjustment.ledgerId)
             }
@@ -380,14 +423,20 @@ export class BalanceService {
       }
 
       await this.transactionModel
-        .findByIdAndUpdate(params.transactionId, {
-          $set: {
-            balanceDistributionApplied: false,
-            balanceDistributionAppliedAt: null,
-            balanceDistributionAppliedBy: null,
-            balanceDistributionLedgerIds: []
+        .findOneAndUpdate(
+          {
+            _id: params.transactionId,
+            organizationId: organizationObjectId
+          },
+          {
+            $set: {
+              balanceDistributionApplied: false,
+              balanceDistributionAppliedAt: null,
+              balanceDistributionAppliedBy: null,
+              balanceDistributionLedgerIds: []
+            }
           }
-        })
+        )
         .exec();
 
       throw error;
@@ -401,10 +450,12 @@ export class BalanceService {
 
   private buildLedgerFilter(
     agentId: string,
+    organizationId: string,
     query: ListBalanceLedgerQueryDto
   ): FilterQuery<BalanceLedger> {
     const filter: FilterQuery<BalanceLedger> = {
-      userId: new Types.ObjectId(agentId)
+      userId: new Types.ObjectId(agentId),
+      organizationId: new Types.ObjectId(organizationId)
     };
 
     if (query.type) {
@@ -455,7 +506,8 @@ export class BalanceService {
       newBalanceCents,
       description: ledger.description,
       createdAt: createdAt.toISOString(),
-      createdBy: ledger.createdBy.toString()
+      createdBy: ledger.createdBy.toString(),
+      organizationId: ledger.organizationId ? ledger.organizationId.toString() : null
     };
   }
 
@@ -472,7 +524,7 @@ export class BalanceService {
   }
 
   private assertPrivilegedViewer(role: AgentRole): void {
-    if (role !== 'admin' && role !== 'manager') {
+    if (!canManageBalances(role)) {
       throw new ForbiddenException('Insufficient permissions for balance access.');
     }
   }

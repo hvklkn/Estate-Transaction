@@ -3,13 +3,14 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
   MinLength
 } from 'class-validator';
 
-import { AgentRole } from '@/modules/agents/schemas/agent.schema';
+import { AGENT_ROLES, AgentRole } from '@/modules/agents/schemas/agent.schema';
 
 export class CreateAgentDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -33,7 +34,24 @@ export class CreateAgentDto {
   @IsOptional()
   isActive?: boolean;
 
-  @IsIn(['agent', 'manager', 'admin'])
+  @IsIn(AGENT_ROLES)
   @IsOptional()
   role?: AgentRole;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(2)
+  @IsOptional()
+  organizationName?: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @IsString()
+  @MinLength(2)
+  @IsOptional()
+  organizationSlug?: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsMongoId()
+  @IsOptional()
+  organizationId?: string;
 }

@@ -27,51 +27,63 @@ export class TransactionsController {
   @Post()
   create(
     @Body() createTransactionDto: CreateTransactionDto,
-    @CurrentSession('agentId') currentAgentId: string
+    @CurrentSession('agentId') currentAgentId: string,
+    @CurrentSession('organizationId') organizationId: string
   ) {
-    return this.transactionsService.create(createTransactionDto, currentAgentId);
+    return this.transactionsService.create(createTransactionDto, currentAgentId, organizationId);
   }
 
   @Get()
-  findAll(@Query() query: ListTransactionsQueryDto) {
-    return this.transactionsService.findAll(query);
+  findAll(
+    @Query() query: ListTransactionsQueryDto,
+    @CurrentSession('organizationId') organizationId: string
+  ) {
+    return this.transactionsService.findAll(query, organizationId);
   }
 
   @Get('summary')
-  summary() {
-    return this.transactionsService.getCompletedEarningsSummary();
+  summary(@CurrentSession('organizationId') organizationId: string) {
+    return this.transactionsService.getCompletedEarningsSummary(organizationId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.transactionsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentSession('organizationId') organizationId: string) {
+    return this.transactionsService.findOne(id, organizationId);
   }
 
   @Patch(':id/stage')
   updateStage(
     @Param('id') id: string,
     @Body() updateTransactionStageDto: UpdateTransactionStageDto,
-    @CurrentSession('agentId') currentAgentId: string
+    @CurrentSession('agentId') currentAgentId: string,
+    @CurrentSession('organizationId') organizationId: string
   ) {
-    return this.transactionsService.updateStage(id, updateTransactionStageDto.stage, currentAgentId);
+    return this.transactionsService.updateStage(
+      id,
+      updateTransactionStageDto.stage,
+      currentAgentId,
+      organizationId
+    );
   }
 
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() updateTransactionDto: UpdateTransactionDto,
-    @CurrentSession('agentId') currentAgentId: string
+    @CurrentSession('agentId') currentAgentId: string,
+    @CurrentSession('organizationId') organizationId: string
   ) {
-    return this.transactionsService.update(id, updateTransactionDto, currentAgentId);
+    return this.transactionsService.update(id, updateTransactionDto, currentAgentId, organizationId);
   }
 
   @Delete(':id')
   async remove(
     @Param('id') id: string,
     @CurrentSession('agentId') currentAgentId: string,
-    @CurrentSession('role') currentAgentRole: AgentRole
+    @CurrentSession('role') currentAgentRole: AgentRole,
+    @CurrentSession('organizationId') organizationId: string
   ) {
-    await this.transactionsService.remove(id, currentAgentId, currentAgentRole);
+    await this.transactionsService.remove(id, currentAgentId, currentAgentRole, organizationId);
     return {
       success: true
     };

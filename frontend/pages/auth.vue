@@ -27,6 +27,8 @@ const loginForm = reactive({
 const registerForm = reactive({
   name: '',
   email: '',
+  organizationName: '',
+  organizationSlug: '',
   password: '',
   confirmPassword: ''
 });
@@ -48,6 +50,14 @@ const isForgotSubmitting = ref(false);
 const isSubmitting = computed(
   () => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value
 );
+
+const switchMode = (nextMode: 'login' | 'register') => {
+  mode.value = nextMode;
+  authHint.value = null;
+  authStore.setError(null);
+  loginTwoFactorRequired.value = false;
+  loginForm.twoFactorCode = '';
+};
 
 const onLogin = async () => {
   authHint.value = null;
@@ -73,7 +83,32 @@ const onLogin = async () => {
 
   loginTwoFactorRequired.value = false;
   loginForm.twoFactorCode = '';
-  await navigateTo('/transactions');
+  const onRegister = async () => {
+    authHint.value = null;
+    authStore.setError(null);
+
+    if (registerForm.password.length < 8) {
+      authStore.setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      authStore.setError('Password confirmation does not match.');
+      return;
+    }
+
+    await authStore.register({
+      name: registerForm.name.trim(),
+      email: registerForm.email.trim().toLowerCase(),
+      password: registerForm.password,
+      organizationName: registerForm.organizationName.trim() || undefined,
+      organizationSlug: registerForm.organizationSlug.trim().toLowerCase() || undefined
+    });
+
+    if (!authStore.error) {
+      await navigateTo('/transactions');
+    }
+  };
 };
 
 const onRegister = async () => {
@@ -92,7 +127,9 @@ const onRegister = async () => {
   await authStore.register({
     name: registerForm.name.trim(),
     email: registerForm.email.trim().toLowerCase(),
-    password: registerForm.password
+    password: registerForm.password,
+    organizationName: registerForm.organizationName.trim() || undefined,
+    organizationSlug: registerForm.organizationSlug.trim().toLowerCase() || undefined
   });
 
   await navigateTo('/transactions');
@@ -217,7 +254,7 @@ const onResetPasswordWithCode = async () => {
             type="button"
             class="rounded-md px-3 py-1.5 text-sm font-medium"
             :class="mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'"
-            @click="mode = 'login'"
+            @click="switchMode('login')"
           >
             {{ t('auth.actions.login') }}
           </button>
@@ -225,7 +262,7 @@ const onResetPasswordWithCode = async () => {
             type="button"
             class="rounded-md px-3 py-1.5 text-sm font-medium"
             :class="mode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'"
-            @click="mode = 'register'"
+            @click="switchMode('register')"
           >
             {{ t('auth.actions.register') }}
           </button>
@@ -254,6 +291,8 @@ const onResetPasswordWithCode = async () => {
                 required
               />
             </label>
+
+            
 
             <label class="block">
               <span class="field-label">Password</span>
@@ -321,6 +360,29 @@ const onResetPasswordWithCode = async () => {
                 required
               />
             </label>
+            <label class="block">
+              <span class="field-label">Organization Name</span>
+              <input
+                v-model="registerForm.organizationName"
+                type="text"
+                class="input-base"
+                placeholder="Kalkan Estate"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>
+
+            <label class="block">
+              <span class="field-label">Organization Slug</span>
+              <input
+                v-model="registerForm.organizationSlug"
+                type="text"
+                class="input-base"
+                placeholder="kalkan-estate-veli-2026"
+                :disabled="isSubmitting"
+                required
+              />
+            </label>            
 
             <label class="block">
               <span class="field-label">Password</span>

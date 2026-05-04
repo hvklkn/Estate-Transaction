@@ -1,16 +1,20 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import request from 'supertest';
+import request = require('supertest');
 
-import { AppModule } from '@/app.module';
 import { HttpExceptionFilter } from '@/common/filters/http-exception.filter';
+
+jest.setTimeout(30000);
 
 type SessionAgent = {
   id: string;
   email: string;
   password: string;
   sessionToken: string;
+  role: string;
+  organizationId: string;
+  organizationSlug: string;
 };
 
 describe('Auth + Transactions (e2e)', () => {
@@ -21,6 +25,8 @@ describe('Auth + Transactions (e2e)', () => {
   let sellingAgent: SessionAgent;
   let outsiderAgent: SessionAgent;
   let managerAgent: SessionAgent;
+  let otherOrgOwner: SessionAgent;
+  let otherOrgAgent: SessionAgent;
   let splitTransactionId: string;
   let sameAgentTransactionId: string;
   let editableTransactionId: string;
@@ -50,7 +56,10 @@ describe('Auth + Transactions (e2e)', () => {
     return null;
   };
 
-  const registerAgent = async (seed: string): Promise<SessionAgent> => {
+  const registerAgent = async (
+    seed: string,
+    options: { organizationSlug?: string; organizationName?: string } = {}
+  ): Promise<SessionAgent> => {
     const email = `${seed}.${Date.now()}@example.com`;
     const password = 'StrongPass123!';
     const response = await request(app.getHttpServer())
@@ -58,7 +67,9 @@ describe('Auth + Transactions (e2e)', () => {
       .send({
         name: `${seed} agent`,
         email,
-        password
+        password,
+        organizationSlug: options.organizationSlug,
+        organizationName: options.organizationName
       })
       .expect(201);
 
@@ -66,19 +77,24 @@ describe('Auth + Transactions (e2e)', () => {
       id: response.body.agent.id,
       sessionToken: response.body.sessionToken,
       email,
-      password
+      password,
+      role: response.body.agent.role,
+      organizationId: response.body.agent.organizationId,
+      organizationSlug: response.body.agent.organization.slug
     };
   };
 
   const createAgentWithRole = async (
     seed: string,
-    role: 'agent' | 'manager' | 'admin'
+    role: 'agent' | 'manager' | 'office_owner' | 'finance' | 'assistant',
+    actorSessionToken: string
   ): Promise<SessionAgent> => {
     const email = `${seed}.${Date.now()}@example.com`;
     const password = 'StrongPass123!';
 
     await request(app.getHttpServer())
       .post('/api/agents')
+      .set(createAuthHeaders(actorSessionToken))
       .send({
         name: `${seed} ${role}`,
         email,
@@ -102,7 +118,10 @@ describe('Auth + Transactions (e2e)', () => {
       id: loginResponse.body.agent.id,
       sessionToken: loginResponse.body.sessionToken,
       email,
-      password
+      password,
+      role: loginResponse.body.agent.role,
+      organizationId: loginResponse.body.agent.organizationId,
+      organizationSlug: loginResponse.body.agent.organization.slug
     };
   };
 
@@ -122,6 +141,7 @@ describe('Auth + Transactions (e2e)', () => {
     process.env.MONGODB_URI = mongodb.getUri();
     process.env.MONGODB_DB = `iceberg_e2e_${Date.now()}`;
 
+    const { AppModule } = await import('@/app.module');
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule]
     }).compile();
@@ -150,7 +170,9 @@ describe('Auth + Transactions (e2e)', () => {
   });
 
   it('supports register/login basic flow', async () => {
-    creator = await registerAgent('creator');
+    creator = await registerAgent('creator', {
+      organizationName: 'Creator Realty'
+    });
 
     await request(app.getHttpServer())
       .post('/api/agents/logout')
@@ -171,6 +193,7 @@ describe('Auth + Transactions (e2e)', () => {
     creator.sessionToken = loginResponse.body.sessionToken;
 
     expect(loginResponse.body.agent.id).toBe(creator.id);
+    expect(loginResponse.body.agent.organizationId).toBe(creator.organizationId);
     expect(typeof loginResponse.body.sessionToken).toBe('string');
   });
 
@@ -188,8 +211,12 @@ describe('Auth + Transactions (e2e)', () => {
   });
 
   it('creates transaction with authenticated actor and records audit fields', async () => {
-    listingAgent = await registerAgent('listing');
-    sellingAgent = await registerAgent('selling');
+    listingAgent = await registerAgent('listing', {
+      organizationSlug: creator.organizationSlug
+    });
+    sellingAgent = await registerAgent('selling', {
+      organizationSlug: creator.organizationSlug
+    });
 
     const response = await request(app.getHttpServer())
       .post('/api/transactions')
@@ -209,6 +236,73 @@ describe('Auth + Transactions (e2e)', () => {
     expect(response.body.createdBy).toBe(creator.id);
     expect(Array.isArray(response.body.stageHistory)).toBe(true);
     expect(response.body.stageHistory[0].changedBy).toBe(creator.id);
+  });
+
+  it('protects team member endpoints and scopes listing to the current organization', async () => {
+    await request(app.getHttpServer()).get('/api/agents').expect(401);
+
+    await request(app.getHttpServer())
+      .get('/api/agents')
+      .set(createAuthHeaders(listingAgent.sessionToken))
+      .expect(403);
+
+    const teamResponse = await request(app.getHttpServer())
+      .get('/api/agents')
+      .set(createAuthHeaders(creator.sessionToken))
+      .expect(200);
+
+    const returnedOrganizationIds = new Set(
+      (teamResponse.body as Array<{ organizationId?: string }>).map((agent) => agent.organizationId)
+    );
+    expect(returnedOrganizationIds).toEqual(new Set([creator.organizationId]));
+
+    await request(app.getHttpServer())
+      .get(`/api/agents/${creator.id}`)
+      .set(createAuthHeaders(listingAgent.sessionToken))
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/api/agents/${listingAgent.id}`)
+      .set(createAuthHeaders(listingAgent.sessionToken))
+      .send({ name: 'Should Not Update' })
+      .expect(403);
+  });
+
+  it('isolates transactions between organizations', async () => {
+    otherOrgOwner = await registerAgent('other-owner', {
+      organizationName: 'Other Realty'
+    });
+    otherOrgAgent = await registerAgent('other-agent', {
+      organizationSlug: otherOrgOwner.organizationSlug
+    });
+
+    const otherOrgTransactionResponse = await request(app.getHttpServer())
+      .post('/api/transactions')
+      .set(createAuthHeaders(otherOrgOwner.sessionToken))
+      .send({
+        propertyTitle: 'Other Org Listing',
+        totalServiceFee: 70000,
+        listingAgentId: otherOrgOwner.id,
+        sellingAgentId: otherOrgAgent.id,
+        transactionType: 'sold'
+      })
+      .expect(201);
+
+    const creatorListResponse = await request(app.getHttpServer())
+      .get('/api/transactions')
+      .set(createAuthHeaders(creator.sessionToken))
+      .expect(200);
+
+    const creatorTransactionIds = (creatorListResponse.body.items as Array<{ _id?: string }>).map(
+      (item) => item._id
+    );
+    expect(creatorTransactionIds).toContain(splitTransactionId);
+    expect(creatorTransactionIds).not.toContain(otherOrgTransactionResponse.body._id);
+
+    await request(app.getHttpServer())
+      .get(`/api/transactions/${otherOrgTransactionResponse.body._id}`)
+      .set(createAuthHeaders(creator.sessionToken))
+      .expect(404);
   });
 
   it('edits a transaction and persists updatedBy from authenticated actor', async () => {
@@ -307,7 +401,9 @@ describe('Auth + Transactions (e2e)', () => {
   });
 
   it('rejects forbidden stage updates from non-participants', async () => {
-    outsiderAgent = await registerAgent('outsider');
+    outsiderAgent = await registerAgent('outsider', {
+      organizationSlug: creator.organizationSlug
+    });
 
     await request(app.getHttpServer())
       .patch(`/api/transactions/${splitTransactionId}/stage`)
@@ -458,12 +554,12 @@ describe('Auth + Transactions (e2e)', () => {
   it('prevents normal users from deleting completed transactions', async () => {
     await request(app.getHttpServer())
       .delete(`/api/transactions/${splitTransactionId}`)
-      .set(createAuthHeaders(creator.sessionToken))
+      .set(createAuthHeaders(listingAgent.sessionToken))
       .expect(409);
   });
 
   it('allows manager role to soft-delete completed transactions', async () => {
-    managerAgent = await createAgentWithRole('manager', 'manager');
+    managerAgent = await createAgentWithRole('manager', 'manager', creator.sessionToken);
 
     await request(app.getHttpServer())
       .delete(`/api/transactions/${splitTransactionId}`)
@@ -481,6 +577,32 @@ describe('Auth + Transactions (e2e)', () => {
     expect(deletedCompleted).toBeDefined();
     expect(deletedCompleted?.isDeleted).toBe(true);
     expect(extractObjectId(deletedCompleted?.deletedBy)).toBe(managerAgent.id);
+  });
+
+  it('allows only tenant admins to deactivate users', async () => {
+    const assistantAgent = await createAgentWithRole(
+      'assistant',
+      'assistant',
+      creator.sessionToken
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/api/agents/${assistantAgent.id}`)
+      .set(createAuthHeaders(managerAgent.sessionToken))
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .delete(`/api/agents/${assistantAgent.id}`)
+      .set(createAuthHeaders(creator.sessionToken))
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/agents/login')
+      .send({
+        email: assistantAgent.email,
+        password: assistantAgent.password
+      })
+      .expect(401);
   });
 
   it('prevents users from viewing another user balance unless privileged', async () => {

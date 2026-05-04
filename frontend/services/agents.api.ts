@@ -1,4 +1,4 @@
-import type { AgentUser, RegisterAgentPayload } from '~/types/agent';
+import type { AgentRole, AgentUser, OrganizationSummary, RegisterAgentPayload } from '~/types/agent';
 
 const AGENTS_ENDPOINT = '/agents';
 const AGENTS_LOGIN_ENDPOINT = '/agents/login';
@@ -29,9 +29,19 @@ interface ApiAgent {
   twoFactorEnabled?: boolean;
   twoFactorMethod?: 'sms' | 'authenticator';
   twoFactorVerifiedAt?: string | null;
-  role?: 'agent' | 'manager' | 'admin';
+  role?: AgentRole;
+  organizationId?: ObjectIdLike | null;
+  organization?: ApiOrganization | null;
   balance?: number;
   balanceCents?: number;
+}
+
+interface ApiOrganization {
+  _id?: ObjectIdLike;
+  id?: ObjectIdLike;
+  name?: string;
+  slug?: string;
+  isActive?: boolean;
 }
 
 interface ApiSession {
@@ -103,13 +113,52 @@ const toRequiredObjectIdString = (value: unknown, fieldName: string): string => 
   return normalizedValue;
 };
 
+const normalizeRole = (value: unknown): AgentRole => {
+  if (
+    value === 'super_admin' ||
+    value === 'office_owner' ||
+    value === 'manager' ||
+    value === 'agent' ||
+    value === 'finance' ||
+    value === 'assistant' ||
+    value === 'admin'
+  ) {
+    return value;
+  }
+
+  return 'agent';
+};
+
+const normalizeOrganization = (apiOrganization: ApiOrganization | null | undefined): OrganizationSummary | null => {
+  if (!apiOrganization) {
+    return null;
+  }
+
+  const id = toOptionalObjectIdString(apiOrganization.id ?? apiOrganization._id);
+  const name = toNonEmptyString(apiOrganization.name);
+  const slug = toNonEmptyString(apiOrganization.slug);
+  if (!id || !name || !slug) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    slug,
+    isActive: Boolean(apiOrganization.isActive)
+  };
+};
+
 const normalizeAgent = (apiAgent: ApiAgent): AgentUser => ({
   id: toRequiredObjectIdString(apiAgent.id ?? apiAgent._id, 'agent.id'),
   name: toRequiredString(apiAgent.name, 'agent.name'),
   email: toRequiredString(apiAgent.email, 'agent.email'),
   isActive: Boolean(apiAgent.isActive),
-  role:
-    apiAgent.role === 'admin' || apiAgent.role === 'manager' ? apiAgent.role : 'agent',
+  role: normalizeRole(apiAgent.role),
+  organizationId:
+    toOptionalObjectIdString(apiAgent.organizationId) ??
+    toOptionalObjectIdString(apiAgent.organization?.id ?? apiAgent.organization?._id),
+  organization: normalizeOrganization(apiAgent.organization),
   balance: toOptionalFiniteNumber(apiAgent.balance) ?? 0,
   balanceCents: toOptionalFiniteNumber(apiAgent.balanceCents) ?? 0,
   firstName: typeof apiAgent.firstName === 'string' ? apiAgent.firstName : '',
@@ -126,12 +175,33 @@ const createAuthHeaders = (sessionToken: string): HeadersInit => ({
   Authorization: `Bearer ${sessionToken}`
 });
 
+const readSessionTokenFromStorage = (): string | null => {
+  if (!import.meta.client) {
+    return null;
+  }
+
+  const token = window.localStorage.getItem('iceberg.session-token');
+  if (typeof token !== 'string') {
+    return null;
+  }
+
+  const normalizedToken = token.trim();
+  return normalizedToken.length > 0 ? normalizedToken : null;
+};
+
+const createStoredAuthHeaders = (): HeadersInit => {
+  const sessionToken = readSessionTokenFromStorage();
+  return sessionToken ? createAuthHeaders(sessionToken) : {};
+};
+
 export const useAgentsApi = () => {
   const api = useApi();
 
   return {
     async listAgents(): Promise<AgentUser[]> {
-      const response = await api.request<ApiAgent[]>(AGENTS_ENDPOINT);
+      const response = await api.request<ApiAgent[]>(AGENTS_ENDPOINT, {
+        headers: createStoredAuthHeaders()
+      });
 
       if (!Array.isArray(response)) {
         throw new Error('Invalid API response: expected an agent array.');

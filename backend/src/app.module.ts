@@ -7,6 +7,7 @@ import { AgentsModule } from '@/modules/agents/agents.module';
 import { BalanceModule } from '@/modules/balance/balance.module';
 import { CommissionsModule } from '@/modules/commissions/commissions.module';
 import { HealthModule } from '@/modules/health/health.module';
+import { OrganizationsModule } from '@/modules/organizations/organizations.module';
 import { StagePolicyModule } from '@/modules/stage-policy/stage-policy.module';
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 
@@ -14,6 +15,7 @@ import { TransactionsModule } from '@/modules/transactions/transactions.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: Boolean(process.env.JEST_WORKER_ID),
       validationSchema: envValidationSchema
     }),
     MongooseModule.forRootAsync({
@@ -24,6 +26,7 @@ import { TransactionsModule } from '@/modules/transactions/transactions.module';
       })
     }),
     HealthModule,
+    OrganizationsModule,
     AgentsModule,
     BalanceModule,
     TransactionsModule,

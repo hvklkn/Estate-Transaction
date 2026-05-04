@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentSession } from '@/common/auth/current-session.decorator';
+import { Roles } from '@/common/auth/roles.decorator';
+import { RolesGuard } from '@/common/auth/roles.guard';
 import { SessionAuthGuard } from '@/common/auth/session-auth.guard';
 import { ChangePasswordDto } from '@/modules/agents/dto/change-password.dto';
 import { CreateAgentDto } from '@/modules/agents/dto/create-agent.dto';
@@ -10,6 +12,7 @@ import { ResetPasswordWithCodeDto } from '@/modules/agents/dto/reset-password-wi
 import { SetupTwoFactorDto } from '@/modules/agents/dto/setup-two-factor.dto';
 import { UpdateAgentDto } from '@/modules/agents/dto/update-agent.dto';
 import { VerifyTwoFactorDto } from '@/modules/agents/dto/verify-two-factor.dto';
+import { AgentRole } from '@/modules/agents/schemas/agent.schema';
 import { AgentsService } from '@/modules/agents/services/agents.service';
 
 @Controller('agents')
@@ -46,14 +49,32 @@ export class AgentsController {
     };
   }
 
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles('super_admin', 'office_owner', 'admin', 'manager')
   @Post()
-  create(@Body() createAgentDto: CreateAgentDto) {
-    return this.agentsService.create(createAgentDto);
+  create(
+    @Body() createAgentDto: CreateAgentDto,
+    @CurrentSession('role') actorRole: AgentRole,
+    @CurrentSession('organizationId') actorOrganizationId: string
+  ) {
+    return this.agentsService.createForOrganization({
+      createAgentDto,
+      actorRole,
+      actorOrganizationId
+    });
   }
 
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles('super_admin', 'office_owner', 'admin', 'manager')
   @Get()
-  findAll() {
-    return this.agentsService.findAll();
+  findAll(
+    @CurrentSession('role') actorRole: AgentRole,
+    @CurrentSession('organizationId') actorOrganizationId: string
+  ) {
+    return this.agentsService.findAll({
+      actorRole,
+      actorOrganizationId
+    });
   }
 
   @UseGuards(SessionAuthGuard)
@@ -125,19 +146,47 @@ export class AgentsController {
     return this.agentsService.revokeMyOtherSessions(sessionToken);
   }
 
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles('super_admin', 'office_owner', 'admin', 'manager')
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.agentsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentSession('role') actorRole: AgentRole,
+    @CurrentSession('organizationId') actorOrganizationId: string
+  ) {
+    return this.agentsService.findOne(id, {
+      actorRole,
+      actorOrganizationId
+    });
   }
 
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles('super_admin', 'office_owner', 'admin')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAgentDto: UpdateAgentDto) {
-    return this.agentsService.update(id, updateAgentDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateAgentDto: UpdateAgentDto,
+    @CurrentSession('role') actorRole: AgentRole,
+    @CurrentSession('organizationId') actorOrganizationId: string
+  ) {
+    return this.agentsService.update(id, updateAgentDto, {
+      actorRole,
+      actorOrganizationId
+    });
   }
 
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles('super_admin', 'office_owner', 'admin')
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.agentsService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentSession('role') actorRole: AgentRole,
+    @CurrentSession('organizationId') actorOrganizationId: string
+  ) {
+    await this.agentsService.remove(id, {
+      actorRole,
+      actorOrganizationId
+    });
     return {
       success: true
     };

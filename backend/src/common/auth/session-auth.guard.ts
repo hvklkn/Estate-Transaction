@@ -17,7 +17,8 @@ export class SessionAuthGuard implements CanActivate {
       agentId: sessionContext.agentId,
       sessionId: sessionContext.sessionId,
       sessionToken,
-      role: sessionContext.role
+      role: sessionContext.role,
+      organizationId: sessionContext.organizationId
     };
 
     return true;

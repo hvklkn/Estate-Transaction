@@ -56,7 +56,12 @@ const totalPages = computed(() => transactionsStore.pagination.totalPages);
 const totalTransactions = computed(() => transactionsStore.pagination.total);
 const canIncludeDeleted = computed(() => {
   const role = authStore.currentUser?.role;
-  return role === 'admin' || role === 'manager';
+  return (
+    role === 'super_admin' ||
+    role === 'office_owner' ||
+    role === 'admin' ||
+    role === 'manager'
+  );
 });
 const canViewDeletedMetadata = computed(
   () => canIncludeDeleted.value || includeDeleted.value
@@ -525,6 +530,8 @@ onUnmounted(() => {
         :compact-mode="isCompactCardsEnabled"
         :empty-title="emptyStateTitle"
         :empty-description="emptyStateDescription"
+        :current-user-id="authStore.currentUser?.id ?? null"
+        :current-user-role="authStore.currentUser?.role ?? null"
         @stage-change="handleStageChange"
         @edit="handleEditClick"
         @delete="handleDeleteClick"

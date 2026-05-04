@@ -15,6 +15,9 @@ export type BalanceLedgerDocument = HydratedDocument<BalanceLedger>;
   collection: 'balance_ledger'
 })
 export class BalanceLedger {
+  @Prop({ required: true, type: Types.ObjectId, ref: 'Organization' })
+  organizationId!: Types.ObjectId;
+
   @Prop({ required: true, type: Types.ObjectId, ref: Agent.name })
   userId!: Types.ObjectId;
 
@@ -46,5 +49,7 @@ export class BalanceLedger {
 export const BalanceLedgerSchema = SchemaFactory.createForClass(BalanceLedger);
 
 BalanceLedgerSchema.index({ userId: 1, createdAt: -1 });
+BalanceLedgerSchema.index({ organizationId: 1, userId: 1, createdAt: -1 });
+BalanceLedgerSchema.index({ organizationId: 1, transactionId: 1, type: 1, createdAt: -1 });
 BalanceLedgerSchema.index({ transactionId: 1, type: 1, createdAt: -1 });
 BalanceLedgerSchema.index({ createdBy: 1, createdAt: -1 });

@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
 
+import { TEAM_MANAGER_ROLES } from '@/common/auth/role-permissions';
 import { AgentRole } from '@/modules/agents/schemas/agent.schema';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
 import { UpdateTransactionDto } from '@/modules/transactions/dto/update-transaction.dto';
@@ -22,7 +23,7 @@ const LOCKED_FIELDS_AFTER_AGREEMENT: ReadonlyArray<keyof UpdateTransactionDto> =
 
 @Injectable()
 export class TransactionMutationPolicyService {
-  private readonly privilegedRoles = new Set<AgentRole>(['admin', 'manager']);
+  private readonly privilegedRoles = new Set<AgentRole>(TEAM_MANAGER_ROLES);
 
   assertCanMutate(transaction: TransactionMutationTarget, actorAgentId: string): void {
     const allowedActorIds = new Set(

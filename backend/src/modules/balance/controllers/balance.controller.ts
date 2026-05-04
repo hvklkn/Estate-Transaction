@@ -13,27 +13,33 @@ export class BalanceController {
   constructor(private readonly balanceService: BalanceService) {}
 
   @Get('balance/me')
-  getMyBalance(@CurrentSession('agentId') agentId: string) {
-    return this.balanceService.getMyBalance(agentId);
+  getMyBalance(
+    @CurrentSession('agentId') agentId: string,
+    @CurrentSession('organizationId') organizationId: string
+  ) {
+    return this.balanceService.getMyBalance(agentId, organizationId);
   }
 
   @Get('balance/me/ledger')
   getMyLedger(
     @CurrentSession('agentId') agentId: string,
+    @CurrentSession('organizationId') organizationId: string,
     @Query() query: ListBalanceLedgerQueryDto
   ) {
-    return this.balanceService.getMyLedger(agentId, query);
+    return this.balanceService.getMyLedger(agentId, organizationId, query);
   }
 
   @Get('agents/:id/balance')
   getAgentBalance(
     @Param('id') targetAgentId: string,
     @CurrentSession('agentId') viewerAgentId: string,
-    @CurrentSession('role') viewerRole: AgentRole
+    @CurrentSession('role') viewerRole: AgentRole,
+    @CurrentSession('organizationId') organizationId: string
   ) {
     return this.balanceService.getAgentBalanceForViewer(
       viewerAgentId,
       viewerRole,
+      organizationId,
       targetAgentId
     );
   }
@@ -42,8 +48,14 @@ export class BalanceController {
   createManualAdjustment(
     @Body() payload: ManualBalanceAdjustmentDto,
     @CurrentSession('agentId') viewerAgentId: string,
-    @CurrentSession('role') viewerRole: AgentRole
+    @CurrentSession('role') viewerRole: AgentRole,
+    @CurrentSession('organizationId') organizationId: string
   ) {
-    return this.balanceService.createManualAdjustment(viewerAgentId, viewerRole, payload);
+    return this.balanceService.createManualAdjustment(
+      viewerAgentId,
+      viewerRole,
+      organizationId,
+      payload
+    );
   }
 }

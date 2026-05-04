@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 
 import { toApiErrorMessage } from '~/services/api.errors';
 import { useAgentsApi } from '~/services/agents.api';
-import type { AgentUser } from '~/types/agent';
+import type { AgentRole, AgentUser, OrganizationSummary } from '~/types/agent';
 
 const AUTH_STORAGE_KEY = 'iceberg.currentUser';
 const SESSION_TOKEN_STORAGE_KEY = 'iceberg.session-token';
@@ -23,13 +23,44 @@ const safeParseUser = (value: string): AgentUser | null => {
       return null;
     }
 
+    const role: AgentRole =
+      parsed.role === 'super_admin' ||
+      parsed.role === 'office_owner' ||
+      parsed.role === 'manager' ||
+      parsed.role === 'agent' ||
+      parsed.role === 'finance' ||
+      parsed.role === 'assistant' ||
+      parsed.role === 'admin'
+        ? parsed.role
+        : 'agent';
+    const parsedOrganization =
+      parsed.organization && typeof parsed.organization === 'object'
+        ? (parsed.organization as OrganizationSummary)
+        : null;
+    const organization =
+      parsedOrganization &&
+      typeof parsedOrganization.id === 'string' &&
+      typeof parsedOrganization.name === 'string' &&
+      typeof parsedOrganization.slug === 'string'
+        ? {
+            id: parsedOrganization.id,
+            name: parsedOrganization.name,
+            slug: parsedOrganization.slug,
+            isActive: Boolean(parsedOrganization.isActive)
+          }
+        : null;
+
     return {
       id: parsed.id,
       name: parsed.name,
       email: parsed.email,
       isActive: Boolean(parsed.isActive),
-      role:
-        parsed.role === 'admin' || parsed.role === 'manager' ? parsed.role : 'agent',
+      role,
+      organizationId:
+        typeof parsed.organizationId === 'string'
+          ? parsed.organizationId
+          : organization?.id ?? null,
+      organization,
       balance:
         typeof parsed.balance === 'number' && Number.isFinite(parsed.balance)
           ? parsed.balance
@@ -65,8 +96,29 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null);
 
   const isAuthenticated = computed(() => currentUser.value !== null);
+  const canManageTeam = computed(() => {
+    const role = currentUser.value?.role;
+    return role === 'super_admin' || role === 'office_owner' || role === 'admin' || role === 'manager';
+  });
+  const canAdministerUsers = computed(() => {
+    const role = currentUser.value?.role;
+    return role === 'super_admin' || role === 'office_owner' || role === 'admin';
+  });
+  const canManageBalances = computed(() => {
+    const role = currentUser.value?.role;
+    return (
+      role === 'super_admin' ||
+      role === 'office_owner' ||
+      role === 'admin' ||
+      role === 'manager' ||
+      role === 'finance'
+    );
+  });
+  const currentOrganization = computed(() => currentUser.value?.organization ?? null);
   const activeUsers = computed(() =>
-    users.value.filter((user) => user.isActive).sort((a, b) => a.name.localeCompare(b.name))
+    (users.value.length > 0 ? users.value : currentUser.value ? [currentUser.value] : [])
+      .filter((user) => user.isActive)
+      .sort((a, b) => a.name.localeCompare(b.name))
   );
 
   const setError = (message: string | null) => {
@@ -108,6 +160,11 @@ export const useAuthStore = defineStore('auth', () => {
   };
 
   const fetchUsers = async () => {
+    if (!canManageTeam.value) {
+      users.value = currentUser.value ? [currentUser.value] : [];
+      return;
+    }
+
     isLoadingUsers.value = true;
     setError(null);
 
@@ -121,7 +178,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  const register = async (payload: { name: string; email: string; password: string }) => {
+  const register = async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    organizationName?: string;
+    organizationSlug?: string;
+    organizationId?: string;
+  }) => {
     isRegistering.value = true;
     setError(null);
 
@@ -130,6 +194,7 @@ export const useAuthStore = defineStore('auth', () => {
       currentUser.value = user;
       sessionToken.value = nextSessionToken;
       persistCurrentUser();
+      users.value = [user];
       await fetchUsers();
       return user;
     } catch (unknownError) {
@@ -162,6 +227,7 @@ export const useAuthStore = defineStore('auth', () => {
       currentUser.value = user;
       sessionToken.value = loginResult.sessionToken;
       persistCurrentUser();
+      users.value = [user];
       await fetchUsers();
       return user;
     } catch (unknownError) {
@@ -191,6 +257,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoadingUsers,
     error,
     isAuthenticated,
+    canManageTeam,
+    canAdministerUsers,
+    canManageBalances,
+    currentOrganization,
     activeUsers,
     hydrateFromStorage,
     fetchUsers,

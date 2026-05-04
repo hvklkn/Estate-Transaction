@@ -78,6 +78,9 @@ export class Transaction {
   @Prop({ required: true, trim: true })
   propertyTitle!: string;
 
+  @Prop({ required: true, type: Types.ObjectId, ref: 'Organization' })
+  organizationId!: Types.ObjectId;
+
   @Prop({ required: true, min: 0 })
   totalServiceFee!: number;
 
@@ -149,6 +152,9 @@ export class Transaction {
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 
 TransactionSchema.index({ stage: 1, createdAt: -1 });
+TransactionSchema.index({ organizationId: 1, createdAt: -1 });
+TransactionSchema.index({ organizationId: 1, stage: 1, createdAt: -1 });
+TransactionSchema.index({ organizationId: 1, isDeleted: 1, createdAt: -1 });
 TransactionSchema.index({ listingAgentId: 1, sellingAgentId: 1 });
 TransactionSchema.index({ transactionType: 1, createdAt: -1 });
 TransactionSchema.index({ stage: 1, transactionType: 1, createdAt: -1 });

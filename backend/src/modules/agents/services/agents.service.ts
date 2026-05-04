@@ -2,6 +2,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
@@ -27,6 +28,15 @@ import { SetupTwoFactorDto } from '@/modules/agents/dto/setup-two-factor.dto';
 import { UpdateAgentDto } from '@/modules/agents/dto/update-agent.dto';
 import { VerifyTwoFactorDto } from '@/modules/agents/dto/verify-two-factor.dto';
 import { Agent, AgentDocument, AgentRole, TwoFactorMethod } from '@/modules/agents/schemas/agent.schema';
+import {
+  canAdministerUsers,
+  canAssignRole,
+  canManageTeam
+} from '@/common/auth/role-permissions';
+import {
+  OrganizationView
+} from '@/modules/organizations/services/organizations.service';
+import { OrganizationsService } from '@/modules/organizations/services/organizations.service';
 
 type SanitizedAgent = {
   id: string;
@@ -34,6 +44,8 @@ type SanitizedAgent = {
   email: string;
   isActive: boolean;
   role: AgentRole;
+  organizationId: string | null;
+  organization: OrganizationView | null;
   balance: number;
   balanceCents: number;
   firstName: string;
@@ -67,16 +79,71 @@ export class AgentsService {
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(Agent.name)
-    private readonly agentModel: Model<AgentDocument>
+    private readonly agentModel: Model<AgentDocument>,
+    private readonly organizationsService: OrganizationsService
   ) {}
 
   async create(createAgentDto: CreateAgentDto): Promise<SanitizedAgent> {
+    const organization = await this.organizationsService.resolveActiveOrganization({
+      organizationId: createAgentDto.organizationId,
+      organizationSlug: createAgentDto.organizationSlug
+    });
+
+    const nextAgent = await this.createAgentRecord({
+      createAgentDto,
+      organizationId: organization._id.toString(),
+      role: createAgentDto.role ?? 'agent'
+    });
+
+    await nextAgent.populate('organizationId', 'name slug isActive');
+    return this.sanitizeAgent(nextAgent);
+  }
+
+  async createForOrganization(params: {
+    createAgentDto: CreateAgentDto;
+    actorRole: AgentRole;
+    actorOrganizationId: string;
+  }): Promise<SanitizedAgent> {
+    if (!canManageTeam(params.actorRole)) {
+      throw new ForbiddenException('Insufficient permissions to create team members.');
+    }
+
+    const requestedRole = params.createAgentDto.role ?? 'agent';
+    if (!canAssignRole(params.actorRole, requestedRole)) {
+      throw new ForbiddenException('You cannot assign this role.');
+    }
+
+    const organizationId =
+      params.actorRole === 'super_admin' && params.createAgentDto.organizationId
+        ? params.createAgentDto.organizationId
+        : params.actorOrganizationId;
+
+    await this.organizationsService.findActiveById(organizationId);
+
+    const nextAgent = await this.createAgentRecord({
+      createAgentDto: params.createAgentDto,
+      organizationId,
+      role: requestedRole
+    });
+
+    await nextAgent.populate('organizationId', 'name slug isActive');
+    return this.sanitizeAgent(nextAgent);
+  }
+
+  private async createAgentRecord(params: {
+    createAgentDto: CreateAgentDto;
+    organizationId: string;
+    role: AgentRole;
+  }): Promise<AgentDocument> {
     try {
-      const nextAgent = await this.agentModel.create({
-        ...createAgentDto,
-        role: createAgentDto.role ?? 'agent',
+      return await this.agentModel.create({
+        name: params.createAgentDto.name,
+        email: params.createAgentDto.email,
+        isActive: params.createAgentDto.isActive ?? true,
+        role: params.role,
+        organizationId: new Types.ObjectId(params.organizationId),
         balanceCents: 0,
-        passwordHash: this.hashPassword(createAgentDto.password),
+        passwordHash: this.hashPassword(params.createAgentDto.password),
         firstName: '',
         lastName: '',
         phone: '',
@@ -87,8 +154,6 @@ export class AgentsService {
         twoFactorVerifiedAt: null,
         sessions: []
       });
-
-      return this.sanitizeAgent(nextAgent);
     } catch (error: unknown) {
       if (this.isDuplicateEmailError(error)) {
         throw new ConflictException('Agent email already exists');
@@ -102,10 +167,39 @@ export class AgentsService {
     agent: SanitizedAgent;
     sessionToken: string;
   }> {
-    const createdAgent = await this.create({
-      ...createAgentDto,
-      role: 'agent'
-    });
+    const hasAnyAgents = await this.hasAnyAgents();
+    const hasAnyOrganizations = await this.organizationsService.hasAnyOrganizations();
+    const isFirstWorkspaceUser = !hasAnyAgents || !hasAnyOrganizations;
+    const shouldCreateOrganization =
+      isFirstWorkspaceUser ||
+      Boolean(createAgentDto.organizationName && !createAgentDto.organizationId);
+
+    let createdAgent: AgentDocument;
+    if (shouldCreateOrganization) {
+      createdAgent = await this.createAgentRecord({
+        createAgentDto,
+        organizationId: new Types.ObjectId().toString(),
+        role: 'office_owner'
+      });
+      const organization = await this.organizationsService.create({
+        name: createAgentDto.organizationName ?? `${createAgentDto.name}'s Organization`,
+        slug: createAgentDto.organizationSlug,
+        ownerId: createdAgent._id.toString()
+      });
+      createdAgent.organizationId = organization._id;
+      await createdAgent.save();
+    } else {
+      const organization = await this.organizationsService.resolveActiveOrganization({
+        organizationId: createAgentDto.organizationId,
+        organizationSlug: createAgentDto.organizationSlug
+      });
+      createdAgent = await this.createAgentRecord({
+        createAgentDto,
+        organizationId: organization._id.toString(),
+        role: 'agent'
+      });
+    }
+
     const loginResult = await this.login({
       email: createdAgent.email,
       password: createAgentDto.password
@@ -131,6 +225,7 @@ export class AgentsService {
     const agent = await this.agentModel
       .findOne({ email: loginAgentDto.email })
       .select('+passwordHash +twoFactorSecret')
+      .populate('organizationId', 'name slug isActive')
       .exec();
 
     if (!agent) {
@@ -140,6 +235,8 @@ export class AgentsService {
     if (!agent.isActive) {
       throw new UnauthorizedException('This user is inactive');
     }
+
+    await this.ensureAgentOrganization(agent);
 
     if (!this.verifyPassword(loginAgentDto.password, agent.passwordHash)) {
       throw new UnauthorizedException('Invalid email or password');
@@ -197,15 +294,47 @@ export class AgentsService {
     await agent.save();
   }
 
-  async findAll(): Promise<SanitizedAgent[]> {
-    const agents = await this.agentModel.find().sort({ createdAt: -1 }).exec();
+  async findAll(params: {
+    actorRole: AgentRole;
+    actorOrganizationId: string;
+  }): Promise<SanitizedAgent[]> {
+    if (!canManageTeam(params.actorRole)) {
+      throw new ForbiddenException('Insufficient permissions to list team members.');
+    }
+
+    const filter =
+      params.actorRole === 'super_admin'
+        ? {}
+        : { organizationId: new Types.ObjectId(params.actorOrganizationId) };
+    const agents = await this.agentModel
+      .find(filter)
+      .populate('organizationId', 'name slug isActive')
+      .sort({ createdAt: -1 })
+      .exec();
     return agents.map((agent) => this.sanitizeAgent(agent));
   }
 
-  async findOne(id: string): Promise<SanitizedAgent> {
+  async findOne(
+    id: string,
+    params: {
+      actorRole: AgentRole;
+      actorOrganizationId: string;
+    }
+  ): Promise<SanitizedAgent> {
+    if (!canManageTeam(params.actorRole)) {
+      throw new ForbiddenException('Insufficient permissions to view team members.');
+    }
+
     this.validateObjectId(id, 'agentId');
 
-    const agent = await this.agentModel.findById(id).exec();
+    const filter =
+      params.actorRole === 'super_admin'
+        ? { _id: id }
+        : { _id: id, organizationId: new Types.ObjectId(params.actorOrganizationId) };
+    const agent = await this.agentModel
+      .findOne(filter)
+      .populate('organizationId', 'name slug isActive')
+      .exec();
     if (!agent) {
       throw new NotFoundException('Agent not found');
     }
@@ -213,15 +342,36 @@ export class AgentsService {
     return this.sanitizeAgent(agent);
   }
 
-  async update(id: string, updateAgentDto: UpdateAgentDto): Promise<SanitizedAgent> {
+  async update(
+    id: string,
+    updateAgentDto: UpdateAgentDto,
+    params: {
+      actorRole: AgentRole;
+      actorOrganizationId: string;
+    }
+  ): Promise<SanitizedAgent> {
+    if (!canAdministerUsers(params.actorRole)) {
+      throw new ForbiddenException('Insufficient permissions to update team members.');
+    }
+
     this.validateObjectId(id, 'agentId');
+
+    if (updateAgentDto.role && !canAssignRole(params.actorRole, updateAgentDto.role)) {
+      throw new ForbiddenException('You cannot assign this role.');
+    }
+
+    const filter =
+      params.actorRole === 'super_admin'
+        ? { _id: id }
+        : { _id: id, organizationId: new Types.ObjectId(params.actorOrganizationId) };
 
     try {
       const updatedAgent = await this.agentModel
-        .findByIdAndUpdate(id, updateAgentDto, {
+        .findOneAndUpdate(filter, updateAgentDto, {
           new: true,
           runValidators: true
         })
+        .populate('organizationId', 'name slug isActive')
         .exec();
 
       if (!updatedAgent) {
@@ -238,19 +388,46 @@ export class AgentsService {
     }
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    params: {
+      actorRole: AgentRole;
+      actorOrganizationId: string;
+    }
+  ): Promise<void> {
+    if (!canAdministerUsers(params.actorRole)) {
+      throw new ForbiddenException('Insufficient permissions to deactivate team members.');
+    }
+
     this.validateObjectId(id, 'agentId');
 
-    const deleted = await this.agentModel.findByIdAndDelete(id).exec();
-    if (!deleted) {
+    const filter =
+      params.actorRole === 'super_admin'
+        ? { _id: id }
+        : { _id: id, organizationId: new Types.ObjectId(params.actorOrganizationId) };
+    const deactivated = await this.agentModel
+      .findOneAndUpdate(
+        filter,
+        {
+          isActive: false,
+          sessions: []
+        },
+        { new: true }
+      )
+      .exec();
+    if (!deactivated) {
       throw new NotFoundException('Agent not found');
     }
   }
 
-  async ensureAgentExists(agentId: string): Promise<void> {
+  async ensureAgentExists(agentId: string, organizationId?: string): Promise<void> {
     this.validateObjectId(agentId, 'agentId');
 
-    const exists = await this.agentModel.exists({ _id: agentId });
+    const exists = await this.agentModel.exists({
+      _id: agentId,
+      isActive: true,
+      ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {})
+    });
     if (!exists) {
       throw new NotFoundException(`Agent not found: ${agentId}`);
     }
@@ -268,16 +445,18 @@ export class AgentsService {
 
   async getSessionContextByToken(
     sessionToken: string
-  ): Promise<{ agentId: string; sessionId: string; role: AgentRole }> {
+  ): Promise<{ agentId: string; sessionId: string; role: AgentRole; organizationId: string }> {
     const { agent, currentSessionId } = await this.resolveAgentBySessionToken(sessionToken);
+    const organizationId = this.getOrganizationIdFromAgent(agent);
     return {
       agentId: agent._id.toString(),
       sessionId: currentSessionId,
-      role: (agent.role as AgentRole) ?? 'agent'
+      role: (agent.role as AgentRole) ?? 'agent',
+      organizationId
     };
   }
 
-  async findAgentIdsBySearchTerm(searchTerm: string): Promise<string[]> {
+  async findAgentIdsBySearchTerm(searchTerm: string, organizationId?: string): Promise<string[]> {
     const normalizedSearchTerm = searchTerm.trim();
     if (!normalizedSearchTerm) {
       return [];
@@ -288,6 +467,7 @@ export class AgentsService {
 
     const matchedAgents = await this.agentModel
       .find({
+        ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {}),
         $or: [
           { name: { $regex: regex } },
           { email: { $regex: regex } }
@@ -554,6 +734,41 @@ export class AgentsService {
     return { success: true };
   }
 
+  private async hasAnyAgents(): Promise<boolean> {
+    const count = await this.agentModel.estimatedDocumentCount().exec();
+    return count > 0;
+  }
+
+  private async ensureAgentOrganization(agent: AgentDocument): Promise<void> {
+    const organizationId = this.getOrganizationIdFromAgent(agent, false);
+
+    if (!organizationId) {
+      const organization = await this.organizationsService.createDefaultForAgent({
+        agentId: agent._id.toString(),
+        agentName: agent.name,
+        agentEmail: agent.email
+      });
+      agent.organizationId = organization._id;
+      if (agent.role === 'agent' || agent.role === 'admin') {
+        agent.role = agent.role === 'admin' ? 'office_owner' : agent.role;
+      }
+      await agent.save();
+      await agent.populate('organizationId', 'name slug isActive');
+      return;
+    }
+
+    const organization = await this.organizationsService.findActiveById(organizationId);
+    const populatedOrganization = agent.organizationId as unknown as {
+      isActive?: boolean;
+    } | null;
+    if (populatedOrganization && populatedOrganization.isActive === false) {
+      throw new UnauthorizedException('Organization is inactive.');
+    }
+    if (!organization.isActive) {
+      throw new UnauthorizedException('Organization is inactive.');
+    }
+  }
+
   private async resolveAgentBySessionToken(
     rawToken: string,
     includeSensitive = false
@@ -568,11 +783,18 @@ export class AgentsService {
     if (includeSensitive) {
       query.select('+passwordHash +twoFactorSecret');
     }
+    query.populate('organizationId', 'name slug isActive');
 
     const agent = await query.exec();
     if (!agent) {
       throw new UnauthorizedException('Session is invalid or expired.');
     }
+
+    if (!agent.isActive) {
+      throw new UnauthorizedException('This user is inactive');
+    }
+
+    await this.ensureAgentOrganization(agent);
 
     const currentSession = agent.sessions.find((session) => session.tokenHash === tokenHash);
     if (!currentSession) {
@@ -586,6 +808,28 @@ export class AgentsService {
       agent,
       currentSessionId: currentSession.sessionId
     };
+  }
+
+  private getOrganizationIdFromAgent(agent: AgentDocument, required = true): string {
+    const organizationValue = agent.organizationId as unknown;
+
+    let organizationId: string | null = null;
+    if (organizationValue instanceof Types.ObjectId) {
+      organizationId = organizationValue.toString();
+    } else if (organizationValue && typeof organizationValue === 'object') {
+      const record = organizationValue as { _id?: Types.ObjectId | string; id?: string };
+      if (record._id) {
+        organizationId = record._id.toString();
+      } else if (record.id) {
+        organizationId = record.id;
+      }
+    }
+
+    if (!organizationId && required) {
+      throw new UnauthorizedException('Organization membership is required.');
+    }
+
+    return organizationId ?? '';
   }
 
   private hashPassword(password: string): string {
@@ -710,6 +954,7 @@ export class AgentsService {
       typeof agent.balanceCents === 'number' && Number.isFinite(agent.balanceCents)
         ? Math.trunc(agent.balanceCents)
         : 0;
+    const organization = this.getSanitizedOrganization(agent);
 
     return {
       id: agent._id.toString(),
@@ -717,6 +962,8 @@ export class AgentsService {
       email: agent.email,
       isActive: agent.isActive,
       role: (agent.role as AgentRole) ?? 'agent',
+      organizationId: organization?.id ?? (this.getOrganizationIdFromAgent(agent, false) || null),
+      organization,
       balance: balanceCents / 100,
       balanceCents,
       firstName: agent.firstName ?? '',
@@ -728,6 +975,36 @@ export class AgentsService {
       twoFactorVerifiedAt: agent.twoFactorVerifiedAt
         ? new Date(agent.twoFactorVerifiedAt).toISOString()
         : null
+    };
+  }
+
+  private getSanitizedOrganization(agent: AgentDocument): OrganizationView | null {
+    const organizationValue = agent.organizationId as unknown;
+    if (!organizationValue || organizationValue instanceof Types.ObjectId) {
+      return null;
+    }
+
+    if (typeof organizationValue !== 'object') {
+      return null;
+    }
+
+    const record = organizationValue as {
+      _id?: Types.ObjectId | string;
+      id?: string;
+      name?: string;
+      slug?: string;
+      isActive?: boolean;
+    };
+    const id = record._id?.toString() ?? record.id;
+    if (!id || !record.name || !record.slug) {
+      return null;
+    }
+
+    return {
+      id,
+      name: record.name,
+      slug: record.slug,
+      isActive: record.isActive ?? true
     };
   }
 

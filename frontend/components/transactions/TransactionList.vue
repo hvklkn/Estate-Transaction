@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TransactionListItem from '~/components/transactions/TransactionListItem.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
+import type { AgentRole } from '~/types/agent';
 import type { Transaction, TransactionStage } from '~/types/transaction';
 
 const props = defineProps<{
@@ -14,6 +15,8 @@ const props = defineProps<{
   compactMode?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
+  currentUserId?: string | null;
+  currentUserRole?: AgentRole | null;
 }>();
 
 const emit = defineEmits<{
@@ -76,6 +79,8 @@ const { t } = useAppI18n();
           :is-deleting-transaction="props.deleteTransactionId === transaction.id"
           :can-view-deleted-metadata="props.canViewDeletedMetadata"
           :compact-mode="props.compactMode"
+          :current-user-id="props.currentUserId"
+          :current-user-role="props.currentUserRole"
           @stage-change="emit('stage-change', $event)"
           @view="emit('view', $event)"
           @edit="emit('edit', $event)"

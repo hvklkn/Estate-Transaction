@@ -5,6 +5,7 @@ import TransactionCompactFinancialSummary from '~/components/transactions/Transa
 import TransactionDetailPanel from '~/components/transactions/TransactionDetailPanel.vue';
 import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
+import type { AgentRole } from '~/types/agent';
 import type { Transaction, TransactionStage } from '~/types/transaction';
 
 const props = defineProps<{
@@ -15,6 +16,8 @@ const props = defineProps<{
   isDeletingTransaction?: boolean;
   canViewDeletedMetadata?: boolean;
   compactMode?: boolean;
+  currentUserId?: string | null;
+  currentUserRole?: AgentRole | null;
 }>();
 
 const emit = defineEmits<{
@@ -41,12 +44,44 @@ const updatedByLabel = computed(
 const deletedByLabel = computed(
   () => props.transaction.deletedBy?.name?.trim() || props.transaction.deletedById || null
 );
-const canAdvanceStage = computed(() => Boolean(props.nextStage) && !props.transaction.isDeleted);
+const isParticipant = computed(() => {
+  const currentUserId = props.currentUserId;
+  if (!currentUserId) {
+    return false;
+  }
+
+  return (
+    props.transaction.createdById === currentUserId ||
+    props.transaction.listingAgentId === currentUserId ||
+    props.transaction.sellingAgentId === currentUserId
+  );
+});
+const isTeamManager = computed(() => {
+  const role = props.currentUserRole;
+  return (
+    role === 'super_admin' ||
+    role === 'office_owner' ||
+    role === 'admin' ||
+    role === 'manager'
+  );
+});
+const canAdvanceStage = computed(
+  () => Boolean(props.nextStage) && !props.transaction.isDeleted && isParticipant.value
+);
 const canEditTransaction = computed(
-  () => !props.transaction.isDeleted && !props.isUpdatingTransaction && !props.isDeletingTransaction
+  () =>
+    !props.transaction.isDeleted &&
+    isParticipant.value &&
+    !props.isUpdatingTransaction &&
+    !props.isDeletingTransaction
 );
 const canDeleteTransaction = computed(
-  () => !props.transaction.isDeleted && !props.isUpdatingTransaction && !props.isDeletingTransaction
+  () =>
+    !props.transaction.isDeleted &&
+    (isParticipant.value || isTeamManager.value) &&
+    (props.transaction.stage !== 'completed' || isTeamManager.value) &&
+    !props.isUpdatingTransaction &&
+    !props.isDeletingTransaction
 );
 
 const onAdvanceStage = () => {
@@ -207,9 +242,10 @@ const onDelete = () => {
           </button>
 
           <button
+            v-if="canEditTransaction"
             type="button"
             class="btn-secondary"
-            :disabled="!canEditTransaction"
+            :disabled="Boolean(props.isUpdatingTransaction || props.isDeletingTransaction)"
             @click="onEdit"
           >
             <template v-if="props.isUpdatingTransaction">Editing...</template>
@@ -217,9 +253,10 @@ const onDelete = () => {
           </button>
 
           <button
+            v-if="canDeleteTransaction"
             type="button"
             class="btn-secondary border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/40"
-            :disabled="!canDeleteTransaction"
+            :disabled="Boolean(props.isUpdatingTransaction || props.isDeletingTransaction)"
             @click="onDelete"
           >
             <template v-if="props.isDeletingTransaction">Deleting...</template>
