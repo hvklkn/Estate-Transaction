@@ -3,8 +3,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Logger,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  OnModuleInit
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
@@ -75,13 +77,19 @@ const PASSWORD_KEY_BYTES = 64;
 const PASSWORD_RESET_CODE_TTL_MINUTES = 10;
 
 @Injectable()
-export class AgentsService {
+export class AgentsService implements OnModuleInit {
+  private readonly logger = new Logger(AgentsService.name);
+
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(Agent.name)
     private readonly agentModel: Model<AgentDocument>,
     private readonly organizationsService: OrganizationsService
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureConfiguredSuperAdmin();
+  }
 
   async create(createAgentDto: CreateAgentDto): Promise<SanitizedAgent> {
     const organization = await this.organizationsService.resolveActiveOrganization({
@@ -167,6 +175,10 @@ export class AgentsService {
     agent: SanitizedAgent;
     sessionToken: string;
   }> {
+    if (!this.configService.get<boolean>('PUBLIC_REGISTRATION_ENABLED', true)) {
+      throw new ForbiddenException('Public registration is disabled.');
+    }
+
     const hasAnyAgents = await this.hasAnyAgents();
     const hasAnyOrganizations = await this.organizationsService.hasAnyOrganizations();
     const isFirstWorkspaceUser = !hasAnyAgents || !hasAnyOrganizations;
@@ -737,6 +749,77 @@ export class AgentsService {
   private async hasAnyAgents(): Promise<boolean> {
     const count = await this.agentModel.estimatedDocumentCount().exec();
     return count > 0;
+  }
+
+  private async ensureConfiguredSuperAdmin(): Promise<void> {
+    const email = this.configService.get<string>('SUPER_ADMIN_EMAIL', '').trim().toLowerCase();
+    const password = this.configService.get<string>('SUPER_ADMIN_PASSWORD', '');
+
+    if (!email && !password) {
+      return;
+    }
+
+    if (!email || !password) {
+      throw new Error('SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD must be set together.');
+    }
+
+    if (password.length < 8) {
+      throw new Error('SUPER_ADMIN_PASSWORD must be at least 8 characters.');
+    }
+
+    const existingAgent = await this.agentModel.findOne({ email }).exec();
+    if (existingAgent) {
+      let changed = false;
+
+      if (existingAgent.role !== 'super_admin') {
+        existingAgent.role = 'super_admin';
+        changed = true;
+      }
+
+      if (!existingAgent.isActive) {
+        existingAgent.isActive = true;
+        changed = true;
+      }
+
+      if (!this.getOrganizationIdFromAgent(existingAgent, false)) {
+        const organization = await this.organizationsService.createDefaultForAgent({
+          agentId: existingAgent._id.toString(),
+          agentName: existingAgent.name,
+          agentEmail: existingAgent.email
+        });
+        existingAgent.organizationId = organization._id;
+        changed = true;
+      }
+
+      if (changed) {
+        await existingAgent.save();
+      }
+
+      return;
+    }
+
+    const seedOrganizationId = new Types.ObjectId();
+    const superAdmin = await this.createAgentRecord({
+      createAgentDto: {
+        name: this.configService.get<string>('SUPER_ADMIN_NAME', 'Super Admin'),
+        email,
+        password,
+        isActive: true
+      },
+      organizationId: seedOrganizationId.toString(),
+      role: 'super_admin'
+    });
+
+    const organization = await this.organizationsService.create({
+      name: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_NAME', 'Iceberg Admin'),
+      slug: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_SLUG', 'iceberg-admin'),
+      ownerId: superAdmin._id.toString()
+    });
+
+    superAdmin.organizationId = organization._id;
+    await superAdmin.save();
+
+    this.logger.log(`Seeded configured super admin account for ${email}.`);
   }
 
   private async ensureAgentOrganization(agent: AgentDocument): Promise<void> {

@@ -28,7 +28,8 @@ export default defineNuxtConfig({
       apiBaseUrl:
         env.NUXT_PUBLIC_API_BASE_URL ??
         (isProduction ? '' : 'http://localhost:3001/api'),
-      appEnv: env.NUXT_PUBLIC_APP_ENV ?? nodeEnv
+      appEnv: env.NUXT_PUBLIC_APP_ENV ?? nodeEnv,
+      registrationEnabled: env.NUXT_PUBLIC_REGISTRATION_ENABLED ?? 'true'
     }
   },
   nitro: {

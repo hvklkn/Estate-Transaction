@@ -8,6 +8,7 @@ import { useAuthStore } from '~/stores/auth';
 
 const authStore = useAuthStore();
 const agentsApi = useAgentsApi();
+const config = useRuntimeConfig();
 const { t } = useAppI18n();
 
 useHead(() => ({
@@ -50,8 +51,16 @@ const isForgotSubmitting = ref(false);
 const isSubmitting = computed(
   () => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value
 );
+const registrationEnabled = computed(
+  () => String(config.public.registrationEnabled ?? 'true').toLowerCase() !== 'false'
+);
 
 const switchMode = (nextMode: 'login' | 'register') => {
+  if (nextMode === 'register' && !registrationEnabled.value) {
+    mode.value = 'login';
+    return;
+  }
+
   mode.value = nextMode;
   authHint.value = null;
   authStore.setError(null);
@@ -251,6 +260,7 @@ const onResetPasswordWithCode = async () => {
           class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1"
         >
           <button
+            v-if="registrationEnabled"
             type="button"
             class="rounded-md px-3 py-1.5 text-sm font-medium"
             :class="mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'"
@@ -336,7 +346,7 @@ const onResetPasswordWithCode = async () => {
             </button>
           </form>
 
-          <form v-else class="space-y-4" @submit.prevent="onRegister">
+          <form v-else-if="registrationEnabled" class="space-y-4" @submit.prevent="onRegister">
             <label class="block">
               <span class="field-label">{{ t('auth.fields.name') }}</span>
               <input
