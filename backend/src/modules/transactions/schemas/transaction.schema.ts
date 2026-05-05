@@ -2,7 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
 import { Agent } from '@/modules/agents/schemas/agent.schema';
+import { Client } from '@/modules/clients/schemas/client.schema';
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
+import { Property } from '@/modules/properties/schemas/property.schema';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
 import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 
@@ -25,9 +27,8 @@ export class AgentCommissionAllocation {
   explanation!: string;
 }
 
-export const AgentCommissionAllocationSchema = SchemaFactory.createForClass(
-  AgentCommissionAllocation
-);
+export const AgentCommissionAllocationSchema =
+  SchemaFactory.createForClass(AgentCommissionAllocation);
 
 @Schema({
   _id: false
@@ -77,6 +78,12 @@ export const TransactionStageHistoryEntrySchema = SchemaFactory.createForClass(
 export class Transaction {
   @Prop({ required: true, trim: true })
   propertyTitle!: string;
+
+  @Prop({ type: Types.ObjectId, ref: Property.name, default: null })
+  propertyId!: Types.ObjectId | null;
+
+  @Prop({ type: [Types.ObjectId], ref: Client.name, default: [] })
+  clientIds!: Types.ObjectId[];
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'Organization' })
   organizationId!: Types.ObjectId;
@@ -161,6 +168,8 @@ TransactionSchema.index({ stage: 1, transactionType: 1, createdAt: -1 });
 TransactionSchema.index({ listingAgentId: 1, createdAt: -1 });
 TransactionSchema.index({ sellingAgentId: 1, createdAt: -1 });
 TransactionSchema.index({ propertyTitle: 1, createdAt: -1 });
+TransactionSchema.index({ organizationId: 1, propertyId: 1, createdAt: -1 });
+TransactionSchema.index({ organizationId: 1, clientIds: 1, createdAt: -1 });
 TransactionSchema.index({ balanceDistributionApplied: 1, createdAt: -1 });
 TransactionSchema.index({ isDeleted: 1, createdAt: -1 });
 TransactionSchema.index({ isDeleted: 1, stage: 1, createdAt: -1 });

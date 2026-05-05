@@ -5,7 +5,9 @@ import { Types } from 'mongoose';
 
 import { AgentsService } from '@/modules/agents/services/agents.service';
 import { BalanceService } from '@/modules/balance/services/balance.service';
+import { ClientsService } from '@/modules/clients/services/clients.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
+import { PropertiesService } from '@/modules/properties/services/properties.service';
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
@@ -19,6 +21,8 @@ const SELLING_AGENT_ID = '661b8c0134e2c40fd2f89a22';
 const CREATOR_AGENT_ID = '661b8c0134e2c40fd2f89a33';
 const MANAGER_AGENT_ID = '661b8c0134e2c40fd2f89a44';
 const VALID_TRANSACTION_ID = '661b8c0134e2c40fd2f89b33';
+const PROPERTY_ID = '661b8c0134e2c40fd2f89d11';
+const CLIENT_ID = '661b8c0134e2c40fd2f89e11';
 const INVALID_TRANSACTION_ID = 'not-a-valid-object-id';
 const ORGANIZATION_ID = '661b8c0134e2c40fd2f89c11';
 const OTHER_ORGANIZATION_ID = '661b8c0134e2c40fd2f89c22';
@@ -116,6 +120,14 @@ describe('TransactionsService', () => {
     applyCommissionCreditsForCompletedTransaction: jest.fn()
   };
 
+  const clientsServiceMock = {
+    ensureClientsBelongToOrganization: jest.fn()
+  };
+
+  const propertiesServiceMock = {
+    ensurePropertyBelongsToOrganization: jest.fn()
+  };
+
   const stageTransitionPolicyServiceMock = {
     assertValidTransition: jest.fn(),
     resolveInitialStageForCreate: jest.fn()
@@ -148,6 +160,14 @@ describe('TransactionsService', () => {
           useValue: balanceServiceMock
         },
         {
+          provide: ClientsService,
+          useValue: clientsServiceMock
+        },
+        {
+          provide: PropertiesService,
+          useValue: propertiesServiceMock
+        },
+        {
           provide: CommissionCalculatorService,
           useValue: commissionCalculatorServiceMock
         },
@@ -169,6 +189,8 @@ describe('TransactionsService', () => {
     it('stores createdBy and stageHistory.changedBy from authenticated actor context', async () => {
       const createDto = {
         propertyTitle: 'Sunset Villas #12',
+        propertyId: PROPERTY_ID,
+        clientIds: [CLIENT_ID],
         totalServiceFee: 100000,
         listingAgentId: LISTING_AGENT_ID,
         sellingAgentId: SELLING_AGENT_ID,
@@ -193,6 +215,8 @@ describe('TransactionsService', () => {
 
       expect(transactionModelMock.create).toHaveBeenCalledWith({
         ...createDto,
+        propertyId: expect.any(Types.ObjectId),
+        clientIds: [expect.any(Types.ObjectId)],
         organizationId: expect.any(Types.ObjectId),
         createdBy: expect.any(Types.ObjectId),
         stage: TransactionStage.AGREEMENT,
@@ -210,6 +234,14 @@ describe('TransactionsService', () => {
           }
         ]
       });
+      expect(propertiesServiceMock.ensurePropertyBelongsToOrganization).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
+      );
+      expect(clientsServiceMock.ensureClientsBelongToOrganization).toHaveBeenCalledWith(
+        [CLIENT_ID],
+        ORGANIZATION_ID
+      );
       expect(result).toEqual(createdTransaction);
     });
   });
@@ -249,15 +281,18 @@ describe('TransactionsService', () => {
       transactionModelMock.find.mockReturnValue(findQuery);
       transactionModelMock.countDocuments.mockReturnValue(countQuery);
 
-      await service.findAll({
-        page: 2,
-        limit: 10,
-        search: 'maple',
-        stage: TransactionStage.EARNEST_MONEY,
-        transactionType: TransactionType.RENTED,
-        sortBy: 'propertyTitle',
-        sortOrder: 'asc'
-      }, ORGANIZATION_ID);
+      await service.findAll(
+        {
+          page: 2,
+          limit: 10,
+          search: 'maple',
+          stage: TransactionStage.EARNEST_MONEY,
+          transactionType: TransactionType.RENTED,
+          sortBy: 'propertyTitle',
+          sortOrder: 'asc'
+        },
+        ORGANIZATION_ID
+      );
 
       expect(agentsServiceMock.findAgentIdsBySearchTerm).toHaveBeenCalledWith(
         'maple',
@@ -285,9 +320,12 @@ describe('TransactionsService', () => {
       transactionModelMock.find.mockReturnValue(findQuery);
       transactionModelMock.countDocuments.mockReturnValue(countQuery);
 
-      await service.findAll({
-        includeDeleted: true
-      }, ORGANIZATION_ID);
+      await service.findAll(
+        {
+          includeDeleted: true
+        },
+        ORGANIZATION_ID
+      );
 
       expect(transactionModelMock.find).toHaveBeenCalledWith({
         organizationId: expect.any(Types.ObjectId)
@@ -319,7 +357,9 @@ describe('TransactionsService', () => {
     it('throws not found for unknown transactions', async () => {
       transactionModelMock.findOne.mockReturnValue(createFindQueryMock(null));
 
-      await expect(service.findOne(VALID_TRANSACTION_ID, ORGANIZATION_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(VALID_TRANSACTION_ID, ORGANIZATION_ID)).rejects.toThrow(
+        NotFoundException
+      );
       expect(transactionModelMock.findOne).toHaveBeenCalledWith({
         _id: VALID_TRANSACTION_ID,
         organizationId: expect.any(Types.ObjectId)
@@ -344,7 +384,9 @@ describe('TransactionsService', () => {
 
       transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
       commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
-      transactionModelMock.findOneAndUpdate.mockReturnValue(createFindQueryMock(updatedTransaction));
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createFindQueryMock(updatedTransaction)
+      );
 
       const result = await service.update(
         VALID_TRANSACTION_ID,
@@ -380,6 +422,45 @@ describe('TransactionsService', () => {
         }
       );
       expect(result).toEqual(updatedTransaction);
+    });
+
+    it('validates linked property and clients against the current organization on update', async () => {
+      const existingTransaction = buildExistingTransaction();
+      const updateDto = {
+        propertyId: PROPERTY_ID,
+        clientIds: [CLIENT_ID]
+      };
+      const recalculatedBreakdown = buildFinancialBreakdown();
+
+      transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
+      commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createFindQueryMock({
+          ...existingTransaction,
+          propertyId: new Types.ObjectId(PROPERTY_ID),
+          clientIds: [new Types.ObjectId(CLIENT_ID)],
+          financialBreakdown: recalculatedBreakdown
+        })
+      );
+
+      await service.update(VALID_TRANSACTION_ID, updateDto, CREATOR_AGENT_ID, ORGANIZATION_ID);
+
+      expect(propertiesServiceMock.ensurePropertyBelongsToOrganization).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
+      );
+      expect(clientsServiceMock.ensureClientsBelongToOrganization).toHaveBeenCalledWith(
+        [CLIENT_ID],
+        ORGANIZATION_ID
+      );
+      expect(transactionModelMock.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          propertyId: expect.any(Types.ObjectId),
+          clientIds: [expect.any(Types.ObjectId)]
+        }),
+        expect.any(Object)
+      );
     });
   });
 
@@ -449,7 +530,9 @@ describe('TransactionsService', () => {
       transactionModelMock.findOne
         .mockReturnValueOnce(createBasicQueryMock(existingTransaction))
         .mockReturnValueOnce(createFindQueryMock(completedTransaction));
-      transactionModelMock.findOneAndUpdate.mockReturnValue(createFindQueryMock(completedTransaction));
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createFindQueryMock(completedTransaction)
+      );
       balanceServiceMock.applyCommissionCreditsForCompletedTransaction.mockResolvedValue({
         applied: true,
         ledgerIds: ['661b8c0134e2c40fd2f89f11']
@@ -462,23 +545,25 @@ describe('TransactionsService', () => {
         ORGANIZATION_ID
       );
 
-      expect(balanceServiceMock.applyCommissionCreditsForCompletedTransaction).toHaveBeenCalledWith({
-        transactionId: VALID_TRANSACTION_ID,
-        actorAgentId: CREATOR_AGENT_ID,
-        organizationId: ORGANIZATION_ID,
-        allocations: [
-          {
-            agentId: LISTING_AGENT_ID,
-            amount: 25000,
-            role: CommissionAgentRole.LISTING
-          },
-          {
-            agentId: SELLING_AGENT_ID,
-            amount: 25000,
-            role: CommissionAgentRole.SELLING
-          }
-        ]
-      });
+      expect(balanceServiceMock.applyCommissionCreditsForCompletedTransaction).toHaveBeenCalledWith(
+        {
+          transactionId: VALID_TRANSACTION_ID,
+          actorAgentId: CREATOR_AGENT_ID,
+          organizationId: ORGANIZATION_ID,
+          allocations: [
+            {
+              agentId: LISTING_AGENT_ID,
+              amount: 25000,
+              role: CommissionAgentRole.LISTING
+            },
+            {
+              agentId: SELLING_AGENT_ID,
+              amount: 25000,
+              role: CommissionAgentRole.SELLING
+            }
+          ]
+        }
+      );
       expect(result).toEqual(completedTransaction);
     });
 
@@ -501,7 +586,9 @@ describe('TransactionsService', () => {
       });
 
       transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
-      transactionModelMock.findOneAndUpdate.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createBasicQueryMock(existingTransaction)
+      );
 
       await service.remove(VALID_TRANSACTION_ID, CREATOR_AGENT_ID, 'agent', ORGANIZATION_ID);
 
@@ -534,7 +621,9 @@ describe('TransactionsService', () => {
       });
 
       transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
-      transactionModelMock.findOneAndUpdate.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createBasicQueryMock(existingTransaction)
+      );
 
       await service.remove(VALID_TRANSACTION_ID, MANAGER_AGENT_ID, 'manager', ORGANIZATION_ID);
 

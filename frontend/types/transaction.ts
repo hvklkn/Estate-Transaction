@@ -1,3 +1,6 @@
+import type { ClientSummary } from '~/types/client';
+import type { PropertySummary } from '~/types/property';
+
 export enum TransactionStage {
   AGREEMENT = 'agreement',
   EARNEST_MONEY = 'earnest_money',
@@ -50,6 +53,8 @@ export interface TransactionStageHistoryItem {
 export interface Transaction {
   id: string;
   propertyTitle: string;
+  propertyId: string | null;
+  clientIds: string[];
   totalServiceFee: number;
   listingAgentId: string;
   sellingAgentId: string;
@@ -59,6 +64,8 @@ export interface Transaction {
   deletedById?: string | null;
   listingAgent?: AgentSummary;
   sellingAgent?: AgentSummary;
+  property?: PropertySummary;
+  clients: ClientSummary[];
   createdBy?: AgentSummary;
   updatedBy?: AgentSummary;
   deletedBy?: AgentSummary;
@@ -76,6 +83,8 @@ export interface Transaction {
 
 export interface CreateTransactionPayload {
   propertyTitle: string;
+  propertyId?: string | null;
+  clientIds?: string[];
   totalServiceFee: number;
   listingAgentId: string;
   sellingAgentId: string;
@@ -85,6 +94,8 @@ export interface CreateTransactionPayload {
 
 export interface UpdateTransactionPayload {
   propertyTitle?: string;
+  propertyId?: string | null;
+  clientIds?: string[];
   totalServiceFee?: number;
   listingAgentId?: string;
   sellingAgentId?: string;

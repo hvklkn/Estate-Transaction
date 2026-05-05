@@ -5,7 +5,9 @@ import { FilterQuery, Model, Types } from 'mongoose';
 import { AgentRole } from '@/modules/agents/schemas/agent.schema';
 import { AgentsService } from '@/modules/agents/services/agents.service';
 import { BalanceService } from '@/modules/balance/services/balance.service';
+import { ClientsService } from '@/modules/clients/services/clients.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
+import { PropertiesService } from '@/modules/properties/services/properties.service';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
 import { CreateTransactionDto } from '@/modules/transactions/dto/create-transaction.dto';
@@ -59,6 +61,8 @@ export class TransactionsService {
     private readonly transactionModel: Model<TransactionDocument>,
     private readonly agentsService: AgentsService,
     private readonly balanceService: BalanceService,
+    private readonly clientsService: ClientsService,
+    private readonly propertiesService: PropertiesService,
     private readonly commissionCalculatorService: CommissionCalculatorService,
     private readonly stageTransitionPolicyService: StageTransitionPolicyService,
     private readonly transactionMutationPolicyService: TransactionMutationPolicyService
@@ -75,6 +79,14 @@ export class TransactionsService {
 
     await this.agentsService.ensureAgentExists(createTransactionDto.listingAgentId, organizationId);
     await this.agentsService.ensureAgentExists(createTransactionDto.sellingAgentId, organizationId);
+    await this.propertiesService.ensurePropertyBelongsToOrganization(
+      createTransactionDto.propertyId,
+      organizationId
+    );
+    await this.clientsService.ensureClientsBelongToOrganization(
+      createTransactionDto.clientIds,
+      organizationId
+    );
 
     const financialBreakdown = this.commissionCalculatorService.calculate({
       totalServiceFee: createTransactionDto.totalServiceFee,
@@ -92,6 +104,12 @@ export class TransactionsService {
 
     return this.transactionModel.create({
       ...createTransactionDto,
+      propertyId: createTransactionDto.propertyId
+        ? new Types.ObjectId(createTransactionDto.propertyId)
+        : null,
+      clientIds: (createTransactionDto.clientIds ?? []).map(
+        (clientId) => new Types.ObjectId(clientId)
+      ),
       organizationId: new Types.ObjectId(organizationId),
       createdBy: new Types.ObjectId(creatorAgentId),
       stage: initialStage,
@@ -176,11 +194,31 @@ export class TransactionsService {
     );
 
     if (updateTransactionDto.listingAgentId) {
-      await this.agentsService.ensureAgentExists(updateTransactionDto.listingAgentId, organizationId);
+      await this.agentsService.ensureAgentExists(
+        updateTransactionDto.listingAgentId,
+        organizationId
+      );
     }
 
     if (updateTransactionDto.sellingAgentId) {
-      await this.agentsService.ensureAgentExists(updateTransactionDto.sellingAgentId, organizationId);
+      await this.agentsService.ensureAgentExists(
+        updateTransactionDto.sellingAgentId,
+        organizationId
+      );
+    }
+
+    if (updateTransactionDto.propertyId !== undefined) {
+      await this.propertiesService.ensurePropertyBelongsToOrganization(
+        updateTransactionDto.propertyId,
+        organizationId
+      );
+    }
+
+    if (updateTransactionDto.clientIds !== undefined) {
+      await this.clientsService.ensureClientsBelongToOrganization(
+        updateTransactionDto.clientIds,
+        organizationId
+      );
     }
 
     const listingAgentId =
@@ -201,6 +239,20 @@ export class TransactionsService {
         tenantFilter,
         {
           ...updateTransactionDto,
+          ...(updateTransactionDto.propertyId !== undefined
+            ? {
+                propertyId: updateTransactionDto.propertyId
+                  ? new Types.ObjectId(updateTransactionDto.propertyId)
+                  : null
+              }
+            : {}),
+          ...(updateTransactionDto.clientIds !== undefined
+            ? {
+                clientIds: updateTransactionDto.clientIds.map(
+                  (clientId) => new Types.ObjectId(clientId)
+                )
+              }
+            : {}),
           financialBreakdown,
           updatedBy: new Types.ObjectId(actorAgentId)
         },
@@ -478,6 +530,11 @@ export class TransactionsService {
 
     queryWithPopulate.populate('listingAgentId', 'name email isActive');
     queryWithPopulate.populate('sellingAgentId', 'name email isActive');
+    queryWithPopulate.populate(
+      'propertyId',
+      'title type listingType city district price currency status'
+    );
+    queryWithPopulate.populate('clientIds', 'fullName email phone type');
     queryWithPopulate.populate('createdBy', 'name email isActive');
     queryWithPopulate.populate('updatedBy', 'name email isActive');
     queryWithPopulate.populate('deletedBy', 'name email isActive');

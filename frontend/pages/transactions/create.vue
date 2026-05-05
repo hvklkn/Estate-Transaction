@@ -4,11 +4,15 @@ import { onMounted } from 'vue';
 import TransactionCreateForm from '~/components/transactions/TransactionCreateForm.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
 import { useAuthStore } from '~/stores/auth';
+import { useClientsStore } from '~/stores/clients';
+import { usePropertiesStore } from '~/stores/properties';
 import { useTransactionsStore } from '~/stores/transactions';
 import type { CreateTransactionPayload } from '~/types/transaction';
 
 const transactionsStore = useTransactionsStore();
 const authStore = useAuthStore();
+const clientsStore = useClientsStore();
+const propertiesStore = usePropertiesStore();
 const { t } = useAppI18n();
 
 useHead(() => ({
@@ -26,7 +30,11 @@ const handleCreateTransaction = async (payload: CreateTransactionPayload) => {
 
 onMounted(async () => {
   authStore.hydrateFromStorage();
-  await authStore.fetchUsers().catch(() => undefined);
+  await Promise.all([
+    authStore.fetchUsers().catch(() => undefined),
+    clientsStore.fetchClients({ force: true }).catch(() => undefined),
+    propertiesStore.fetchProperties({ force: true }).catch(() => undefined)
+  ]);
 });
 </script>
 
@@ -62,6 +70,9 @@ onMounted(async () => {
         :is-submitting="transactionsStore.isCreating"
         :agents="authStore.activeUsers"
         :is-agents-loading="authStore.isLoadingUsers"
+        :clients="clientsStore.items"
+        :properties="propertiesStore.items"
+        :is-resources-loading="clientsStore.isLoading || propertiesStore.isLoading"
         @submit="handleCreateTransaction"
       />
     </div>

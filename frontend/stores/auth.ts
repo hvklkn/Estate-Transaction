@@ -114,6 +114,26 @@ export const useAuthStore = defineStore('auth', () => {
       role === 'finance'
     );
   });
+  const canCreateTenantResources = computed(() => {
+    const role = currentUser.value?.role;
+    return (
+      role === 'super_admin' ||
+      role === 'office_owner' ||
+      role === 'admin' ||
+      role === 'manager' ||
+      role === 'agent' ||
+      role === 'assistant'
+    );
+  });
+  const canManageTenantResources = computed(() => {
+    const role = currentUser.value?.role;
+    return (
+      role === 'super_admin' ||
+      role === 'office_owner' ||
+      role === 'admin' ||
+      role === 'manager'
+    );
+  });
   const currentOrganization = computed(() => currentUser.value?.organization ?? null);
   const activeUsers = computed(() =>
     (users.value.length > 0 ? users.value : currentUser.value ? [currentUser.value] : [])
@@ -260,6 +280,8 @@ export const useAuthStore = defineStore('auth', () => {
     canManageTeam,
     canAdministerUsers,
     canManageBalances,
+    canCreateTenantResources,
+    canManageTenantResources,
     currentOrganization,
     activeUsers,
     hydrateFromStorage,

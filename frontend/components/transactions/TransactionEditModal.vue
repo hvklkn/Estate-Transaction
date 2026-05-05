@@ -2,6 +2,8 @@
 import { computed, reactive, watch } from 'vue';
 
 import type { AgentUser } from '~/types/agent';
+import type { ClientSummary } from '~/types/client';
+import type { PropertySummary } from '~/types/property';
 import {
   TransactionStage,
   TransactionType,
@@ -13,6 +15,8 @@ const props = defineProps<{
   isOpen: boolean;
   transaction: Transaction | null;
   agents: AgentUser[];
+  clients?: ClientSummary[];
+  properties?: PropertySummary[];
   isSubmitting: boolean;
 }>();
 
@@ -23,6 +27,8 @@ const emit = defineEmits<{
 
 const form = reactive({
   propertyTitle: '',
+  propertyId: '',
+  clientIds: [] as string[],
   totalServiceFee: '',
   listingAgentId: '',
   sellingAgentId: '',
@@ -31,6 +37,8 @@ const form = reactive({
 
 const fieldErrors = reactive({
   propertyTitle: '',
+  propertyId: '',
+  clientIds: '',
   totalServiceFee: '',
   listingAgentId: '',
   sellingAgentId: '',
@@ -44,6 +52,8 @@ const canEditWorkflowFields = computed(
 
 const clearErrors = () => {
   fieldErrors.propertyTitle = '';
+  fieldErrors.propertyId = '';
+  fieldErrors.clientIds = '';
   fieldErrors.totalServiceFee = '';
   fieldErrors.listingAgentId = '';
   fieldErrors.sellingAgentId = '';
@@ -57,6 +67,8 @@ const syncFormFromTransaction = (transaction: Transaction | null) => {
   }
 
   form.propertyTitle = transaction.propertyTitle;
+  form.propertyId = transaction.propertyId ?? '';
+  form.clientIds = [...transaction.clientIds];
   form.totalServiceFee = String(transaction.totalServiceFee);
   form.listingAgentId = transaction.listingAgentId;
   form.sellingAgentId = transaction.sellingAgentId;
@@ -145,6 +157,16 @@ const onSubmit = () => {
     }
   }
 
+  if (form.propertyId !== (transaction.propertyId ?? '')) {
+    payload.propertyId = form.propertyId || null;
+  }
+
+  const currentClientIds = [...transaction.clientIds].sort().join(',');
+  const nextClientIds = [...form.clientIds].sort().join(',');
+  if (currentClientIds !== nextClientIds) {
+    payload.clientIds = form.clientIds;
+  }
+
   if (Object.keys(payload).length === 0) {
     fieldErrors.form = 'No changes detected.';
     return;
@@ -159,6 +181,15 @@ const onClose = () => {
   }
 
   emit('close');
+};
+
+const handlePropertySelect = () => {
+  fieldErrors.propertyId = '';
+  const property = props.properties?.find((item) => item.id === form.propertyId);
+  if (property && !form.propertyTitle.trim()) {
+    form.propertyTitle = property.title;
+    fieldErrors.propertyTitle = '';
+  }
 };
 </script>
 
@@ -186,7 +217,7 @@ const onClose = () => {
             v-if="!canEditWorkflowFields"
             class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
           >
-            This transaction is beyond agreement stage. Only property title can be edited.
+            This transaction is beyond agreement stage. Only property title and optional resource links can be edited.
           </div>
 
           <div v-if="fieldErrors.form" class="alert-error">
@@ -203,6 +234,24 @@ const onClose = () => {
               :disabled="props.isSubmitting"
             />
             <p v-if="fieldErrors.propertyTitle" class="field-error">{{ fieldErrors.propertyTitle }}</p>
+          </label>
+
+          <label class="block">
+            <span class="field-label">Linked Property</span>
+            <select
+              v-model="form.propertyId"
+              class="input-base"
+              :class="{ 'input-invalid': fieldErrors.propertyId }"
+              :disabled="props.isSubmitting"
+              @change="handlePropertySelect"
+            >
+              <option value="">No linked property</option>
+              <option v-for="property in props.properties ?? []" :key="property.id" :value="property.id">
+                {{ property.title }} · {{ property.city || 'No city' }} · {{ property.status }}
+              </option>
+            </select>
+            <p class="field-hint">Optional. This does not replace the legacy property title field.</p>
+            <p v-if="fieldErrors.propertyId" class="field-error">{{ fieldErrors.propertyId }}</p>
           </label>
 
           <div class="grid gap-4 md:grid-cols-2">
@@ -268,6 +317,23 @@ const onClose = () => {
               <p v-if="fieldErrors.sellingAgentId" class="field-error">{{ fieldErrors.sellingAgentId }}</p>
             </label>
           </div>
+
+          <label class="block">
+            <span class="field-label">Clients</span>
+            <select
+              v-model="form.clientIds"
+              multiple
+              class="input-base min-h-32"
+              :class="{ 'input-invalid': fieldErrors.clientIds }"
+              :disabled="props.isSubmitting"
+            >
+              <option v-for="client in props.clients ?? []" :key="client.id" :value="client.id">
+                {{ client.fullName }} · {{ client.type }}{{ client.email ? ` · ${client.email}` : '' }}
+              </option>
+            </select>
+            <p class="field-hint">Optional. Hold Command or Ctrl to select multiple clients.</p>
+            <p v-if="fieldErrors.clientIds" class="field-error">{{ fieldErrors.clientIds }}</p>
+          </label>
 
           <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
             <button type="button" class="btn-secondary" :disabled="props.isSubmitting" @click="onClose">

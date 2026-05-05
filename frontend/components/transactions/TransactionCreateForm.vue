@@ -3,12 +3,17 @@ import { computed, reactive, ref } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
 import type { AgentUser } from '~/types/agent';
+import type { ClientSummary } from '~/types/client';
+import type { PropertySummary } from '~/types/property';
 import { TransactionStage, TransactionType, type CreateTransactionPayload } from '~/types/transaction';
 
 const props = defineProps<{
   isSubmitting: boolean;
   agents: AgentUser[];
   isAgentsLoading?: boolean;
+  clients?: ClientSummary[];
+  properties?: PropertySummary[];
+  isResourcesLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -19,6 +24,8 @@ const { t, getStageLabel } = useAppI18n();
 
 const form = reactive({
   propertyTitle: '',
+  propertyId: '',
+  clientIds: [] as string[],
   totalServiceFee: '',
   listingAgentId: '',
   sellingAgentId: '',
@@ -27,6 +34,8 @@ const form = reactive({
 
 const errors = reactive({
   propertyTitle: '',
+  propertyId: '',
+  clientIds: '',
   totalServiceFee: '',
   listingAgentId: '',
   sellingAgentId: '',
@@ -38,11 +47,13 @@ const showValidationSummary = ref(false);
 const hasErrors = computed(() => Object.values(errors).some((value) => value.length > 0));
 const hasAgents = computed(() => props.agents.length > 0);
 const canSubmit = computed(
-  () => !props.isSubmitting && !props.isAgentsLoading && hasAgents.value
+  () => !props.isSubmitting && !props.isAgentsLoading && !props.isResourcesLoading && hasAgents.value
 );
 
 const resetErrors = () => {
   errors.propertyTitle = '';
+  errors.propertyId = '';
+  errors.clientIds = '';
   errors.totalServiceFee = '';
   errors.listingAgentId = '';
   errors.sellingAgentId = '';
@@ -51,6 +62,8 @@ const resetErrors = () => {
 
 const resetForm = () => {
   form.propertyTitle = '';
+  form.propertyId = '';
+  form.clientIds = [];
   form.totalServiceFee = '';
   form.listingAgentId = '';
   form.sellingAgentId = '';
@@ -104,6 +117,8 @@ const onSubmit = () => {
 
   emit('submit', {
     propertyTitle: form.propertyTitle.trim(),
+    propertyId: form.propertyId || undefined,
+    clientIds: form.clientIds,
     totalServiceFee: Number(form.totalServiceFee),
     listingAgentId: form.listingAgentId.trim(),
     sellingAgentId: form.sellingAgentId.trim(),
@@ -114,6 +129,15 @@ const onSubmit = () => {
 
 const transactionTypeLabel = (type: TransactionType) =>
   type === TransactionType.SOLD ? 'Sold' : 'Rented';
+
+const handlePropertySelect = () => {
+  clearFieldError('propertyId');
+  const property = props.properties?.find((item) => item.id === form.propertyId);
+  if (property && !form.propertyTitle.trim()) {
+    form.propertyTitle = property.title;
+    clearFieldError('propertyTitle');
+  }
+};
 </script>
 
 <template>
@@ -152,6 +176,29 @@ const transactionTypeLabel = (type: TransactionType) =>
                 @input="clearFieldError('propertyTitle')"
               />
               <p v-if="errors.propertyTitle" class="field-error">{{ errors.propertyTitle }}</p>
+            </label>
+
+            <label class="block">
+              <span class="field-label">Linked Property</span>
+              <select
+                v-model="form.propertyId"
+                class="input-base text-sm"
+                :class="{ 'input-invalid': errors.propertyId }"
+                :aria-invalid="Boolean(errors.propertyId)"
+                :disabled="props.isSubmitting || props.isResourcesLoading"
+                @change="handlePropertySelect"
+              >
+                <option value="">No linked property</option>
+                <option
+                  v-for="property in props.properties ?? []"
+                  :key="property.id"
+                  :value="property.id"
+                >
+                  {{ property.title }} · {{ property.city || 'No city' }} · {{ property.status }}
+                </option>
+              </select>
+              <p class="field-hint">Optional. The text title remains available for legacy transactions.</p>
+              <p v-if="errors.propertyId" class="field-error">{{ errors.propertyId }}</p>
             </label>
 
             <div class="grid gap-4 md:grid-cols-2">
@@ -201,6 +248,34 @@ const transactionTypeLabel = (type: TransactionType) =>
               </label>
             </div>
           </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            Client Links
+          </p>
+          <label class="block">
+            <span class="field-label">Clients</span>
+            <select
+              v-model="form.clientIds"
+              multiple
+              class="input-base min-h-32 text-sm"
+              :class="{ 'input-invalid': errors.clientIds }"
+              :aria-invalid="Boolean(errors.clientIds)"
+              :disabled="props.isSubmitting || props.isResourcesLoading"
+              @change="clearFieldError('clientIds')"
+            >
+              <option
+                v-for="client in props.clients ?? []"
+                :key="client.id"
+                :value="client.id"
+              >
+                {{ client.fullName }} · {{ client.type }}{{ client.email ? ` · ${client.email}` : '' }}
+              </option>
+            </select>
+            <p class="field-hint">Optional. Hold Command or Ctrl to select multiple clients.</p>
+            <p v-if="errors.clientIds" class="field-error">{{ errors.clientIds }}</p>
+          </label>
         </div>
 
         <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">

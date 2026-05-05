@@ -1,11 +1,13 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayUnique,
   IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsArray,
   Min
 } from 'class-validator';
 
@@ -17,6 +19,22 @@ export class CreateTransactionDto {
   @IsString()
   @IsNotEmpty()
   propertyTitle!: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsMongoId()
+  @IsOptional()
+  propertyId?: string | null;
+
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.trim() : item))
+      : value
+  )
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({ each: true })
+  @IsOptional()
+  clientIds?: string[];
 
   @IsNumber()
   @Min(0)

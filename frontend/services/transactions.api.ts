@@ -13,6 +13,8 @@ import type {
   UpdateTransactionPayload
 } from '~/types/transaction';
 import { TransactionStage as TransactionStageEnum, TransactionType as TransactionTypeEnum } from '~/types/transaction';
+import { normalizeClientSummary } from '~/services/clients.api';
+import { normalizePropertySummary } from '~/services/properties.api';
 
 const TRANSACTIONS_ENDPOINT = '/transactions';
 const TRANSACTION_ENDPOINT = (id: string) => `${TRANSACTIONS_ENDPOINT}/${id}`;
@@ -47,6 +49,8 @@ interface ApiTransaction {
   _id?: ObjectIdLike;
   id?: ObjectIdLike;
   propertyTitle?: string;
+  propertyId?: string | Record<string, unknown> | null;
+  clientIds?: Array<string | Record<string, unknown>>;
   totalServiceFee?: number;
   listingAgentId?: string | ApiAgent;
   sellingAgentId?: string | ApiAgent;
@@ -486,6 +490,17 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
   let deletedById: string | null = null;
   let deletedBy: AgentSummary | undefined;
   let balanceDistributionAppliedById: string | null | undefined;
+  const propertyId = resolveOptionalObjectIdReference(apiTransaction.propertyId);
+  const property =
+    apiTransaction.propertyId && typeof apiTransaction.propertyId !== 'string'
+      ? normalizePropertySummary(apiTransaction.propertyId as never)
+      : undefined;
+  const clientIds = (apiTransaction.clientIds ?? [])
+    .map((clientReference) => resolveOptionalObjectIdReference(clientReference))
+    .filter((clientId): clientId is string => Boolean(clientId));
+  const clients = (apiTransaction.clientIds ?? [])
+    .filter((clientReference) => typeof clientReference !== 'string')
+    .map((clientReference) => normalizeClientSummary(clientReference as never));
 
   if (apiTransaction.createdBy) {
     const normalizedCreatedById = resolveOptionalObjectIdReference(apiTransaction.createdBy);
@@ -523,6 +538,8 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
   return {
     id: transactionId,
     propertyTitle: toRequiredString(apiTransaction.propertyTitle, 'propertyTitle'),
+    propertyId,
+    clientIds,
     totalServiceFee: toRequiredNonNegativeNumber(apiTransaction.totalServiceFee, 'totalServiceFee'),
     listingAgentId,
     sellingAgentId,
@@ -532,6 +549,8 @@ export const normalizeTransaction = (apiTransaction: ApiTransaction): Transactio
     deletedById,
     listingAgent: normalizeAgentSummary(apiTransaction.listingAgentId, listingAgentId),
     sellingAgent: normalizeAgentSummary(apiTransaction.sellingAgentId, sellingAgentId),
+    property,
+    clients,
     createdBy,
     updatedBy,
     deletedBy,

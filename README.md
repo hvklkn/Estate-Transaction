@@ -16,6 +16,8 @@ Production-minded real estate transaction lifecycle and commission dashboard.
 - Commission breakdown persisted on each transaction
 - Agent wallet/balance system with append-only ledger
 - Organization-based multi-tenancy for agents, transactions, and balance ledger rows
+- Client and property management as tenant-scoped resources
+- Optional transaction links to one property and multiple clients while preserving legacy `propertyTitle`
 - Completed earnings summary endpoint
 - Session-token auth (bearer token), profile/session/2FA/password flows with tenant-aware session context
 - Role-based authorization for protected team and finance actions
@@ -25,8 +27,9 @@ Production-minded real estate transaction lifecycle and commission dashboard.
   - Completed delete is restricted to manager/admin and always soft-delete
   - Workflow-critical edits are blocked after `agreement`
 - Server-side transaction list querying with pagination/filter/sort/search
-- Soft-delete audit trail for transactions (`updatedBy`, `deletedBy`, `deletedAt`, `isDeleted`)
+- Soft-delete audit trail for transactions, clients, and properties
 - Nuxt dashboard wired to backend pagination/filter/sort/search
+- Nuxt clients and properties pages with create/edit flows and role-aware actions
 - Balance dashboard card + dedicated `/balance` page with ledger filters/pagination
 
 ## Quick Start
@@ -102,6 +105,8 @@ Protected routes (require `Authorization: Bearer <sessionToken>`):
 - `/agents/me/*` profile, password, 2FA, sessions routes
 - `POST /agents`, `GET /agents`, `GET /agents/:id`, `PATCH /agents/:id`, `DELETE /agents/:id`
 - all `/transactions/*` routes
+- all `/clients/*` routes
+- all `/properties/*` routes
 - all `/balance/*` routes and `GET /agents/:id/balance`
 
 Session context exposes `agentId`, `role`, `organizationId`, `sessionId`, and `sessionToken`.
@@ -111,10 +116,12 @@ Session context exposes `agentId`, `role`, `organizationId`, `sessionId`, and `s
 Every signed-in agent belongs to one organization. Tenant-owned records carry `organizationId`:
 
 - `Agent`
+- `Client`
+- `Property`
 - `Transaction`
 - `BalanceLedger`
 
-Transaction list/detail/mutation queries always include the current session organization. Balance summaries and ledger queries also require the session organization. Agent listing returns only the current organization unless the actor is `super_admin`.
+Client, property, transaction, and balance queries always include the current session organization. Agent listing returns only the current organization unless the actor is `super_admin`.
 
 Registration supports two paths:
 
@@ -141,7 +148,14 @@ Authorization summary:
 - `office_owner` / legacy `admin`: tenant admin; can create/update/deactivate users in their organization and assign non-super-admin roles.
 - `manager`: can list team members and create lower-privilege team members.
 - `finance`: can access privileged balance actions.
-- `agent` / `assistant`: self-service profile/session access plus transaction actions allowed by transaction participation rules.
+- `agent` / `assistant`: self-service profile/session access, can view/create clients and properties, plus transaction actions allowed by transaction participation rules.
+
+Client/property resource rules:
+
+- `office_owner`, `admin`, and `manager` can create, update, and soft-delete clients/properties.
+- `agent` and `assistant` can view and create clients/properties.
+- `finance` can view clients/properties.
+- All operations are scoped to the authenticated organization.
 
 ## API Overview
 
@@ -160,6 +174,12 @@ Base URL: `http://localhost:3001/api`
 - `PATCH /transactions/:id/stage`
 - `DELETE /transactions/:id`
 - `GET /transactions/summary`
+
+Transactions accept optional links:
+
+- `propertyId`: links one active property in the same organization.
+- `clientIds`: links zero or more active clients in the same organization.
+- `propertyTitle` remains required for backward compatibility and reporting continuity.
 
 #### GET /transactions query params
 
@@ -233,10 +253,31 @@ Base URL: `http://localhost:3001/api`
 - `DELETE /agents/me/sessions/:sessionId`
 - `DELETE /agents/me/sessions`
 
+### Clients
+
+- `POST /clients` (`super_admin`, `office_owner`, `admin`, `manager`, `agent`, `assistant`)
+- `GET /clients` (authenticated tenant users)
+- `GET /clients/:id` (authenticated tenant users)
+- `PATCH /clients/:id` (`super_admin`, `office_owner`, `admin`, `manager`)
+- `DELETE /clients/:id` (`super_admin`, `office_owner`, `admin`, `manager`; soft delete)
+
+Client fields include `fullName`, `phone`, `email`, `type`, `notes`, tenant/audit fields, and timestamps.
+
+### Properties
+
+- `POST /properties` (`super_admin`, `office_owner`, `admin`, `manager`, `agent`, `assistant`)
+- `GET /properties` (authenticated tenant users)
+- `GET /properties/:id` (authenticated tenant users)
+- `PATCH /properties/:id` (`super_admin`, `office_owner`, `admin`, `manager`)
+- `DELETE /properties/:id` (`super_admin`, `office_owner`, `admin`, `manager`; soft delete)
+
+Property fields include title, listing/type/status, address, location, price/currency, owner client link, description, tenant/audit fields, and timestamps.
+
 ## Business Rules
 
 - All tenant-owned reads and writes are scoped to the current session `organizationId`.
-- Users cannot read or mutate another organization's transactions, balance ledger, or team members.
+- Users cannot read or mutate another organization's clients, properties, transactions, balance ledger, or team members.
+- Linked transaction `propertyId` and `clientIds` must belong to the same organization as the transaction.
 - New transactions must start at `agreement`.
 - Stage updates are forward-only, no skip/back/no-op.
 - `changedBy` is derived from authenticated bearer session.
@@ -263,10 +304,11 @@ Base URL: `http://localhost:3001/api`
 Existing databases need a one-time tenant backfill before production rollout:
 
 1. Create at least one organization document with `name`, unique `slug`, `ownerId`, and `isActive: true`.
-2. Backfill `organizationId` on every existing `agents`, `transactions`, and `balance_ledger` document.
+2. Backfill `organizationId` on every existing `agents`, `clients`, `properties`, `transactions`, and `balance_ledger` document.
 3. Map legacy role `admin` to `office_owner` when you are ready to remove the compatibility alias.
 4. Verify every transaction participant (`listingAgentId`, `sellingAgentId`, `createdBy`) belongs to the same organization as the transaction.
-5. Create or rebuild the new tenant indexes after the backfill.
+5. If you link existing transactions to new property/client records, verify each linked record belongs to the same organization.
+6. Create or rebuild the new tenant indexes after the backfill.
 
 Until data is backfilled, legacy users without an organization can still sign in; the app creates a default organization for that user. Existing transactions and ledger rows still need explicit `organizationId` migration to appear in tenant-scoped queries.
 
@@ -284,6 +326,8 @@ Includes:
 - stage policy
 - transaction mutation policy
 - transaction orchestration
+- client/property tenant isolation
+- transaction property/client link validation
 - balance service (crediting, duplicate prevention, ledger correctness, tenant scoping, role checks)
 
 Backend e2e tests:

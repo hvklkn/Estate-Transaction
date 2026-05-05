@@ -11,6 +11,8 @@ import { useAppI18n } from '~/composables/useAppI18n';
 import { useUserSettings } from '~/composables/useUserSettings';
 import { useAuthStore } from '~/stores/auth';
 import { useBalanceStore } from '~/stores/balance';
+import { useClientsStore } from '~/stores/clients';
+import { usePropertiesStore } from '~/stores/properties';
 import { useTransactionsStore } from '~/stores/transactions';
 import {
   TransactionStage,
@@ -23,6 +25,8 @@ import {
 const transactionsStore = useTransactionsStore();
 const authStore = useAuthStore();
 const balanceStore = useBalanceStore();
+const clientsStore = useClientsStore();
+const propertiesStore = usePropertiesStore();
 const route = useRoute();
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 const { settings, hydrateFromStorage } = useUserSettings();
@@ -296,7 +300,9 @@ onMounted(async () => {
   await Promise.all([
     applyQuery(1),
     balanceStore.fetchSummary().catch(() => undefined),
-    authStore.fetchUsers().catch(() => undefined)
+    authStore.fetchUsers().catch(() => undefined),
+    clientsStore.fetchClients({ force: true }).catch(() => undefined),
+    propertiesStore.fetchProperties({ force: true }).catch(() => undefined)
   ]);
   hasInitializedFilters.value = true;
 });
@@ -571,6 +577,8 @@ onUnmounted(() => {
       :is-open="isEditModalOpen"
       :transaction="selectedEditTransaction"
       :agents="authStore.activeUsers"
+      :clients="clientsStore.items"
+      :properties="propertiesStore.items"
       :is-submitting="Boolean(transactionsStore.updateTransactionId)"
       @close="handleEditClose"
       @submit="handleEditSubmit"

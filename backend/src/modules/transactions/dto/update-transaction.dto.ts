@@ -1,5 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsEnum,
   IsMongoId,
   IsNotEmpty,
@@ -17,6 +19,22 @@ export class UpdateTransactionDto {
   @IsNotEmpty()
   @IsOptional()
   propertyTitle?: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsMongoId()
+  @IsOptional()
+  propertyId?: string | null;
+
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.trim() : item))
+      : value
+  )
+  @IsArray()
+  @ArrayUnique()
+  @IsMongoId({ each: true })
+  @IsOptional()
+  clientIds?: string[];
 
   @IsNumber()
   @Min(0)

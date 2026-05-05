@@ -166,6 +166,20 @@ const onDelete = () => {
         </div>
       </header>
 
+      <section
+        v-if="props.transaction.property || props.transaction.clients.length > 0"
+        class="grid gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"
+      >
+        <p v-if="props.transaction.property">
+          <span class="font-semibold text-slate-700 dark:text-slate-200">Linked property:</span>
+          {{ props.transaction.property.title }} · {{ props.transaction.property.status }}
+        </p>
+        <p v-if="props.transaction.clients.length > 0">
+          <span class="font-semibold text-slate-700 dark:text-slate-200">Clients:</span>
+          {{ props.transaction.clients.map((client) => client.fullName).join(', ') }}
+        </p>
+      </section>
+
       <section :class="props.compactMode ? 'grid gap-2 lg:grid-cols-[1.25fr_1fr_1fr]' : 'grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]'">
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
           <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">

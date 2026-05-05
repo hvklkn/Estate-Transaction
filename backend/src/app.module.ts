@@ -5,9 +5,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { envValidationSchema } from '@/config/env.validation';
 import { AgentsModule } from '@/modules/agents/agents.module';
 import { BalanceModule } from '@/modules/balance/balance.module';
+import { ClientsModule } from '@/modules/clients/clients.module';
 import { CommissionsModule } from '@/modules/commissions/commissions.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { OrganizationsModule } from '@/modules/organizations/organizations.module';
+import { PropertiesModule } from '@/modules/properties/properties.module';
 import { StagePolicyModule } from '@/modules/stage-policy/stage-policy.module';
 import { TransactionsModule } from '@/modules/transactions/transactions.module';
 
@@ -28,6 +30,8 @@ import { TransactionsModule } from '@/modules/transactions/transactions.module';
     HealthModule,
     OrganizationsModule,
     AgentsModule,
+    ClientsModule,
+    PropertiesModule,
     BalanceModule,
     TransactionsModule,
     CommissionsModule,
