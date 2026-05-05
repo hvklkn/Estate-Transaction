@@ -36,6 +36,10 @@ useHead(() => ({
 }));
 
 const currentUserName = computed(() => authStore.currentUser?.name ?? null);
+const currentOrganizationName = computed(
+  () => authStore.currentUser?.organization?.name ?? 'No organization'
+);
+const currentUserRoleLabel = computed(() => formatRoleLabel(authStore.currentUser?.role ?? null));
 const navigationItems = computed(() => [
   {
     to: '/transactions',
@@ -91,6 +95,17 @@ const toggleMobileMenu = () => {
 
 const isRouteActive = (targetPath: string): boolean =>
   route.path === targetPath || route.path.startsWith(`${targetPath}/`);
+
+const formatRoleLabel = (role: string | null): string => {
+  if (!role) {
+    return 'No role';
+  }
+
+  return role
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
 
 watch(
   () => route.path,
@@ -181,15 +196,15 @@ watch(
 
             <div
               v-if="currentUserName"
-              class="inline-flex max-w-[140px] items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors sm:max-w-[240px] sm:px-3"
+              class="inline-flex max-w-[300px] items-center gap-3 rounded-lg border px-2 py-1.5 transition-colors lg:max-w-[380px] lg:px-3"
               :class="panelClasses"
             >
-              <span
-                class="truncate text-xs font-medium"
-                :class="'text-white'"
-              >
-                {{ currentUserName }}
-              </span>
+              <div class="min-w-0">
+                <p class="truncate text-xs font-semibold text-white">{{ currentOrganizationName }}</p>
+                <p class="truncate text-[11px] text-blue-100">
+                  {{ currentUserName }} · {{ currentUserRoleLabel }}
+                </p>
+              </div>
               <button
                 type="button"
                 class="shrink-0 text-xs font-medium transition-colors"
@@ -263,7 +278,12 @@ watch(
               v-if="currentUserName"
               class="flex items-center justify-between gap-3 rounded-lg border border-white/35 bg-blue-900/25 px-3 py-2"
             >
-              <span class="truncate text-xs font-medium text-white">{{ currentUserName }}</span>
+              <div class="min-w-0">
+                <p class="truncate text-xs font-semibold text-white">{{ currentOrganizationName }}</p>
+                <p class="truncate text-[11px] text-blue-100">
+                  {{ currentUserName }} · {{ currentUserRoleLabel }}
+                </p>
+              </div>
               <button
                 type="button"
                 class="shrink-0 text-xs font-medium text-blue-100 transition-colors hover:text-white"

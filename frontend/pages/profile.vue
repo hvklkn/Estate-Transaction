@@ -66,9 +66,25 @@ const sessionsError = ref<string | null>(null);
 
 const currentUserName = computed(() => authStore.currentUser?.name ?? '');
 const currentUserEmail = computed(() => authStore.currentUser?.email ?? '');
+const currentOrganizationName = computed(
+  () => authStore.currentUser?.organization?.name ?? 'No organization assigned'
+);
+const currentOrganizationSlug = computed(() => authStore.currentUser?.organization?.slug ?? 'Not available');
+const currentRoleLabel = computed(() => formatRoleLabel(authStore.currentUser?.role ?? null));
 const hasSession = computed(() => Boolean(authStore.sessionToken));
 const twoFactorEnabled = computed(() => Boolean(authStore.currentUser?.twoFactorEnabled));
 const twoFactorVerifiedAt = computed(() => authStore.currentUser?.twoFactorVerifiedAt ?? null);
+
+const formatRoleLabel = (role: string | null): string => {
+  if (!role) {
+    return 'No role';
+  }
+
+  return role
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
 
 const clearMessages = () => {
   profileSuccess.value = null;
@@ -301,6 +317,44 @@ onMounted(async () => {
         <span v-if="currentUserEmail">({{ currentUserEmail }})</span>
       </p>
     </header>
+
+    <article class="panel">
+      <div class="panel-body space-y-4">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Organization</h2>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Your current workspace and access level for this session.
+          </p>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-3">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Organization
+            </p>
+            <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {{ currentOrganizationName }}
+            </p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Slug
+            </p>
+            <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {{ currentOrganizationSlug }}
+            </p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+              Role
+            </p>
+            <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {{ currentRoleLabel }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
 
     <article class="panel">
       <div class="panel-body space-y-5">
