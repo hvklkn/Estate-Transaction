@@ -17,6 +17,24 @@ export const BALANCE_MANAGER_ROLES: readonly AgentRole[] = [
   'finance'
 ];
 
+export const REPORT_VIEWER_ROLES: readonly AgentRole[] = [
+  'super_admin',
+  'office_owner',
+  'admin',
+  'manager',
+  'finance',
+  'agent',
+  'assistant'
+];
+
+export const REPORT_EXPORT_ROLES: readonly AgentRole[] = [
+  'super_admin',
+  'office_owner',
+  'admin',
+  'manager',
+  'finance'
+];
+
 export const RESOURCE_VIEWER_ROLES: readonly AgentRole[] = [
   'super_admin',
   'office_owner',

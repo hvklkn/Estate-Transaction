@@ -168,6 +168,29 @@ export class TransactionsService {
     return transaction;
   }
 
+  async ensureTransactionBelongsToOrganization(
+    transactionId: string | null | undefined,
+    organizationId: string
+  ): Promise<void> {
+    if (!transactionId) {
+      return;
+    }
+
+    this.validateObjectId(transactionId, 'transactionId');
+
+    const exists = await this.transactionModel
+      .exists({
+        _id: new Types.ObjectId(transactionId),
+        organizationId: new Types.ObjectId(organizationId),
+        isDeleted: false
+      })
+      .exec();
+
+    if (!exists) {
+      throw new BadRequestException('Linked transaction was not found for this organization.');
+    }
+  }
+
   async update(
     id: string,
     updateTransactionDto: UpdateTransactionDto,

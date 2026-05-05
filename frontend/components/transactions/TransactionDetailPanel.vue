@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import TransactionFinancialBreakdown from '~/components/transactions/TransactionFinancialBreakdown.vue';
 import TransactionStageBadge from '~/components/transactions/TransactionStageBadge.vue';
 import { useAppI18n } from '~/composables/useAppI18n';
+import { useAuthStore } from '~/stores/auth';
+import { useTasksStore } from '~/stores/tasks';
+import { useTransactionNotesStore } from '~/stores/transaction-notes';
 import { TransactionStage, TransactionType, type Transaction } from '~/types/transaction';
 
 const props = defineProps<{
@@ -12,6 +15,10 @@ const props = defineProps<{
 }>();
 
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
+const authStore = useAuthStore();
+const tasksStore = useTasksStore();
+const transactionNotesStore = useTransactionNotesStore();
+const noteContent = ref('');
 const listingAgentName = computed(
   () => props.transaction.listingAgent?.name?.trim() || 'Unknown Agent'
 );
@@ -33,6 +40,15 @@ const transactionTypeLabel = computed(() =>
 const isCompleted = computed(() => props.transaction.stage === TransactionStage.COMPLETED);
 const creditedAgentAllocations = computed(() =>
   props.transaction.balanceDistributionApplied ? props.transaction.financialBreakdown.agents : []
+);
+const notes = computed(
+  () => transactionNotesStore.notesByTransactionId[props.transaction.id] ?? []
+);
+const relatedTasks = computed(
+  () => tasksStore.relatedTasksByTransactionId[props.transaction.id] ?? []
+);
+const canAddNote = computed(
+  () => authStore.canCreateTenantResources && !props.transaction.isDeleted
 );
 const creditedByLabel = computed(() => {
   if (!props.transaction.balanceDistributionAppliedById) {
@@ -64,6 +80,39 @@ const resolveAllocationAgentName = (agentId: string) => {
 
   return 'Unknown Agent';
 };
+
+const loadActivity = async () => {
+  await Promise.all([
+    transactionNotesStore.fetchNotesForTransaction(props.transaction.id),
+    tasksStore.fetchRelatedTasksForTransaction(props.transaction.id)
+  ]);
+};
+
+const addNote = async () => {
+  const content = noteContent.value.trim();
+  if (!content || !canAddNote.value) {
+    return;
+  }
+
+  try {
+    await transactionNotesStore.createNote(props.transaction.id, content);
+    noteContent.value = '';
+  } catch {
+    // Store error is shown inline.
+  }
+};
+
+watch(
+  () => props.transaction.id,
+  () => {
+    loadActivity().catch(() => undefined);
+  }
+);
+
+onMounted(() => {
+  authStore.hydrateFromStorage();
+  loadActivity().catch(() => undefined);
+});
 </script>
 
 <template>
@@ -261,6 +310,80 @@ const resolveAllocationAgentName = (agentId: string) => {
       >
         {{ t('transactions.history.empty') }}
       </p>
+    </section>
+
+    <section class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h5 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Notes & Activity</h5>
+        <span class="status-chip">{{ notes.length }} notes</span>
+      </div>
+
+      <form v-if="canAddNote" class="space-y-2" @submit.prevent="addNote">
+        <textarea
+          v-model="noteContent"
+          class="input-base min-h-20"
+          :disabled="transactionNotesStore.createNoteTransactionId === props.transaction.id"
+          placeholder="Add a deal note..."
+        ></textarea>
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            class="btn-primary"
+            :disabled="!noteContent.trim() || transactionNotesStore.createNoteTransactionId === props.transaction.id"
+          >
+            {{ transactionNotesStore.createNoteTransactionId === props.transaction.id ? 'Adding...' : 'Add Note' }}
+          </button>
+        </div>
+      </form>
+
+      <p v-if="transactionNotesStore.error" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        {{ transactionNotesStore.error }}
+      </p>
+
+      <div v-if="transactionNotesStore.loadingTransactionId === props.transaction.id" class="space-y-2">
+        <div class="skeleton h-12 w-full"></div>
+        <div class="skeleton h-12 w-full"></div>
+      </div>
+
+      <ul v-else-if="notes.length > 0" class="space-y-2">
+        <li
+          v-for="note in notes"
+          :key="note.id"
+          class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
+        >
+          <div class="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span>{{ note.author?.name ?? 'Unknown author' }}</span>
+            <span>{{ formatDateTime(note.createdAt) }}</span>
+          </div>
+          <p class="whitespace-pre-line text-slate-700 dark:text-slate-200">{{ note.content }}</p>
+        </li>
+      </ul>
+
+      <p
+        v-else
+        class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+      >
+        No notes yet.
+      </p>
+
+      <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
+        <h6 class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+          Related Tasks
+        </h6>
+        <ul v-if="relatedTasks.length > 0" class="mt-2 space-y-2">
+          <li
+            v-for="task in relatedTasks"
+            :key="task.id"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800"
+          >
+            <span class="font-medium text-slate-700 dark:text-slate-200">{{ task.title }}</span>
+            <span class="text-slate-500 dark:text-slate-400">{{ task.status }} · {{ task.priority }}</span>
+          </li>
+        </ul>
+        <p v-else class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          No tasks are linked to this transaction.
+        </p>
+      </div>
     </section>
 
     <TransactionFinancialBreakdown

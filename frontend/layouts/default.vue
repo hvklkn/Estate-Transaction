@@ -50,6 +50,14 @@ const navigationItems = computed(() => [
     label: 'Properties'
   },
   {
+    to: '/tasks',
+    label: 'Tasks'
+  },
+  {
+    to: '/reports',
+    label: 'Reports'
+  },
+  {
     to: '/balance',
     label: 'Balance'
   },
@@ -290,6 +298,7 @@ watch(
               <NuxtLink to="/transactions" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Transactions</NuxtLink>
               <NuxtLink to="/clients" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Clients</NuxtLink>
               <NuxtLink to="/properties" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Properties</NuxtLink>
+              <NuxtLink to="/tasks" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Tasks</NuxtLink>
               <NuxtLink to="/balance" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Balance</NuxtLink>
               <NuxtLink to="/profile" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Profile</NuxtLink>
               <NuxtLink to="/settings" class="transition-colors hover:text-brand-700 dark:hover:text-brand-300">Settings</NuxtLink>

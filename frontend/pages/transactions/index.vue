@@ -13,6 +13,9 @@ import { useAuthStore } from '~/stores/auth';
 import { useBalanceStore } from '~/stores/balance';
 import { useClientsStore } from '~/stores/clients';
 import { usePropertiesStore } from '~/stores/properties';
+import { useReportsStore } from '~/stores/reports';
+import { useTasksStore } from '~/stores/tasks';
+import { useTransactionNotesStore } from '~/stores/transaction-notes';
 import { useTransactionsStore } from '~/stores/transactions';
 import {
   TransactionStage,
@@ -27,6 +30,9 @@ const authStore = useAuthStore();
 const balanceStore = useBalanceStore();
 const clientsStore = useClientsStore();
 const propertiesStore = usePropertiesStore();
+const reportsStore = useReportsStore();
+const tasksStore = useTasksStore();
+const transactionNotesStore = useTransactionNotesStore();
 const route = useRoute();
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 const { settings, hydrateFromStorage } = useUserSettings();
@@ -77,6 +83,12 @@ const balanceSummary = computed(() => balanceStore.summary);
 const recentBalanceMovements = computed(
   () => balanceSummary.value?.recentLedgerEntries.slice(0, 4) ?? []
 );
+const reportsSummary = computed(() => reportsStore.summary);
+const maxDashboardStageCount = computed(() =>
+  Math.max(1, ...reportsSummary.value.transactionCountsByStage.map((item) => item.count))
+);
+const dashboardTopAgents = computed(() => reportsSummary.value.agentPerformance.slice(0, 4));
+const formatReportStageLabel = (stage: string): string => getStageLabel(stage as TransactionStage);
 const showingRange = computed(() => {
   if (totalTransactions.value === 0) {
     return '0-0';
@@ -302,7 +314,10 @@ onMounted(async () => {
     balanceStore.fetchSummary().catch(() => undefined),
     authStore.fetchUsers().catch(() => undefined),
     clientsStore.fetchClients({ force: true }).catch(() => undefined),
-    propertiesStore.fetchProperties({ force: true }).catch(() => undefined)
+    propertiesStore.fetchProperties({ force: true }).catch(() => undefined),
+    reportsStore.fetchSummary().catch(() => undefined),
+    tasksStore.fetchSummary().catch(() => undefined),
+    transactionNotesStore.fetchRecentNotes().catch(() => undefined)
   ]);
   hasInitializedFilters.value = true;
 });
@@ -392,6 +407,129 @@ onUnmounted(() => {
         :helper="t('transactions.metrics.completedAgentEarnings.helper')"
       />
     </div>
+
+    <section class="grid gap-4 xl:grid-cols-3">
+      <article class="panel">
+        <div class="panel-body space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Stage Mix</p>
+            <NuxtLink to="/reports" class="btn-secondary">Reports</NuxtLink>
+          </div>
+          <div class="space-y-3">
+            <div v-for="item in reportsSummary.transactionCountsByStage" :key="item.key" class="space-y-1">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium text-slate-600 dark:text-slate-300">{{ formatReportStageLabel(item.key) }}</span>
+                <span class="text-slate-500">{{ item.count }}</span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                <div class="h-2 rounded-full bg-brand-600" :style="{ width: `${Math.max(8, (item.count / maxDashboardStageCount) * 100)}%` }" />
+              </div>
+            </div>
+            <p v-if="reportsSummary.transactionCountsByStage.length === 0" class="text-xs text-slate-500">
+              No stage data yet.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-body space-y-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Monthly Service Fee</p>
+              <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                {{ formatCurrency(reportsSummary.monthlyServiceFee) }}
+              </p>
+            </div>
+            <NuxtLink to="/reports" class="btn-secondary">Analyze</NuxtLink>
+          </div>
+          <div class="grid gap-2 text-xs sm:grid-cols-2">
+            <span class="status-chip">Agency: {{ formatCurrency(reportsSummary.commissionSummary.agencyTotal) }}</span>
+            <span class="status-chip">Agent pool: {{ formatCurrency(reportsSummary.commissionSummary.agentPoolTotal) }}</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-body space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Top Agents</p>
+            <NuxtLink to="/reports" class="btn-secondary">View</NuxtLink>
+          </div>
+          <ul v-if="dashboardTopAgents.length > 0" class="space-y-2">
+            <li v-for="agent in dashboardTopAgents" :key="agent.agentId" class="flex items-center justify-between gap-3 text-sm">
+              <span class="truncate font-medium text-slate-700 dark:text-slate-300">{{ agent.agentName }}</span>
+              <span class="shrink-0 text-xs text-slate-500">{{ agent.closedDeals }} closed</span>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-slate-500">Closed deal rankings will appear here.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid gap-4 xl:grid-cols-3">
+      <article class="panel xl:col-span-1">
+        <div class="panel-body space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                Task Snapshot
+              </p>
+              <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                {{ tasksStore.summary.pending }}
+              </p>
+              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Open tasks across the office</p>
+            </div>
+            <NuxtLink to="/tasks" class="btn-secondary">Open Tasks</NuxtLink>
+          </div>
+          <div class="grid gap-2 text-xs sm:grid-cols-3">
+            <span class="status-chip">Overdue: {{ tasksStore.summary.overdue }}</span>
+            <span class="status-chip">Today: {{ tasksStore.summary.dueToday }}</span>
+            <span class="status-chip">Week: {{ tasksStore.summary.dueThisWeek }}</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel xl:col-span-2">
+        <div class="panel-body">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Recent Transaction Activity</p>
+            <button
+              type="button"
+              class="btn-secondary"
+              @click="transactionNotesStore.fetchRecentNotes().catch(() => undefined)"
+            >
+              Refresh
+            </button>
+          </div>
+          <ul v-if="transactionNotesStore.recentItems.length > 0" class="space-y-2">
+            <li
+              v-for="note in transactionNotesStore.recentItems"
+              :key="note.id"
+              class="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800/70"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="font-medium text-slate-800 dark:text-slate-200">
+                  {{ note.transaction?.propertyTitle ?? 'Transaction note' }}
+                </p>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                  {{ formatDateTime(note.createdAt) }}
+                </p>
+              </div>
+              <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                {{ note.author?.name ?? 'Unknown author' }}: {{ note.content }}
+              </p>
+            </li>
+          </ul>
+          <p
+            v-else
+            class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+          >
+            No recent transaction notes yet.
+          </p>
+        </div>
+      </article>
+    </section>
 
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-1">
