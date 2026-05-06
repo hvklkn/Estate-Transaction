@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentSession } from '@/common/auth/current-session.decorator';
+import { TEAM_MANAGER_ROLES, TENANT_ADMIN_ROLES } from '@/common/auth/role-permissions';
 import { Roles } from '@/common/auth/roles.decorator';
 import { RolesGuard } from '@/common/auth/roles.guard';
 import { SessionAuthGuard } from '@/common/auth/session-auth.guard';
@@ -50,7 +51,7 @@ export class AgentsController {
   }
 
   @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles('super_admin', 'office_owner', 'admin', 'manager')
+  @Roles(...TEAM_MANAGER_ROLES)
   @Post()
   create(
     @Body() createAgentDto: CreateAgentDto,
@@ -65,7 +66,7 @@ export class AgentsController {
   }
 
   @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles('super_admin', 'office_owner', 'admin', 'manager')
+  @Roles(...TEAM_MANAGER_ROLES)
   @Get()
   findAll(
     @CurrentSession('role') actorRole: AgentRole,
@@ -147,7 +148,7 @@ export class AgentsController {
   }
 
   @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles('super_admin', 'office_owner', 'admin', 'manager')
+  @Roles(...TEAM_MANAGER_ROLES)
   @Get(':id')
   findOne(
     @Param('id') id: string,
@@ -161,7 +162,7 @@ export class AgentsController {
   }
 
   @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles('super_admin', 'office_owner', 'admin')
+  @Roles(...TENANT_ADMIN_ROLES)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -176,7 +177,7 @@ export class AgentsController {
   }
 
   @UseGuards(SessionAuthGuard, RolesGuard)
-  @Roles('super_admin', 'office_owner', 'admin')
+  @Roles(...TENANT_ADMIN_ROLES)
   @Delete(':id')
   async remove(
     @Param('id') id: string,

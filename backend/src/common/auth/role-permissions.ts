@@ -61,6 +61,12 @@ export const RESOURCE_MANAGER_ROLES: readonly AgentRole[] = [
   'manager'
 ];
 
+export const PROPERTY_VIEWER_ROLES: readonly AgentRole[] = RESOURCE_VIEWER_ROLES;
+
+export const PROPERTY_CREATOR_ROLES: readonly AgentRole[] = RESOURCE_CREATOR_ROLES;
+
+export const PROPERTY_MANAGER_ROLES: readonly AgentRole[] = RESOURCE_MANAGER_ROLES;
+
 export const canManageTeam = (role: AgentRole): boolean => TEAM_MANAGER_ROLES.includes(role);
 
 export const canAdministerUsers = (role: AgentRole): boolean => TENANT_ADMIN_ROLES.includes(role);
@@ -75,6 +81,14 @@ export const canCreateTenantResources = (role: AgentRole): boolean =>
 
 export const canManageTenantResources = (role: AgentRole): boolean =>
   RESOURCE_MANAGER_ROLES.includes(role);
+
+export const canViewProperties = (role: AgentRole): boolean => PROPERTY_VIEWER_ROLES.includes(role);
+
+export const canCreateProperties = (role: AgentRole): boolean =>
+  PROPERTY_CREATOR_ROLES.includes(role);
+
+export const canManageProperties = (role: AgentRole): boolean =>
+  PROPERTY_MANAGER_ROLES.includes(role);
 
 export const canAssignRole = (actorRole: AgentRole, targetRole: AgentRole): boolean => {
   if (actorRole === 'super_admin') {

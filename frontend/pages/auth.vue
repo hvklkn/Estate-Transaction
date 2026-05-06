@@ -48,12 +48,8 @@ const forgotError = ref<string | null>(null);
 const forgotSuccess = ref<string | null>(null);
 const isForgotSubmitting = ref(false);
 
-const isSubmitting = computed(
-  () => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value
-);
-const registrationEnabled = computed(
-  () => String(config.public.registrationEnabled ?? 'true').toLowerCase() !== 'false'
-);
+const isSubmitting = computed(() => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value);
+const registrationEnabled = computed(() => String(config.public.registrationEnabled ?? 'true').toLowerCase() !== 'false');
 
 const switchMode = (nextMode: 'login' | 'register') => {
   if (nextMode === 'register' && !registrationEnabled.value) {
@@ -83,10 +79,7 @@ const onLogin = async () => {
   if (loginResult && 'requiresTwoFactor' in loginResult) {
     loginTwoFactorRequired.value = true;
     loginTwoFactorMethod.value = loginResult.twoFactorMethod;
-    authHint.value =
-      loginTwoFactorMethod.value === 'authenticator'
-        ? 'Enter the 6-digit code from your authenticator app.'
-        : 'Enter the 6-digit SMS verification code.';
+    authHint.value = loginTwoFactorMethod.value === 'authenticator' ? 'Enter the 6-digit code from your authenticator app.' : 'Enter the 6-digit SMS verification code.';
     return;
   }
 
@@ -255,25 +248,11 @@ const onResetPasswordWithCode = async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <div
-          v-if="!showForgotPassword"
-          class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1"
-        >
-          <button
-            v-if="registrationEnabled"
-            type="button"
-            class="rounded-md px-3 py-1.5 text-sm font-medium"
-            :class="mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'"
-            @click="switchMode('login')"
-          >
+        <div v-if="!showForgotPassword" class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <button v-if="registrationEnabled" type="button" class="rounded-md px-3 py-1.5 text-sm font-medium" :class="mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'" @click="switchMode('login')">
             {{ t('auth.actions.login') }}
           </button>
-          <button
-            type="button"
-            class="rounded-md px-3 py-1.5 text-sm font-medium"
-            :class="mode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'"
-            @click="switchMode('register')"
-          >
+          <button type="button" class="rounded-md px-3 py-1.5 text-sm font-medium" :class="mode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'" @click="switchMode('register')">
             {{ t('auth.actions.register') }}
           </button>
         </div>
@@ -282,146 +261,68 @@ const onResetPasswordWithCode = async () => {
           <div v-if="authStore.error" class="alert-error">
             {{ authStore.error }}
           </div>
-          <div
-            v-else-if="authHint"
-            class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
-          >
+          <div v-else-if="authHint" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
             {{ authHint }}
           </div>
+          <div v-else-if="mode === 'register'" class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">Public registration creates a workspace owner account. Existing team members are created from Team after sign-in.</div>
 
           <form v-if="mode === 'login'" class="space-y-4" @submit.prevent="onLogin">
             <label class="block">
               <span class="field-label">{{ t('auth.fields.email') }}</span>
-              <input
-                v-model="loginForm.email"
-                type="email"
-                class="input-base"
-                :placeholder="t('auth.placeholders.email')"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="loginForm.email" type="email" class="input-base" :placeholder="t('auth.placeholders.email')" :disabled="isSubmitting" required />
             </label>
-
-            
 
             <label class="block">
               <span class="field-label">Password</span>
-              <input
-                v-model="loginForm.password"
-                type="password"
-                class="input-base"
-                :disabled="isSubmitting"
-                autocomplete="current-password"
-                required
-              />
+              <input v-model="loginForm.password" type="password" class="input-base" :disabled="isSubmitting" autocomplete="current-password" required />
             </label>
 
             <label v-if="loginTwoFactorRequired" class="block">
               <span class="field-label">
                 {{ loginTwoFactorMethod === 'authenticator' ? 'Authenticator Code' : 'SMS Code' }}
               </span>
-              <input
-                v-model="loginForm.twoFactorCode"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                class="input-base"
-                :disabled="isSubmitting"
-                placeholder="6-digit code"
-                required
-              />
+              <input v-model="loginForm.twoFactorCode" type="text" inputmode="numeric" maxlength="6" class="input-base" :disabled="isSubmitting" placeholder="6-digit code" required />
             </label>
 
             <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
               {{ authStore.isLoggingIn ? t('auth.actions.loggingIn') : t('auth.actions.login') }}
             </button>
 
-            <button
-              type="button"
-              class="w-full text-sm font-medium text-brand-700 hover:text-brand-800"
-              :disabled="isSubmitting"
-              @click="openForgotPassword"
-            >
-              Forgot Password?
-            </button>
+            <button type="button" class="w-full text-sm font-medium text-brand-700 hover:text-brand-800" :disabled="isSubmitting" @click="openForgotPassword">Forgot Password?</button>
           </form>
 
           <form v-else-if="registrationEnabled" class="space-y-4" @submit.prevent="onRegister">
             <label class="block">
               <span class="field-label">{{ t('auth.fields.name') }}</span>
-              <input
-                v-model="registerForm.name"
-                type="text"
-                class="input-base"
-                :placeholder="t('auth.placeholders.name')"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="registerForm.name" type="text" class="input-base" :placeholder="t('auth.placeholders.name')" :disabled="isSubmitting" required />
             </label>
 
             <label class="block">
               <span class="field-label">{{ t('auth.fields.email') }}</span>
-              <input
-                v-model="registerForm.email"
-                type="email"
-                class="input-base"
-                :placeholder="t('auth.placeholders.email')"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="registerForm.email" type="email" class="input-base" :placeholder="t('auth.placeholders.email')" :disabled="isSubmitting" required />
             </label>
             <label class="block">
               <span class="field-label">Organization Name</span>
-              <input
-                v-model="registerForm.organizationName"
-                type="text"
-                class="input-base"
-                placeholder="Kalkan Estate"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="registerForm.organizationName" type="text" class="input-base" placeholder="Kalkan Estate" :disabled="isSubmitting" required />
             </label>
 
             <label class="block">
               <span class="field-label">Organization Slug</span>
-              <input
-                v-model="registerForm.organizationSlug"
-                type="text"
-                class="input-base"
-                placeholder="kalkan-estate-veli-2026"
-                :disabled="isSubmitting"
-                required
-              />
-            </label>            
+              <input v-model="registerForm.organizationSlug" type="text" class="input-base" placeholder="kalkan-estate-veli-2026" :disabled="isSubmitting" required />
+            </label>
 
             <label class="block">
               <span class="field-label">Password</span>
-              <input
-                v-model="registerForm.password"
-                type="password"
-                class="input-base"
-                :disabled="isSubmitting"
-                autocomplete="new-password"
-                required
-              />
+              <input v-model="registerForm.password" type="password" class="input-base" :disabled="isSubmitting" autocomplete="new-password" required />
             </label>
 
             <label class="block">
               <span class="field-label">Confirm Password</span>
-              <input
-                v-model="registerForm.confirmPassword"
-                type="password"
-                class="input-base"
-                :disabled="isSubmitting"
-                autocomplete="new-password"
-                required
-              />
+              <input v-model="registerForm.confirmPassword" type="password" class="input-base" :disabled="isSubmitting" autocomplete="new-password" required />
             </label>
 
             <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-              {{
-                authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.register')
-              }}
+              {{ authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.register') }}
             </button>
           </form>
         </template>
@@ -429,85 +330,41 @@ const onResetPasswordWithCode = async () => {
         <template v-else>
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold text-slate-900">Reset Password</h2>
-            <button
-              type="button"
-              class="text-sm font-medium text-slate-600 hover:text-slate-900"
-              :disabled="isSubmitting"
-              @click="closeForgotPassword"
-            >
-              Back
-            </button>
+            <button type="button" class="text-sm font-medium text-slate-600 hover:text-slate-900" :disabled="isSubmitting" @click="closeForgotPassword">Back</button>
           </div>
 
           <div v-if="forgotError" class="alert-error">
             {{ forgotError }}
           </div>
-          <div
-            v-else-if="forgotSuccess"
-            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-          >
+          <div v-else-if="forgotSuccess" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
             {{ forgotSuccess }}
           </div>
 
           <form v-if="forgotStep === 'request'" class="space-y-4" @submit.prevent="onRequestResetCode">
             <label class="block">
               <span class="field-label">E-mail</span>
-              <input
-                v-model="forgotForm.email"
-                type="email"
-                class="input-base"
-                placeholder="you@example.com"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="forgotForm.email" type="email" class="input-base" placeholder="you@example.com" :disabled="isSubmitting" required />
             </label>
-            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-              Send Verification Code
-            </button>
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">Send Verification Code</button>
           </form>
 
           <form v-else class="space-y-4" @submit.prevent="onResetPasswordWithCode">
             <label class="block">
               <span class="field-label">Verification Code</span>
-              <input
-                v-model="forgotForm.code"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                class="input-base"
-                placeholder="6-digit code"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="forgotForm.code" type="text" inputmode="numeric" maxlength="6" class="input-base" placeholder="6-digit code" :disabled="isSubmitting" required />
             </label>
 
             <label class="block">
               <span class="field-label">New Password</span>
-              <input
-                v-model="forgotForm.newPassword"
-                type="password"
-                class="input-base"
-                autocomplete="new-password"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="forgotForm.newPassword" type="password" class="input-base" autocomplete="new-password" :disabled="isSubmitting" required />
             </label>
 
             <label class="block">
               <span class="field-label">Confirm New Password</span>
-              <input
-                v-model="forgotForm.confirmNewPassword"
-                type="password"
-                class="input-base"
-                autocomplete="new-password"
-                :disabled="isSubmitting"
-                required
-              />
+              <input v-model="forgotForm.confirmNewPassword" type="password" class="input-base" autocomplete="new-password" :disabled="isSubmitting" required />
             </label>
 
-            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">
-              Reset Password
-            </button>
+            <button type="submit" class="btn-primary w-full" :disabled="isSubmitting">Reset Password</button>
           </form>
         </template>
       </div>

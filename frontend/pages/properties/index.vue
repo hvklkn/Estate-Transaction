@@ -4,16 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useAuthStore } from '~/stores/auth';
 import { useClientsStore } from '~/stores/clients';
 import { usePropertiesStore } from '~/stores/properties';
-import {
-  PROPERTY_LISTING_TYPE_OPTIONS,
-  PROPERTY_STATUS_OPTIONS,
-  PROPERTY_TYPE_OPTIONS,
-  type CreatePropertyPayload,
-  type Property,
-  type PropertyListingType,
-  type PropertyStatus,
-  type PropertyType
-} from '~/types/property';
+import { PROPERTY_LISTING_TYPE_OPTIONS, PROPERTY_STATUS_OPTIONS, PROPERTY_TYPE_OPTIONS, type CreatePropertyPayload, type Property, type PropertyListingType, type PropertyStatus, type PropertyType } from '~/types/property';
 
 const authStore = useAuthStore();
 const clientsStore = useClientsStore();
@@ -37,19 +28,27 @@ const form = reactive({
   ownerClientId: ''
 });
 
-const selectedProperty = computed(
-  () => propertiesStore.items.find((property) => property.id === selectedPropertyId.value) ?? null
-);
+const selectedProperty = computed(() => propertiesStore.items.find((property) => property.id === selectedPropertyId.value) ?? null);
 const isEditing = computed(() => Boolean(selectedProperty.value));
 const canCreate = computed(() => authStore.canCreateTenantResources);
 const canManage = computed(() => authStore.canManageTenantResources);
-const canSubmit = computed(
-  () =>
-    canCreate.value &&
-    form.title.trim().length >= 2 &&
-    !propertiesStore.isCreating &&
-    !propertiesStore.updatePropertyId
-);
+const canEditForm = computed(() => (isEditing.value ? canManage.value : canCreate.value));
+const selectedOwnerClient = computed(() => (form.ownerClientId ? (clientsStore.items.find((client) => client.id === form.ownerClientId) ?? null) : null));
+const selectedOwnerClientMissing = computed(() => Boolean(form.ownerClientId) && !clientsStore.isLoading && !selectedOwnerClient.value);
+const canSubmit = computed(() => canEditForm.value && form.title.trim().length >= 2 && !selectedOwnerClientMissing.value && !propertiesStore.isCreating && !propertiesStore.updatePropertyId);
+const currentRoleLabel = computed(() => authStore.currentUser?.role ?? 'unknown');
+const currentOrganizationLabel = computed(() => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? 'none');
+const permissionNotice = computed(() => {
+  if (canEditForm.value) {
+    return '';
+  }
+
+  if (isEditing.value && canCreate.value) {
+    return 'Your role can create and view properties, but cannot edit or archive them.';
+  }
+
+  return 'Your role can view properties, but cannot create, edit, or archive them.';
+});
 
 const formatMoney = (value: number | null, currency: string) =>
   value === null
@@ -92,6 +91,7 @@ const editProperty = (property: Property) => {
 
 const buildPayload = (): CreatePropertyPayload => {
   const price = Number(form.price);
+  const ownerClientId = form.ownerClientId.trim();
 
   return {
     title: form.title.trim(),
@@ -104,12 +104,15 @@ const buildPayload = (): CreatePropertyPayload => {
     currency: form.currency.trim().toUpperCase() || 'USD',
     status: form.status,
     description: form.description.trim() || undefined,
-    ownerClientId: form.ownerClientId || undefined
+    ...(ownerClientId ? { ownerClientId } : {})
   };
 };
 
 const submitForm = async () => {
   if (!canSubmit.value) {
+    if (selectedOwnerClientMissing.value) {
+      propertiesStore.setError("Owner client must be selected from this organization's active clients.");
+    }
     return;
   }
 
@@ -150,10 +153,10 @@ const deleteProperty = async (property: Property) => {
 
 onMounted(async () => {
   authStore.hydrateFromStorage();
-  await Promise.all([
-    clientsStore.fetchClients({ force: true }),
-    propertiesStore.fetchProperties({ force: true })
-  ]);
+  if (authStore.sessionToken) {
+    await authStore.refreshCurrentUser({ silent: true }).catch(() => undefined);
+  }
+  await Promise.all([clientsStore.fetchClients({ force: true }), propertiesStore.fetchProperties({ force: true })]);
 });
 </script>
 
@@ -164,8 +167,12 @@ onMounted(async () => {
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Inventory</p>
           <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Properties</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows.
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows.</p>
+          <p class="mt-3 text-xs text-slate-500">
+            Session role:
+            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentRoleLabel }}</span>
+            · Organization:
+            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentOrganizationLabel }}</span>
           </p>
         </div>
         <button type="button" class="btn-secondary" :disabled="propertiesStore.isLoading" @click="propertiesStore.refreshProperties()">
@@ -207,32 +214,25 @@ onMounted(async () => {
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-900 dark:text-slate-100">{{ property.title }}</p>
+                    <p class="font-semibold text-slate-900 dark:text-slate-100">
+                      {{ property.title }}
+                    </p>
                     <span class="status-chip capitalize">{{ property.status }}</span>
                     <span class="status-chip capitalize">{{ property.listingType }}</span>
                   </div>
                   <p class="mt-1 text-sm text-slate-500">
-                    {{ property.city || 'City not set' }}<span v-if="property.district">, {{ property.district }}</span> ·
+                    {{ property.city || 'City not set' }}<span v-if="property.district">, {{ property.district }}</span>
+                    ·
                     {{ formatMoney(property.price, property.currency) }}
                   </p>
-                  <p v-if="property.ownerClient" class="mt-1 text-xs text-slate-500">
-                    Owner: {{ property.ownerClient.fullName }}
-                  </p>
+                  <p v-if="property.ownerClient" class="mt-1 text-xs text-slate-500">Owner: {{ property.ownerClient.fullName }}</p>
                   <p v-if="property.description" class="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                     {{ property.description }}
                   </p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
-                  <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="editProperty(property)">
-                    Edit
-                  </button>
-                  <button
-                    v-if="canManage"
-                    type="button"
-                    class="btn-secondary px-3 py-1.5 text-xs"
-                    :disabled="propertiesStore.deletePropertyId === property.id"
-                    @click="deleteProperty(property)"
-                  >
+                  <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="editProperty(property)">Edit</button>
+                  <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" :disabled="propertiesStore.deletePropertyId === property.id" @click="deleteProperty(property)">
                     {{ propertiesStore.deletePropertyId === property.id ? 'Archiving...' : 'Archive' }}
                   </button>
                 </div>
@@ -244,21 +244,24 @@ onMounted(async () => {
 
       <aside class="panel">
         <div class="panel-body">
-          <h2 class="text-lg font-semibold">{{ isEditing ? 'Edit Property' : 'Create Property' }}</h2>
-          <p v-if="!canCreate" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Your role can view properties, but cannot create or edit them.
+          <h2 class="text-lg font-semibold">
+            {{ isEditing ? 'Edit Property' : 'Create Property' }}
+          </h2>
+          <p v-if="permissionNotice" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {{ permissionNotice }}
           </p>
+          <p v-if="selectedOwnerClientMissing" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Owner client is not in the active client list for this organization.</p>
 
           <form class="mt-5 space-y-4" @submit.prevent="submitForm">
             <label class="block">
               <span class="field-label">Title</span>
-              <input v-model="form.title" class="input-base" type="text" :disabled="!canCreate" />
+              <input v-model="form.title" class="input-base" type="text" :disabled="!canEditForm" />
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
                 <span class="field-label">Type</span>
-                <select v-model="form.type" class="input-base" :disabled="!canCreate">
+                <select v-model="form.type" class="input-base" :disabled="!canEditForm">
                   <option v-for="option in PROPERTY_TYPE_OPTIONS" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
@@ -266,7 +269,7 @@ onMounted(async () => {
               </label>
               <label class="block">
                 <span class="field-label">Listing</span>
-                <select v-model="form.listingType" class="input-base" :disabled="!canCreate">
+                <select v-model="form.listingType" class="input-base" :disabled="!canEditForm">
                   <option v-for="option in PROPERTY_LISTING_TYPE_OPTIONS" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
@@ -276,7 +279,7 @@ onMounted(async () => {
 
             <label class="block">
               <span class="field-label">Owner Client</span>
-              <select v-model="form.ownerClientId" class="input-base" :disabled="!canCreate || clientsStore.isLoading">
+              <select v-model="form.ownerClientId" class="input-base" :disabled="!canEditForm || clientsStore.isLoading">
                 <option value="">No owner linked</option>
                 <option v-for="client in clientsStore.items" :key="client.id" :value="client.id">
                   {{ client.fullName }}
@@ -286,34 +289,34 @@ onMounted(async () => {
 
             <label class="block">
               <span class="field-label">Address</span>
-              <input v-model="form.address" class="input-base" type="text" :disabled="!canCreate" />
+              <input v-model="form.address" class="input-base" type="text" :disabled="!canEditForm" />
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
                 <span class="field-label">City</span>
-                <input v-model="form.city" class="input-base" type="text" :disabled="!canCreate" />
+                <input v-model="form.city" class="input-base" type="text" :disabled="!canEditForm" />
               </label>
               <label class="block">
                 <span class="field-label">District</span>
-                <input v-model="form.district" class="input-base" type="text" :disabled="!canCreate" />
+                <input v-model="form.district" class="input-base" type="text" :disabled="!canEditForm" />
               </label>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-[1fr_110px]">
               <label class="block">
                 <span class="field-label">Price</span>
-                <input v-model="form.price" class="input-base" min="0" step="0.01" type="number" :disabled="!canCreate" />
+                <input v-model="form.price" class="input-base" min="0" step="0.01" type="number" :disabled="!canEditForm" />
               </label>
               <label class="block">
                 <span class="field-label">Currency</span>
-                <input v-model="form.currency" class="input-base uppercase" maxlength="3" type="text" :disabled="!canCreate" />
+                <input v-model="form.currency" class="input-base uppercase" maxlength="3" type="text" :disabled="!canEditForm" />
               </label>
             </div>
 
             <label class="block">
               <span class="field-label">Status</span>
-              <select v-model="form.status" class="input-base" :disabled="!canCreate">
+              <select v-model="form.status" class="input-base" :disabled="!canEditForm">
                 <option v-for="option in PROPERTY_STATUS_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
@@ -322,13 +325,11 @@ onMounted(async () => {
 
             <label class="block">
               <span class="field-label">Description</span>
-              <textarea v-model="form.description" class="input-base min-h-28" :disabled="!canCreate"></textarea>
+              <textarea v-model="form.description" class="input-base min-h-28" :disabled="!canEditForm"></textarea>
             </label>
 
             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-              <button type="button" class="btn-secondary" :disabled="propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId)" @click="resetForm">
-                Clear
-              </button>
+              <button type="button" class="btn-secondary" :disabled="propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId)" @click="resetForm">Clear</button>
               <button type="submit" class="btn-primary" :disabled="!canSubmit">
                 {{ propertiesStore.isCreating || propertiesStore.updatePropertyId ? 'Saving...' : isEditing ? 'Save Property' : 'Create Property' }}
               </button>

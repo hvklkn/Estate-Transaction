@@ -29,15 +29,14 @@ import { ResetPasswordWithCodeDto } from '@/modules/agents/dto/reset-password-wi
 import { SetupTwoFactorDto } from '@/modules/agents/dto/setup-two-factor.dto';
 import { UpdateAgentDto } from '@/modules/agents/dto/update-agent.dto';
 import { VerifyTwoFactorDto } from '@/modules/agents/dto/verify-two-factor.dto';
-import { Agent, AgentDocument, AgentRole, TwoFactorMethod } from '@/modules/agents/schemas/agent.schema';
 import {
-  canAdministerUsers,
-  canAssignRole,
-  canManageTeam
-} from '@/common/auth/role-permissions';
-import {
-  OrganizationView
-} from '@/modules/organizations/services/organizations.service';
+  Agent,
+  AgentDocument,
+  AgentRole,
+  TwoFactorMethod
+} from '@/modules/agents/schemas/agent.schema';
+import { canAdministerUsers, canAssignRole, canManageTeam } from '@/common/auth/role-permissions';
+import { OrganizationView } from '@/modules/organizations/services/organizations.service';
 import { OrganizationsService } from '@/modules/organizations/services/organizations.service';
 
 type SanitizedAgent = {
@@ -182,6 +181,19 @@ export class AgentsService implements OnModuleInit {
     const hasAnyAgents = await this.hasAnyAgents();
     const hasAnyOrganizations = await this.organizationsService.hasAnyOrganizations();
     const isFirstWorkspaceUser = !hasAnyAgents || !hasAnyOrganizations;
+    const isPublicExistingOrganizationJoin =
+      !isFirstWorkspaceUser &&
+      Boolean(
+        createAgentDto.organizationId ||
+        (createAgentDto.organizationSlug && !createAgentDto.organizationName)
+      );
+
+    if (isPublicExistingOrganizationJoin) {
+      throw new ForbiddenException(
+        'Existing organization team members must be created by an office owner, admin, or manager from the authenticated app.'
+      );
+    }
+
     const shouldCreateOrganization =
       isFirstWorkspaceUser ||
       Boolean(createAgentDto.organizationName && !createAgentDto.organizationId);
@@ -480,10 +492,7 @@ export class AgentsService implements OnModuleInit {
     const matchedAgents = await this.agentModel
       .find({
         ...(organizationId ? { organizationId: new Types.ObjectId(organizationId) } : {}),
-        $or: [
-          { name: { $regex: regex } },
-          { email: { $regex: regex } }
-        ]
+        $or: [{ name: { $regex: regex } }, { email: { $regex: regex } }]
       })
       .select('_id')
       .limit(100)
@@ -493,7 +502,10 @@ export class AgentsService implements OnModuleInit {
     return matchedAgents.map((agent) => agent._id.toString());
   }
 
-  async updateMyProfile(sessionToken: string, updateAgentDto: UpdateAgentDto): Promise<SanitizedAgent> {
+  async updateMyProfile(
+    sessionToken: string,
+    updateAgentDto: UpdateAgentDto
+  ): Promise<SanitizedAgent> {
     const { agent } = await this.resolveAgentBySessionToken(sessionToken);
 
     if (updateAgentDto.name !== undefined) {
@@ -532,7 +544,10 @@ export class AgentsService implements OnModuleInit {
     }
   }
 
-  async changeMyPassword(sessionToken: string, payload: ChangePasswordDto): Promise<{ success: true }> {
+  async changeMyPassword(
+    sessionToken: string,
+    payload: ChangePasswordDto
+  ): Promise<{ success: true }> {
     if (payload.newPassword !== payload.confirmNewPassword) {
       throw new BadRequestException('newPassword and confirmNewPassword do not match.');
     }
@@ -556,7 +571,6 @@ export class AgentsService implements OnModuleInit {
   async requestPasswordResetCode(
     forgotPasswordDto: ForgotPasswordDto
   ): Promise<{ success: true; developmentCode?: string }> {
-
     const agent = await this.agentModel
       .findOne({ email: forgotPasswordDto.email })
       .select('+passwordResetCodeHash +passwordResetExpiresAt +passwordResetRequestedAt')
@@ -1008,10 +1022,7 @@ export class AgentsService implements OnModuleInit {
           message?: string;
           error?: { message?: string };
         };
-        providerMessage =
-          errorPayload.message?.trim() ??
-          errorPayload.error?.message?.trim() ??
-          '';
+        providerMessage = errorPayload.message?.trim() ?? errorPayload.error?.message?.trim() ?? '';
       } catch {
         providerMessage = '';
       }

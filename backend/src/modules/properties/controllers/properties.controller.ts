@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import {
-  RESOURCE_CREATOR_ROLES,
-  RESOURCE_MANAGER_ROLES,
-  RESOURCE_VIEWER_ROLES
+  PROPERTY_CREATOR_ROLES,
+  PROPERTY_MANAGER_ROLES,
+  PROPERTY_VIEWER_ROLES
 } from '@/common/auth/role-permissions';
 import { CurrentSession } from '@/common/auth/current-session.decorator';
 import { Roles } from '@/common/auth/roles.decorator';
@@ -19,7 +19,7 @@ export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
   @Post()
-  @Roles(...RESOURCE_CREATOR_ROLES)
+  @Roles(...PROPERTY_CREATOR_ROLES)
   create(
     @Body() createPropertyDto: CreatePropertyDto,
     @CurrentSession('agentId') currentAgentId: string,
@@ -29,19 +29,19 @@ export class PropertiesController {
   }
 
   @Get()
-  @Roles(...RESOURCE_VIEWER_ROLES)
+  @Roles(...PROPERTY_VIEWER_ROLES)
   findAll(@CurrentSession('organizationId') organizationId: string) {
     return this.propertiesService.findAll(organizationId);
   }
 
   @Get(':id')
-  @Roles(...RESOURCE_VIEWER_ROLES)
+  @Roles(...PROPERTY_VIEWER_ROLES)
   findOne(@Param('id') id: string, @CurrentSession('organizationId') organizationId: string) {
     return this.propertiesService.findOne(id, organizationId);
   }
 
   @Patch(':id')
-  @Roles(...RESOURCE_MANAGER_ROLES)
+  @Roles(...PROPERTY_MANAGER_ROLES)
   update(
     @Param('id') id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,
@@ -52,7 +52,7 @@ export class PropertiesController {
   }
 
   @Delete(':id')
-  @Roles(...RESOURCE_MANAGER_ROLES)
+  @Roles(...PROPERTY_MANAGER_ROLES)
   async remove(
     @Param('id') id: string,
     @CurrentSession('agentId') currentAgentId: string,

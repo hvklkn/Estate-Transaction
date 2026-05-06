@@ -14,6 +14,15 @@ import { PropertyListingType } from '@/modules/properties/domain/property-listin
 import { PropertyStatus } from '@/modules/properties/domain/property-status.enum';
 import { PropertyType } from '@/modules/properties/domain/property-type.enum';
 
+const normalizeOptionalObjectId = (value: unknown): unknown => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : undefined;
+};
+
 export class CreatePropertyDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
@@ -68,7 +77,7 @@ export class CreatePropertyDto {
   @IsOptional()
   description?: string;
 
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }) => normalizeOptionalObjectId(value))
   @IsMongoId()
   @IsOptional()
   ownerClientId?: string;

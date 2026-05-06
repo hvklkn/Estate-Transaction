@@ -1,23 +1,7 @@
 import { normalizeClientSummary } from '~/services/clients.api';
-import {
-  createStoredAuthHeaders,
-  isObject,
-  normalizeAgentSummary,
-  normalizeOptionalIsoDate,
-  toOptionalObjectIdString,
-  toOptionalString,
-  toRequiredObjectIdString,
-  toRequiredString
-} from '~/services/resource-normalizers';
-import type {
-  CreatePropertyPayload,
-  Property,
-  PropertyListingType,
-  PropertyStatus,
-  PropertySummary,
-  PropertyType,
-  UpdatePropertyPayload
-} from '~/types/property';
+import { toApiErrorMessage } from '~/services/api.errors';
+import { createStoredAuthHeaders, isObject, normalizeAgentSummary, normalizeOptionalIsoDate, toOptionalObjectIdString, toOptionalString, toRequiredObjectIdString, toRequiredString } from '~/services/resource-normalizers';
+import type { CreatePropertyPayload, Property, PropertyListingType, PropertyStatus, PropertySummary, PropertyType, UpdatePropertyPayload } from '~/types/property';
 
 const PROPERTIES_ENDPOINT = '/properties';
 const PROPERTY_ENDPOINT = (id: string) => `${PROPERTIES_ENDPOINT}/${id}`;
@@ -26,6 +10,18 @@ const LISTING_TYPES = new Set<PropertyListingType>(['sale', 'rent']);
 const PROPERTY_STATUSES = new Set<PropertyStatus>(['draft', 'active', 'reserved', 'sold', 'rented', 'archived']);
 
 type ObjectIdLike = string | { toString(): string };
+
+interface PropertyApiErrorPayload {
+  message?: string | string[];
+  reason?: string;
+  currentRole?: string;
+  allowedRoles?: string[];
+}
+
+interface PropertyApiErrorEnvelope {
+  statusCode?: number;
+  error?: string | PropertyApiErrorPayload;
+}
 
 interface ApiProperty {
   _id?: ObjectIdLike;
@@ -49,23 +45,73 @@ interface ApiProperty {
   updatedAt?: string;
 }
 
-const normalizePropertyType = (value: unknown): PropertyType =>
-  typeof value === 'string' && PROPERTY_TYPES.has(value as PropertyType)
-    ? (value as PropertyType)
-    : 'other';
+const normalizePropertyType = (value: unknown): PropertyType => (typeof value === 'string' && PROPERTY_TYPES.has(value as PropertyType) ? (value as PropertyType) : 'other');
 
-const normalizeListingType = (value: unknown): PropertyListingType =>
-  typeof value === 'string' && LISTING_TYPES.has(value as PropertyListingType)
-    ? (value as PropertyListingType)
-    : 'sale';
+const normalizeListingType = (value: unknown): PropertyListingType => (typeof value === 'string' && LISTING_TYPES.has(value as PropertyListingType) ? (value as PropertyListingType) : 'sale');
 
-const normalizeStatus = (value: unknown): PropertyStatus =>
-  typeof value === 'string' && PROPERTY_STATUSES.has(value as PropertyStatus)
-    ? (value as PropertyStatus)
-    : 'draft';
+const normalizeStatus = (value: unknown): PropertyStatus => (typeof value === 'string' && PROPERTY_STATUSES.has(value as PropertyStatus) ? (value as PropertyStatus) : 'draft');
 
-const normalizePrice = (value: unknown): number | null =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+const normalizePrice = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null);
+
+const normalizePropertyPayload = <T extends CreatePropertyPayload | UpdatePropertyPayload>(payload: T): T => {
+  const normalizedPayload = { ...payload };
+
+  if (typeof normalizedPayload.ownerClientId === 'string') {
+    const ownerClientId = normalizedPayload.ownerClientId.trim();
+    if (ownerClientId.length > 0) {
+      normalizedPayload.ownerClientId = ownerClientId;
+    } else {
+      delete normalizedPayload.ownerClientId;
+    }
+  }
+
+  return normalizedPayload;
+};
+
+const getApiErrorEnvelope = (unknownError: unknown): PropertyApiErrorEnvelope | undefined => (unknownError as { data?: PropertyApiErrorEnvelope })?.data;
+
+const getApiErrorStatus = (unknownError: unknown): number | undefined => {
+  const errorRecord = unknownError as {
+    status?: number;
+    statusCode?: number;
+    response?: { status?: number };
+  };
+
+  return errorRecord.status ?? errorRecord.statusCode ?? errorRecord.response?.status ?? getApiErrorEnvelope(unknownError)?.statusCode;
+};
+
+const getPropertyApiErrorMessage = (unknownError: unknown, action: string): string => {
+  const baseMessage = toApiErrorMessage(unknownError);
+  const status = getApiErrorStatus(unknownError);
+  const errorPayload = getApiErrorEnvelope(unknownError)?.error;
+  const currentRole = isObject(errorPayload) && typeof errorPayload.currentRole === 'string' ? errorPayload.currentRole : null;
+
+  if (status === 401) {
+    return `Session error while ${action}: ${baseMessage}. Please sign in again.`;
+  }
+
+  if (status === 403) {
+    return [`Permission error while ${action}: ${baseMessage}.`, currentRole ? `Current backend role: ${currentRole}.` : '', 'Refresh your session or sign in again if your role was recently changed.'].filter(Boolean).join(' ');
+  }
+
+  if (status === 400) {
+    if (/linked clients?|same organization/i.test(baseMessage)) {
+      return `Owner client organization mismatch while ${action}: ${baseMessage}`;
+    }
+
+    return `Validation error while ${action}: ${baseMessage}`;
+  }
+
+  return baseMessage;
+};
+
+const withPropertyApiError = async <T>(action: string, request: () => Promise<T>): Promise<T> => {
+  try {
+    return await request();
+  } catch (unknownError) {
+    throw new Error(getPropertyApiErrorMessage(unknownError, action));
+  }
+};
 
 export const normalizePropertySummary = (apiProperty: ApiProperty): PropertySummary => ({
   id: toRequiredObjectIdString(apiProperty.id ?? apiProperty._id, 'property.id'),
@@ -80,16 +126,8 @@ export const normalizePropertySummary = (apiProperty: ApiProperty): PropertySumm
 });
 
 export const normalizeProperty = (apiProperty: ApiProperty): Property => {
-  const ownerClientId =
-    typeof apiProperty.ownerClientId === 'string'
-      ? toOptionalObjectIdString(apiProperty.ownerClientId)
-      : isObject(apiProperty.ownerClientId)
-        ? toOptionalObjectIdString(apiProperty.ownerClientId.id ?? apiProperty.ownerClientId._id)
-        : null;
-  const ownerClient =
-    isObject(apiProperty.ownerClientId)
-      ? normalizeClientSummary(apiProperty.ownerClientId as never)
-      : undefined;
+  const ownerClientId = typeof apiProperty.ownerClientId === 'string' ? toOptionalObjectIdString(apiProperty.ownerClientId) : isObject(apiProperty.ownerClientId) ? toOptionalObjectIdString(apiProperty.ownerClientId.id ?? apiProperty.ownerClientId._id) : null;
+  const ownerClient = isObject(apiProperty.ownerClientId) ? normalizeClientSummary(apiProperty.ownerClientId as never) : undefined;
 
   return {
     ...normalizePropertySummary(apiProperty),
@@ -111,9 +149,11 @@ export const usePropertiesApi = () => {
 
   return {
     async listProperties(): Promise<Property[]> {
-      const response = await api.request<ApiProperty[]>(PROPERTIES_ENDPOINT, {
-        headers: createStoredAuthHeaders()
-      });
+      const response = await withPropertyApiError('loading properties', () =>
+        api.request<ApiProperty[]>(PROPERTIES_ENDPOINT, {
+          headers: createStoredAuthHeaders()
+        })
+      );
 
       if (!Array.isArray(response)) {
         throw new Error('Invalid API response: expected a property array.');
@@ -123,30 +163,36 @@ export const usePropertiesApi = () => {
     },
 
     async createProperty(payload: CreatePropertyPayload): Promise<Property> {
-      const response = await api.request<ApiProperty>(PROPERTIES_ENDPOINT, {
-        method: 'POST',
-        headers: createStoredAuthHeaders(),
-        body: payload
-      });
+      const response = await withPropertyApiError('creating property', () =>
+        api.request<ApiProperty>(PROPERTIES_ENDPOINT, {
+          method: 'POST',
+          headers: createStoredAuthHeaders(),
+          body: normalizePropertyPayload(payload)
+        })
+      );
 
       return normalizeProperty(response);
     },
 
     async updateProperty(id: string, payload: UpdatePropertyPayload): Promise<Property> {
-      const response = await api.request<ApiProperty>(PROPERTY_ENDPOINT(id), {
-        method: 'PATCH',
-        headers: createStoredAuthHeaders(),
-        body: payload
-      });
+      const response = await withPropertyApiError('updating property', () =>
+        api.request<ApiProperty>(PROPERTY_ENDPOINT(id), {
+          method: 'PATCH',
+          headers: createStoredAuthHeaders(),
+          body: normalizePropertyPayload(payload)
+        })
+      );
 
       return normalizeProperty(response);
     },
 
     async deleteProperty(id: string): Promise<{ success: boolean }> {
-      const response = await api.request<{ success?: boolean }>(PROPERTY_ENDPOINT(id), {
-        method: 'DELETE',
-        headers: createStoredAuthHeaders()
-      });
+      const response = await withPropertyApiError('archiving property', () =>
+        api.request<{ success?: boolean }>(PROPERTY_ENDPOINT(id), {
+          method: 'DELETE',
+          headers: createStoredAuthHeaders()
+        })
+      );
 
       return { success: Boolean(response.success) };
     }

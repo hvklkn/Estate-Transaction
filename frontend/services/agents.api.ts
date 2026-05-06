@@ -1,4 +1,4 @@
-import type { AgentRole, AgentUser, OrganizationSummary, RegisterAgentPayload } from '~/types/agent';
+import type { AgentRole, AgentUser, CreateTeamMemberPayload, OrganizationSummary, RegisterAgentPayload } from '~/types/agent';
 
 const AGENTS_ENDPOINT = '/agents';
 const AGENTS_LOGIN_ENDPOINT = '/agents/login';
@@ -61,8 +61,7 @@ interface ApiLoginResponse {
   agent?: ApiAgent;
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 const toNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== 'string') {
@@ -114,15 +113,7 @@ const toRequiredObjectIdString = (value: unknown, fieldName: string): string => 
 };
 
 const normalizeRole = (value: unknown): AgentRole => {
-  if (
-    value === 'super_admin' ||
-    value === 'office_owner' ||
-    value === 'manager' ||
-    value === 'agent' ||
-    value === 'finance' ||
-    value === 'assistant' ||
-    value === 'admin'
-  ) {
+  if (value === 'super_admin' || value === 'office_owner' || value === 'manager' || value === 'agent' || value === 'finance' || value === 'assistant' || value === 'admin') {
     return value;
   }
 
@@ -155,9 +146,7 @@ const normalizeAgent = (apiAgent: ApiAgent): AgentUser => ({
   email: toRequiredString(apiAgent.email, 'agent.email'),
   isActive: Boolean(apiAgent.isActive),
   role: normalizeRole(apiAgent.role),
-  organizationId:
-    toOptionalObjectIdString(apiAgent.organizationId) ??
-    toOptionalObjectIdString(apiAgent.organization?.id ?? apiAgent.organization?._id),
+  organizationId: toOptionalObjectIdString(apiAgent.organizationId) ?? toOptionalObjectIdString(apiAgent.organization?.id ?? apiAgent.organization?._id),
   organization: normalizeOrganization(apiAgent.organization),
   balance: toOptionalFiniteNumber(apiAgent.balance) ?? 0,
   balanceCents: toOptionalFiniteNumber(apiAgent.balanceCents) ?? 0,
@@ -167,8 +156,7 @@ const normalizeAgent = (apiAgent: ApiAgent): AgentUser => ({
   iban: typeof apiAgent.iban === 'string' ? apiAgent.iban : '',
   twoFactorEnabled: Boolean(apiAgent.twoFactorEnabled),
   twoFactorMethod: apiAgent.twoFactorMethod === 'sms' ? 'sms' : 'authenticator',
-  twoFactorVerifiedAt:
-    typeof apiAgent.twoFactorVerifiedAt === 'string' ? apiAgent.twoFactorVerifiedAt : null
+  twoFactorVerifiedAt: typeof apiAgent.twoFactorVerifiedAt === 'string' ? apiAgent.twoFactorVerifiedAt : null
 });
 
 const createAuthHeaders = (sessionToken: string): HeadersInit => ({
@@ -210,14 +198,24 @@ export const useAgentsApi = () => {
       return response.map(normalizeAgent);
     },
 
+    async createAgent(payload: CreateTeamMemberPayload): Promise<AgentUser> {
+      const response = await api.request<ApiAgent>(AGENTS_ENDPOINT, {
+        method: 'POST',
+        headers: createStoredAuthHeaders(),
+        body: payload
+      });
+
+      return normalizeAgent(response);
+    },
+
     async registerAgent(payload: RegisterAgentPayload): Promise<{ user: AgentUser; sessionToken: string }> {
-      const response = await api.request<{ agent?: ApiAgent; sessionToken?: string }>(
-        AGENTS_REGISTER_ENDPOINT,
-        {
-          method: 'POST',
-          body: payload
-        }
-      );
+      const response = await api.request<{
+        agent?: ApiAgent;
+        sessionToken?: string;
+      }>(AGENTS_REGISTER_ENDPOINT, {
+        method: 'POST',
+        body: payload
+      });
 
       return {
         user: normalizeAgent(response.agent ?? {}),
@@ -225,17 +223,7 @@ export const useAgentsApi = () => {
       };
     },
 
-    async loginAgent(payload: {
-      email: string;
-      password: string;
-      twoFactorCode?: string;
-      device?: string;
-      location?: string;
-      userAgent?: string;
-    }): Promise<
-      | { requiresTwoFactor: true; twoFactorMethod: 'sms' | 'authenticator' }
-      | { user: AgentUser; sessionToken: string }
-    > {
+    async loginAgent(payload: { email: string; password: string; twoFactorCode?: string; device?: string; location?: string; userAgent?: string }): Promise<{ requiresTwoFactor: true; twoFactorMethod: 'sms' | 'authenticator' } | { user: AgentUser; sessionToken: string }> {
       const response = await api.request<ApiLoginResponse>(AGENTS_LOGIN_ENDPOINT, {
         method: 'POST',
         body: payload
@@ -255,25 +243,20 @@ export const useAgentsApi = () => {
     },
 
     async requestPasswordResetCode(payload: { email: string }): Promise<{ developmentCode?: string }> {
-      const response = await api.request<{ success: boolean; developmentCode?: string }>(
-        AGENTS_PASSWORD_FORGOT_ENDPOINT,
-        {
-          method: 'POST',
-          body: payload
-        }
-      );
+      const response = await api.request<{
+        success: boolean;
+        developmentCode?: string;
+      }>(AGENTS_PASSWORD_FORGOT_ENDPOINT, {
+        method: 'POST',
+        body: payload
+      });
 
       return {
         developmentCode: toNonEmptyString(response.developmentCode) ?? undefined
       };
     },
 
-    async resetPasswordWithCode(payload: {
-      email: string;
-      code: string;
-      newPassword: string;
-      confirmNewPassword: string;
-    }): Promise<void> {
+    async resetPasswordWithCode(payload: { email: string; code: string; newPassword: string; confirmNewPassword: string }): Promise<void> {
       await api.request<{ success: boolean }>(AGENTS_PASSWORD_RESET_ENDPOINT, {
         method: 'POST',
         body: payload
@@ -317,7 +300,11 @@ export const useAgentsApi = () => {
 
     async changeMyPassword(
       sessionToken: string,
-      payload: { currentPassword: string; newPassword: string; confirmNewPassword: string }
+      payload: {
+        currentPassword: string;
+        newPassword: string;
+        confirmNewPassword: string;
+      }
     ): Promise<void> {
       await api.request<{ success: boolean }>(AGENTS_ME_PASSWORD_ENDPOINT, {
         method: 'PATCH',
@@ -329,7 +316,11 @@ export const useAgentsApi = () => {
     async setupMyTwoFactor(
       sessionToken: string,
       payload: { method: 'sms' | 'authenticator' }
-    ): Promise<{ method: 'sms' | 'authenticator'; secret: string; otpauthUrl: string }> {
+    ): Promise<{
+      method: 'sms' | 'authenticator';
+      secret: string;
+      otpauthUrl: string;
+    }> {
       const response = await api.request<{
         method?: 'sms' | 'authenticator';
         secret?: string;
@@ -347,10 +338,7 @@ export const useAgentsApi = () => {
       };
     },
 
-    async verifyMyTwoFactor(
-      sessionToken: string,
-      payload: { code: string }
-    ): Promise<{ verifiedAt: string }> {
+    async verifyMyTwoFactor(sessionToken: string, payload: { code: string }): Promise<{ verifiedAt: string }> {
       const response = await api.request<{ verifiedAt?: string }>(AGENTS_ME_2FA_VERIFY_ENDPOINT, {
         method: 'POST',
         headers: createAuthHeaders(sessionToken),

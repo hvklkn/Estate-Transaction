@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -90,6 +90,48 @@ describe('PropertiesService', () => {
       })
     );
     expect(result).toEqual(createdProperty);
+  });
+
+  it('creates property without an owner client when ownerClientId is omitted', async () => {
+    const payload = {
+      title: 'No Owner Listing',
+      type: PropertyType.HOUSE,
+      listingType: PropertyListingType.RENT
+    };
+    const createdProperty = { _id: PROPERTY_ID, ...payload, ownerClientId: null };
+
+    propertyModelMock.create.mockResolvedValue(createdProperty);
+
+    const result = await service.create(payload, ACTOR_AGENT_ID, ORGANIZATION_ID);
+
+    expect(clientsServiceMock.ensureClientsBelongToOrganization).not.toHaveBeenCalled();
+    expect(propertyModelMock.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'No Owner Listing',
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        ownerClientId: null
+      })
+    );
+    expect(result).toEqual(createdProperty);
+  });
+
+  it('returns a clear owner client organization mismatch error', async () => {
+    clientsServiceMock.ensureClientsBelongToOrganization.mockRejectedValue(
+      new BadRequestException('One or more linked clients were not found for this organization.')
+    );
+
+    await expect(
+      service.create(
+        {
+          title: 'Mismatch Listing',
+          type: PropertyType.APARTMENT,
+          listingType: PropertyListingType.SALE,
+          ownerClientId: CLIENT_ID
+        },
+        ACTOR_AGENT_ID,
+        ORGANIZATION_ID
+      )
+    ).rejects.toThrow('ownerClientId must reference an active client in the same organization.');
   });
 
   it('scopes list queries to active properties in the current organization', async () => {

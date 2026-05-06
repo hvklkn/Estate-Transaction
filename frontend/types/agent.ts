@@ -1,11 +1,4 @@
-export type AgentRole =
-  | 'super_admin'
-  | 'office_owner'
-  | 'manager'
-  | 'agent'
-  | 'finance'
-  | 'assistant'
-  | 'admin';
+export type AgentRole = 'super_admin' | 'office_owner' | 'manager' | 'agent' | 'finance' | 'assistant' | 'admin';
 
 export interface OrganizationSummary {
   id: string;
@@ -40,4 +33,12 @@ export interface RegisterAgentPayload {
   organizationName?: string;
   organizationSlug?: string;
   organizationId?: string;
+}
+
+export interface CreateTeamMemberPayload {
+  name: string;
+  email: string;
+  password: string;
+  role?: AgentRole;
+  isActive?: boolean;
 }

@@ -74,12 +74,11 @@ export class PropertiesService {
       updatePropertyDto.ownerClientId,
       organizationId
     );
+    const ownerClientUpdate = this.buildOwnerClientUpdate(updatePropertyDto.ownerClientId);
 
     const updatePayload = {
       ...updatePropertyDto,
-      ...(updatePropertyDto.ownerClientId
-        ? { ownerClientId: new Types.ObjectId(updatePropertyDto.ownerClientId) }
-        : {}),
+      ...ownerClientUpdate,
       updatedBy: new Types.ObjectId(actorAgentId)
     };
 
@@ -150,14 +149,38 @@ export class PropertiesService {
   }
 
   private async ensureOwnerClientBelongsToOrganization(
-    ownerClientId: string | undefined,
+    ownerClientId: string | null | undefined,
     organizationId: string
   ): Promise<void> {
     if (!ownerClientId) {
       return;
     }
 
-    await this.clientsService.ensureClientsBelongToOrganization([ownerClientId], organizationId);
+    this.validateObjectId(ownerClientId, 'ownerClientId');
+
+    try {
+      await this.clientsService.ensureClientsBelongToOrganization([ownerClientId], organizationId);
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException(
+          'ownerClientId must reference an active client in the same organization.'
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  private buildOwnerClientUpdate(ownerClientId: string | null | undefined): {
+    ownerClientId?: Types.ObjectId | null;
+  } {
+    if (ownerClientId === undefined) {
+      return {};
+    }
+
+    return {
+      ownerClientId: ownerClientId ? new Types.ObjectId(ownerClientId) : null
+    };
   }
 
   private activeTenantFilter(organizationId: string): FilterQuery<Property> {
