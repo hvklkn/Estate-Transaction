@@ -54,14 +54,31 @@ const normalizeStatus = (value: unknown): PropertyStatus => (typeof value === 's
 const normalizePrice = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null);
 
 const normalizePropertyPayload = <T extends CreatePropertyPayload | UpdatePropertyPayload>(payload: T): T => {
-  const normalizedPayload = { ...payload };
+  const normalizedPayload = { ...payload } as T;
+  const runtimePayload = normalizedPayload as T & {
+    ownerClientId?: unknown;
+    price?: unknown;
+  };
 
-  if (typeof normalizedPayload.ownerClientId === 'string') {
-    const ownerClientId = normalizedPayload.ownerClientId.trim();
+  if (typeof runtimePayload.ownerClientId === 'string') {
+    const ownerClientId = runtimePayload.ownerClientId.trim();
     if (ownerClientId.length > 0) {
-      normalizedPayload.ownerClientId = ownerClientId;
+      runtimePayload.ownerClientId = ownerClientId;
     } else {
-      delete normalizedPayload.ownerClientId;
+      delete runtimePayload.ownerClientId;
+    }
+  }
+
+  if ('price' in runtimePayload) {
+    const rawPrice: unknown = runtimePayload.price;
+    if (rawPrice === null || rawPrice === undefined || (typeof rawPrice === 'string' && rawPrice.trim() === '')) {
+      delete runtimePayload.price;
+    } else {
+      const price = Number(rawPrice);
+      if (!Number.isFinite(price) || price < 0) {
+        throw new Error('Price must be a valid non-negative number.');
+      }
+      runtimePayload.price = price;
     }
   }
 
@@ -107,8 +124,17 @@ const getPropertyApiErrorMessage = (unknownError: unknown, action: string): stri
 
 const withPropertyApiError = async <T>(action: string, request: () => Promise<T>): Promise<T> => {
   try {
+    if (import.meta.dev) {
+      console.debug('[properties-api]', `${action}: request started`);
+    }
     return await request();
   } catch (unknownError) {
+    if (import.meta.dev) {
+      console.debug('[properties-api]', `${action}: request failed`, {
+        status: getApiErrorStatus(unknownError),
+        message: getPropertyApiErrorMessage(unknownError, action)
+      });
+    }
     throw new Error(getPropertyApiErrorMessage(unknownError, action));
   }
 };
@@ -163,15 +189,31 @@ export const usePropertiesApi = () => {
     },
 
     async createProperty(payload: CreatePropertyPayload): Promise<Property> {
+      const body = normalizePropertyPayload(payload);
+      if (import.meta.dev) {
+        console.debug('[properties-api] creating property: POST /properties', {
+          titlePresent: String(body.title ?? '').trim().length > 0,
+          ownerClientLinked: Boolean(body.ownerClientId)
+        });
+      }
+
       const response = await withPropertyApiError('creating property', () =>
         api.request<ApiProperty>(PROPERTIES_ENDPOINT, {
           method: 'POST',
           headers: createStoredAuthHeaders(),
-          body: normalizePropertyPayload(payload)
+          body
         })
       );
 
-      return normalizeProperty(response);
+      const property = normalizeProperty(response);
+      if (import.meta.dev) {
+        console.debug('[properties-api] creating property: response normalized', {
+          id: property.id,
+          title: property.title
+        });
+      }
+
+      return property;
     },
 
     async updateProperty(id: string, payload: UpdatePropertyPayload): Promise<Property> {

@@ -115,6 +115,36 @@ describe('PropertiesService', () => {
     expect(result).toEqual(createdProperty);
   });
 
+  it('returns a newly created office owner property in the organization list', async () => {
+    const storedProperties: Array<Record<string, unknown>> = [];
+    const payload = {
+      title: 'Office Owner Listing',
+      type: PropertyType.APARTMENT,
+      listingType: PropertyListingType.SALE
+    };
+
+    propertyModelMock.create.mockImplementation(async (document: Record<string, unknown>) => {
+      const createdProperty = {
+        _id: PROPERTY_ID,
+        ...document
+      };
+      storedProperties.push(createdProperty);
+      return createdProperty;
+    });
+    propertyModelMock.find.mockReturnValue(createQueryMock(storedProperties));
+
+    const created = await service.create(payload, ACTOR_AGENT_ID, ORGANIZATION_ID);
+    const listed = await service.findAll(ORGANIZATION_ID);
+
+    expect(created).toEqual(expect.objectContaining({ title: 'Office Owner Listing' }));
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toEqual(created);
+    expect(propertyModelMock.find).toHaveBeenCalledWith({
+      organizationId: new Types.ObjectId(ORGANIZATION_ID),
+      deletedAt: null
+    });
+  });
+
   it('returns a clear owner client organization mismatch error', async () => {
     clientsServiceMock.ensureClientsBelongToOrganization.mockRejectedValue(
       new BadRequestException('One or more linked clients were not found for this organization.')

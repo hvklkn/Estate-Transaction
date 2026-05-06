@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
+import { toApiErrorMessage } from '~/services/api.errors';
 import { useAuthStore } from '~/stores/auth';
 import { useClientsStore } from '~/stores/clients';
 import { usePropertiesStore } from '~/stores/properties';
@@ -14,7 +15,24 @@ useHead({ title: 'Properties' });
 
 const selectedPropertyId = ref<string | null>(null);
 const successMessage = ref('');
-const form = reactive({
+const submitError = ref<string | null>(null);
+const submitStatus = ref('Waiting for submit.');
+const submitAttemptCount = ref(0);
+interface PropertyFormState {
+  title: string | null;
+  type: PropertyType;
+  listingType: PropertyListingType;
+  address: string | null;
+  city: string | null;
+  district: string | null;
+  price: string | number | null;
+  currency: string | null;
+  status: PropertyStatus;
+  description: string | null;
+  ownerClientId: string | null;
+}
+
+const form = reactive<PropertyFormState>({
   title: '',
   type: 'apartment' as PropertyType,
   listingType: 'sale' as PropertyListingType,
@@ -28,16 +46,79 @@ const form = reactive({
   ownerClientId: ''
 });
 
+const toTrimmedText = (value: unknown) => String(value ?? '').trim();
+const toOptionalText = (value: unknown) => toTrimmedText(value) || undefined;
+const normalizeOptionalNumber = (value: unknown): { value?: number; error?: string } => {
+  if (value === null || value === undefined) {
+    return {};
+  }
+
+  const rawValue = typeof value === 'string' ? value.trim() : value;
+  if (rawValue === '') {
+    return {};
+  }
+
+  const numericValue = Number(rawValue);
+  if (!Number.isFinite(numericValue)) {
+    return { error: 'Price must be a valid number.' };
+  }
+
+  if (numericValue < 0) {
+    return { error: 'Price must be zero or greater.' };
+  }
+
+  return { value: numericValue };
+};
+
 const selectedProperty = computed(() => propertiesStore.items.find((property) => property.id === selectedPropertyId.value) ?? null);
 const isEditing = computed(() => Boolean(selectedProperty.value));
 const canCreate = computed(() => authStore.canCreateTenantResources);
 const canManage = computed(() => authStore.canManageTenantResources);
 const canEditForm = computed(() => (isEditing.value ? canManage.value : canCreate.value));
-const selectedOwnerClient = computed(() => (form.ownerClientId ? (clientsStore.items.find((client) => client.id === form.ownerClientId) ?? null) : null));
-const selectedOwnerClientMissing = computed(() => Boolean(form.ownerClientId) && !clientsStore.isLoading && !selectedOwnerClient.value);
-const canSubmit = computed(() => canEditForm.value && form.title.trim().length >= 2 && !selectedOwnerClientMissing.value && !propertiesStore.isCreating && !propertiesStore.updatePropertyId);
+const normalizedOwnerClientId = computed(() => toTrimmedText(form.ownerClientId));
+const selectedOwnerClient = computed(() => (normalizedOwnerClientId.value ? (clientsStore.items.find((client) => client.id === normalizedOwnerClientId.value) ?? null) : null));
+const selectedOwnerClientMissing = computed(() => Boolean(normalizedOwnerClientId.value) && !clientsStore.isLoading && !selectedOwnerClient.value);
+const isSaving = computed(() => propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId));
+const canSubmit = computed(() => !isSaving.value);
 const currentRoleLabel = computed(() => authStore.currentUser?.role ?? 'unknown');
+const currentOrganizationIdLabel = computed(() => authStore.currentUser?.organizationId ?? 'none');
 const currentOrganizationLabel = computed(() => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? 'none');
+const visibleError = computed(() => submitError.value || propertiesStore.error || clientsStore.error);
+const priceValidationError = computed(() => normalizeOptionalNumber(form.price).error ?? '');
+const submitBlockReason = computed(() => {
+  if (!authStore.isAuthenticated || !authStore.currentUser) {
+    return 'Session is not loaded. Please sign in again.';
+  }
+
+  if (!authStore.sessionToken) {
+    return 'Session token is missing. Please sign in again.';
+  }
+
+  if (!canEditForm.value) {
+    return isEditing.value
+      ? 'You do not have permission to update properties.'
+      : 'You do not have permission to create properties.';
+  }
+
+  const title = toTrimmedText(form.title);
+  if (title.length === 0) {
+    return 'Title is required.';
+  }
+
+  if (title.length < 2) {
+    return 'Title must be at least 2 characters.';
+  }
+
+  if (priceValidationError.value) {
+    return priceValidationError.value;
+  }
+
+  if (selectedOwnerClientMissing.value) {
+    return "Owner client must be selected from this organization's active clients.";
+  }
+
+  return '';
+});
 const permissionNotice = computed(() => {
   if (canEditForm.value) {
     return '';
@@ -90,43 +171,68 @@ const editProperty = (property: Property) => {
 };
 
 const buildPayload = (): CreatePropertyPayload => {
-  const price = Number(form.price);
-  const ownerClientId = form.ownerClientId.trim();
+  const price = normalizeOptionalNumber(form.price);
+  if (price.error) {
+    throw new Error(price.error);
+  }
+
+  const ownerClientId = normalizedOwnerClientId.value;
 
   return {
-    title: form.title.trim(),
+    title: toTrimmedText(form.title),
     type: form.type,
     listingType: form.listingType,
-    address: form.address.trim() || undefined,
-    city: form.city.trim() || undefined,
-    district: form.district.trim() || undefined,
-    price: form.price.trim() && Number.isFinite(price) ? price : undefined,
-    currency: form.currency.trim().toUpperCase() || 'USD',
+    address: toOptionalText(form.address),
+    city: toOptionalText(form.city),
+    district: toOptionalText(form.district),
+    ...(price.value === undefined ? {} : { price: price.value }),
+    currency: toTrimmedText(form.currency).toUpperCase() || 'USD',
     status: form.status,
-    description: form.description.trim() || undefined,
+    description: toOptionalText(form.description),
     ...(ownerClientId ? { ownerClientId } : {})
   };
 };
 
+const setSubmitStatus = (message: string) => {
+  submitStatus.value = message;
+  if (import.meta.dev) {
+    console.debug('[properties-page]', message);
+  }
+};
+
 const submitForm = async () => {
-  if (!canSubmit.value) {
-    if (selectedOwnerClientMissing.value) {
-      propertiesStore.setError("Owner client must be selected from this organization's active clients.");
-    }
+  submitAttemptCount.value += 1;
+  successMessage.value = '';
+  submitError.value = null;
+  propertiesStore.setError(null);
+  setSubmitStatus(`Submit reached (${submitAttemptCount.value}).`);
+
+  const blockedReason = submitBlockReason.value;
+  if (blockedReason) {
+    submitError.value = blockedReason;
+    propertiesStore.setError(blockedReason);
+    setSubmitStatus(`Submit blocked: ${blockedReason}`);
     return;
   }
 
   try {
     if (selectedProperty.value) {
+      setSubmitStatus(`Sending update for property ${selectedProperty.value.id}...`);
       await propertiesStore.updateProperty(selectedProperty.value.id, buildPayload());
       successMessage.value = 'Property updated.';
     } else {
-      await propertiesStore.createProperty(buildPayload());
-      successMessage.value = 'Property created.';
+      const payload = buildPayload();
+      setSubmitStatus('Sending POST /properties...');
+      const property = await propertiesStore.createProperty(payload);
+      successMessage.value = `Property created: ${property.title}.`;
     }
+    setSubmitStatus(`Submit succeeded. Inventory now has ${propertiesStore.count} records.`);
     resetForm();
-  } catch {
-    // Store error is rendered below.
+  } catch (unknownError) {
+    const message = propertiesStore.error || toApiErrorMessage(unknownError);
+    submitError.value = message;
+    propertiesStore.setError(message);
+    setSubmitStatus(`Submit failed: ${message}`);
   }
 };
 
@@ -146,8 +252,11 @@ const deleteProperty = async (property: Property) => {
     if (selectedPropertyId.value === property.id) {
       resetForm();
     }
-  } catch {
-    // Store error is rendered below.
+  } catch (unknownError) {
+    const message = propertiesStore.error || toApiErrorMessage(unknownError);
+    submitError.value = message;
+    propertiesStore.setError(message);
+    setSubmitStatus(`Archive failed: ${message}`);
   }
 };
 
@@ -181,11 +290,47 @@ onMounted(async () => {
       </div>
     </header>
 
-    <div v-if="propertiesStore.error || clientsStore.error" class="alert-error">
-      {{ propertiesStore.error || clientsStore.error }}
+    <div v-if="visibleError" class="alert-error">
+      {{ visibleError }}
     </div>
     <div v-if="successMessage" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
       {{ successMessage }}
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <p>
+          Role:
+          <span class="font-semibold">{{ currentRoleLabel }}</span>
+        </p>
+        <p>
+          Organization:
+          <span class="font-semibold">{{ currentOrganizationLabel }}</span>
+        </p>
+        <p>
+          Organization ID:
+          <span class="font-semibold">{{ currentOrganizationIdLabel }}</span>
+        </p>
+        <p>
+          canCreate/canManage:
+          <span class="font-semibold">{{ canCreate }}/{{ canManage }}</span>
+        </p>
+        <p>
+          isCreating:
+          <span class="font-semibold">{{ propertiesStore.isCreating }}</span>
+        </p>
+        <p>
+          Store error:
+          <span class="font-semibold">{{ propertiesStore.error || 'none' }}</span>
+        </p>
+        <p>
+          Submit:
+          <span class="font-semibold">{{ submitStatus }}</span>
+        </p>
+        <p>
+          Last refresh count:
+          <span class="font-semibold">{{ propertiesStore.lastRefreshCount ?? 'not loaded' }}</span>
+        </p>
+      </div>
     </div>
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -249,6 +394,9 @@ onMounted(async () => {
           </h2>
           <p v-if="permissionNotice" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {{ permissionNotice }}
+          </p>
+          <p v-if="submitBlockReason" class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            {{ submitBlockReason }}
           </p>
           <p v-if="selectedOwnerClientMissing" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Owner client is not in the active client list for this organization.</p>
 
