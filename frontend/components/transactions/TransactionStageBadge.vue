@@ -10,19 +10,19 @@ const { getStageLabel } = useAppI18n();
 
 const stageClassMap: Record<TransactionStageType, { chip: string; dot: string }> = {
   [TransactionStage.AGREEMENT]: {
-    chip: 'border-slate-300 bg-slate-100 text-slate-700',
+    chip: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200',
     dot: 'bg-slate-500'
   },
   [TransactionStage.EARNEST_MONEY]: {
-    chip: 'border-amber-300 bg-amber-50 text-amber-800',
+    chip: 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
     dot: 'bg-amber-500'
   },
   [TransactionStage.TITLE_DEED]: {
-    chip: 'border-blue-300 bg-blue-50 text-blue-800',
+    chip: 'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-300',
     dot: 'bg-blue-500'
   },
   [TransactionStage.COMPLETED]: {
-    chip: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+    chip: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300',
     dot: 'bg-emerald-500'
   }
 };
@@ -30,7 +30,7 @@ const stageClassMap: Record<TransactionStageType, { chip: string; dot: string }>
 
 <template>
   <span
-    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide"
+    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] shadow-sm shadow-slate-900/5 dark:shadow-none"
     :class="stageClassMap[props.stage].chip"
   >
     <span class="h-1.5 w-1.5 rounded-full" :class="stageClassMap[props.stage].dot"></span>

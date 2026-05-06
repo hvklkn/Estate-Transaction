@@ -85,6 +85,7 @@ const currentOrganizationIdLabel = computed(() => authStore.currentUser?.organiz
 const currentOrganizationLabel = computed(() => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? 'none');
 const visibleError = computed(() => submitError.value || propertiesStore.error || clientsStore.error);
 const priceValidationError = computed(() => normalizeOptionalNumber(form.price).error ?? '');
+const isDebugVisible = import.meta.dev;
 const submitBlockReason = computed(() => {
   if (!authStore.isAuthenticated || !authStore.currentUser) {
     return 'Session is not loaded. Please sign in again.';
@@ -271,24 +272,25 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Inventory</p>
-          <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Properties</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows.</p>
-          <p class="mt-3 text-xs text-slate-500">
-            Session role:
-            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentRoleLabel }}</span>
-            · Organization:
-            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentOrganizationLabel }}</span>
-          </p>
-        </div>
+    <AppPageHeader
+      eyebrow="Inventory"
+      title="Properties"
+      description="Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows."
+    >
+      <template #meta>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Session role:
+          <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentRoleLabel }}</span>
+          · Organization:
+          <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentOrganizationLabel }}</span>
+        </p>
+      </template>
+      <template #actions>
         <button type="button" class="btn-secondary" :disabled="propertiesStore.isLoading" @click="propertiesStore.refreshProperties()">
           {{ propertiesStore.isLoading ? 'Loading...' : 'Refresh' }}
         </button>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div v-if="visibleError" class="alert-error">
       {{ visibleError }}
@@ -296,7 +298,7 @@ onMounted(async () => {
     <div v-if="successMessage" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
       {{ successMessage }}
     </div>
-    <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+    <div v-if="isDebugVisible" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <p>
           Role:
@@ -336,12 +338,7 @@ onMounted(async () => {
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold">Property Inventory</h2>
-              <p class="text-sm text-slate-500">{{ propertiesStore.count }} active records</p>
-            </div>
-          </div>
+          <AppSectionHeader title="Property Inventory" :description="`${propertiesStore.count} active records ready for transaction workflows.`" />
 
           <div v-if="propertiesStore.isLoading && propertiesStore.items.length === 0" class="space-y-3">
             <div class="skeleton h-20 w-full"></div>
@@ -349,27 +346,31 @@ onMounted(async () => {
             <div class="skeleton h-20 w-full"></div>
           </div>
 
-          <div v-else-if="propertiesStore.items.length === 0" class="empty-state">
-            <h3 class="text-lg font-semibold">No properties yet</h3>
-            <p class="mt-2 text-sm text-slate-500">Create property inventory to connect listings to transactions.</p>
-          </div>
+          <AppEmptyState v-else-if="propertiesStore.items.length === 0" title="No properties yet" description="Create property inventory to connect listings to transactions.">
+            <template #actions>
+              <button type="button" class="btn-primary" :disabled="!canCreate" @click="resetForm">Create property</button>
+            </template>
+          </AppEmptyState>
 
-          <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
-            <li v-for="property in propertiesStore.items" :key="property.id" class="py-4">
+          <ul v-else class="record-list mt-5">
+            <li v-for="property in propertiesStore.items" :key="property.id" class="record-row px-1">
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-900 dark:text-slate-100">
+                    <p class="font-semibold text-slate-950 dark:text-white">
                       {{ property.title }}
                     </p>
                     <span class="status-chip capitalize">{{ property.status }}</span>
                     <span class="status-chip capitalize">{{ property.listingType }}</span>
                   </div>
-                  <p class="mt-1 text-sm text-slate-500">
-                    {{ property.city || 'City not set' }}<span v-if="property.district">, {{ property.district }}</span>
-                    ·
-                    {{ formatMoney(property.price, property.currency) }}
-                  </p>
+                  <div class="mt-2 flex flex-wrap gap-2 text-sm">
+                    <span class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {{ property.city || 'City not set' }}<span v-if="property.district">, {{ property.district }}</span>
+                    </span>
+                    <span class="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                      {{ formatMoney(property.price, property.currency) }}
+                    </span>
+                  </div>
                   <p v-if="property.ownerClient" class="mt-1 text-xs text-slate-500">Owner: {{ property.ownerClient.fullName }}</p>
                   <p v-if="property.description" class="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                     {{ property.description }}
@@ -387,11 +388,12 @@ onMounted(async () => {
         </div>
       </section>
 
-      <aside class="panel">
+      <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
-          <h2 class="text-lg font-semibold">
-            {{ isEditing ? 'Edit Property' : 'Create Property' }}
-          </h2>
+          <AppSectionHeader
+            :title="isEditing ? 'Edit Property' : 'Create Property'"
+            description="Keep listing details, owner links, pricing, and status ready for deal intake."
+          />
           <p v-if="permissionNotice" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {{ permissionNotice }}
           </p>

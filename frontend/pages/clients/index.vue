@@ -108,20 +108,18 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">CRM</p>
-          <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Clients</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Manage buyer, seller, landlord, tenant, and investor contacts inside your organization.
-          </p>
-        </div>
+    <AppPageHeader
+      eyebrow="CRM"
+      title="Clients"
+      description="Manage buyer, seller, landlord, tenant, and investor contacts inside your organization."
+      :meta="`${clientsStore.count} active CRM records`"
+    >
+      <template #actions>
         <button type="button" class="btn-secondary" :disabled="clientsStore.isLoading" @click="clientsStore.refreshClients()">
           {{ clientsStore.isLoading ? 'Loading...' : 'Refresh' }}
         </button>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div v-if="clientsStore.error" class="alert-error">{{ clientsStore.error }}</div>
     <div v-if="successMessage" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -131,12 +129,7 @@ onMounted(async () => {
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <section class="panel">
         <div class="panel-body">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold">Client Directory</h2>
-              <p class="text-sm text-slate-500">{{ clientsStore.count }} active records</p>
-            </div>
-          </div>
+          <AppSectionHeader title="Client Directory" :description="`${clientsStore.count} active records across your CRM workspace.`" />
 
           <div v-if="clientsStore.isLoading && clientsStore.items.length === 0" class="space-y-3">
             <div class="skeleton h-16 w-full"></div>
@@ -144,17 +137,18 @@ onMounted(async () => {
             <div class="skeleton h-16 w-full"></div>
           </div>
 
-          <div v-else-if="clientsStore.items.length === 0" class="empty-state">
-            <h3 class="text-lg font-semibold">No clients yet</h3>
-            <p class="mt-2 text-sm text-slate-500">Create your first client to connect people to properties and transactions.</p>
-          </div>
+          <AppEmptyState v-else-if="clientsStore.items.length === 0" title="No clients yet" description="Create your first client to connect people to properties and transactions.">
+            <template #actions>
+              <button type="button" class="btn-primary" :disabled="!canCreate" @click="resetForm">Create client</button>
+            </template>
+          </AppEmptyState>
 
-          <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
-            <li v-for="client in clientsStore.items" :key="client.id" class="py-4">
+          <ul v-else class="record-list mt-5">
+            <li v-for="client in clientsStore.items" :key="client.id" class="record-row px-1">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-900 dark:text-slate-100">{{ client.fullName }}</p>
+                    <p class="font-semibold text-slate-950 dark:text-white">{{ client.fullName }}</p>
                     <span class="status-chip capitalize">{{ client.type }}</span>
                   </div>
                   <p class="mt-1 text-sm text-slate-500">
@@ -182,9 +176,12 @@ onMounted(async () => {
         </div>
       </section>
 
-      <aside class="panel">
+      <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
-          <h2 class="text-lg font-semibold">{{ isEditing ? 'Edit Client' : 'Create Client' }}</h2>
+          <AppSectionHeader
+            :title="isEditing ? 'Edit Client' : 'Create Client'"
+            description="Capture contact details once and reuse them across properties and transactions."
+          />
           <p v-if="!canCreate" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Your role can view clients, but cannot create or edit them.
           </p>

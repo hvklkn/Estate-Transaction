@@ -161,18 +161,23 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header
-      class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"
+    <AppPageHeader
+      eyebrow="Access"
+      title="Team"
+      :description="`Create and review users for ${currentOrganizationName}.`"
+      meta="Public registration starts a workspace. Existing teams add members here after sign-in."
     >
-      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Access</p>
-      <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Team</h1>
-      <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-        Create and review users for {{ currentOrganizationName }}.
-      </p>
-      <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        Public registration starts a workspace. Existing teams add members here after sign-in.
-      </p>
-    </header>
+      <template #actions>
+        <button
+          type="button"
+          class="btn-secondary"
+          :disabled="authStore.isLoadingUsers"
+          @click="authStore.fetchUsers()"
+        >
+          {{ authStore.isLoadingUsers ? 'Loading...' : 'Refresh' }}
+        </button>
+      </template>
+    </AppPageHeader>
 
     <div v-if="pageError || authStore.error" class="alert-error">
       {{ pageError || authStore.error }}
@@ -187,20 +192,7 @@ onMounted(async () => {
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <div class="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold">Users</h2>
-              <p class="text-sm text-slate-500">{{ teamMembers.length }} team members</p>
-            </div>
-            <button
-              type="button"
-              class="btn-secondary"
-              :disabled="authStore.isLoadingUsers"
-              @click="authStore.fetchUsers()"
-            >
-              {{ authStore.isLoadingUsers ? 'Loading...' : 'Refresh' }}
-            </button>
-          </div>
+          <AppSectionHeader title="Users" :description="`${teamMembers.length} team members in this workspace.`" />
 
           <div
             v-if="!canCreateTeamMembers"
@@ -215,17 +207,14 @@ onMounted(async () => {
             <div class="skeleton h-16 w-full"></div>
           </div>
 
-          <div v-else-if="teamMembers.length === 0" class="empty-state">
-            <h3 class="text-lg font-semibold">No team members found</h3>
-            <p class="mt-2 text-sm text-slate-500">Create the first user for this workspace.</p>
-          </div>
+          <AppEmptyState v-else-if="teamMembers.length === 0" title="No team members found" description="Create the first user for this workspace." />
 
-          <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
-            <li v-for="user in teamMembers" :key="user.id" class="py-4">
+          <ul v-else class="record-list mt-5">
+            <li v-for="user in teamMembers" :key="user.id" class="record-row px-1">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-900 dark:text-slate-100">
+                    <p class="font-semibold text-slate-950 dark:text-white">
                       {{ user.name }}
                     </p>
                     <span class="status-chip">{{ formatRoleLabel(user.role) }}</span>
@@ -251,10 +240,9 @@ onMounted(async () => {
         </div>
       </section>
 
-      <aside class="panel">
+      <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
-          <h2 class="text-lg font-semibold">Create User</h2>
-          <p class="mt-1 text-xs text-slate-500">New users are added to {{ currentOrganizationName }}.</p>
+          <AppSectionHeader title="Create User" :description="`New users are added to ${currentOrganizationName}.`" />
 
           <form class="mt-5 space-y-4" @submit.prevent="submitForm">
             <label class="block">

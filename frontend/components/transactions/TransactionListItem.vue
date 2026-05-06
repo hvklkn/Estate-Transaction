@@ -111,19 +111,19 @@ const onDelete = () => {
 
 <template>
   <article
-    class="rounded-2xl border bg-white shadow-sm transition-colors dark:bg-slate-900"
+    class="rounded-[1.35rem] border bg-white shadow-sm shadow-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/10 dark:bg-slate-900 dark:shadow-none"
     :class="
       props.transaction.isDeleted
         ? 'border-slate-300/80 bg-slate-100/70 opacity-90 dark:border-slate-700 dark:bg-slate-900/70'
         : !props.nextStage
         ? 'border-emerald-300/70 bg-emerald-50/30 hover:border-emerald-400/70 dark:border-emerald-700/60 dark:bg-emerald-950/20'
-        : 'border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700'
+        : 'border-slate-200 hover:border-blue-200 dark:border-slate-800 dark:hover:border-blue-900'
     "
   >
     <div :class="props.compactMode ? 'space-y-3 p-4 sm:p-5' : 'space-y-4 p-5 sm:p-6'">
       <header class="flex flex-wrap items-start justify-between gap-4">
         <div class="space-y-1.5">
-          <h4 :class="props.compactMode ? 'text-lg font-semibold leading-tight text-slate-900 dark:text-slate-100' : 'text-xl font-semibold leading-tight text-slate-900 dark:text-slate-100'">
+          <h4 :class="props.compactMode ? 'text-lg font-semibold leading-tight text-slate-950 dark:text-white' : 'text-xl font-semibold leading-tight text-slate-950 dark:text-white'">
             {{ props.transaction.propertyTitle }}
           </h4>
           <p class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
@@ -168,7 +168,7 @@ const onDelete = () => {
 
       <section
         v-if="props.transaction.property || props.transaction.clients.length > 0"
-        class="grid gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"
+        class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300"
       >
         <p v-if="props.transaction.property">
           <span class="font-semibold text-slate-700 dark:text-slate-200">Linked property:</span>
@@ -181,16 +181,16 @@ const onDelete = () => {
       </section>
 
       <section :class="props.compactMode ? 'grid gap-2 lg:grid-cols-[1.25fr_1fr_1fr]' : 'grid gap-3 lg:grid-cols-[1.25fr_1fr_1fr]'">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+        <div class="rounded-2xl border border-blue-100 bg-blue-50/70 px-3 py-3 dark:border-blue-900 dark:bg-blue-950/30">
           <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.totalServiceFee') }}
           </p>
-          <p class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <p class="mt-1 text-lg font-semibold text-blue-900 dark:text-blue-200">
             {{ formatCurrency(props.transaction.totalServiceFee) }}
           </p>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+        <div class="rounded-2xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950/40">
           <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.listingAgent') }}
           </p>
@@ -199,7 +199,7 @@ const onDelete = () => {
           </p>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800">
+        <div class="rounded-2xl border border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950/40">
           <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {{ t('transactions.item.sellingAgent') }}
           </p>
@@ -214,7 +214,7 @@ const onDelete = () => {
         :total-service-fee="props.transaction.totalServiceFee"
       />
 
-      <section class="grid gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300">
+      <section class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
         <p><span class="font-semibold text-slate-700 dark:text-slate-200">Created by:</span> {{ createdByLabel }}</p>
         <p><span class="font-semibold text-slate-700 dark:text-slate-200">Last edited by:</span> {{ updatedByLabel ?? 'Not available' }}</p>
         <p><span class="font-semibold text-slate-700 dark:text-slate-200">Last edited at:</span> {{ formatDateTime(props.transaction.updatedAt) }}</p>
@@ -225,7 +225,7 @@ const onDelete = () => {
       </section>
 
       <section
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/80"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 dark:border-slate-800 dark:bg-slate-950/50"
       >
         <div>
           <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ t('transactions.item.stageAction') }}</p>

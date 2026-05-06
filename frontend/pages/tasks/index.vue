@@ -215,20 +215,18 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Operations</p>
-          <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Tasks</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Track follow-ups, assignments, and deal work across transactions, clients, and properties.
-          </p>
-        </div>
+    <AppPageHeader
+      eyebrow="Operations"
+      title="Tasks"
+      description="Track follow-ups, assignments, and deal work across transactions, clients, and properties."
+      :meta="`${tasksStore.count} records in the current task view`"
+    >
+      <template #actions>
         <button type="button" class="btn-secondary" :disabled="tasksStore.isLoading" @click="tasksStore.refreshTasks()">
           {{ tasksStore.isLoading ? 'Loading...' : 'Refresh' }}
         </button>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div class="grid gap-4 md:grid-cols-4">
       <MetricCard label="Pending Tasks" :value="String(tasksStore.summary.pending)" helper="Todo and in progress" />
@@ -243,7 +241,9 @@ onMounted(async () => {
     </div>
 
     <section class="panel">
-      <div class="panel-body grid gap-4 lg:grid-cols-5">
+      <div class="panel-body space-y-4">
+        <AppSectionHeader title="Task Controls" description="Filter by status, priority, assignee, and due window." />
+        <div class="grid gap-4 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-5">
         <label class="block">
           <span class="field-label">Status</span>
           <select v-model="statusFilter" class="input-base">
@@ -285,18 +285,14 @@ onMounted(async () => {
             Clear
           </button>
         </div>
+        </div>
       </div>
     </section>
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 class="text-lg font-semibold">Task List</h2>
-              <p class="text-sm text-slate-500">{{ tasksStore.count }} records</p>
-            </div>
-          </div>
+          <AppSectionHeader title="Task List" :description="`${tasksStore.count} records prioritized for the operations queue.`" />
 
           <div v-if="tasksStore.isLoading && tasksStore.items.length === 0" class="space-y-3">
             <div class="skeleton h-20 w-full"></div>
@@ -304,19 +300,18 @@ onMounted(async () => {
             <div class="skeleton h-20 w-full"></div>
           </div>
 
-          <div v-else-if="tasksStore.items.length === 0" class="empty-state">
-            <h3 class="text-lg font-semibold">{{ tasksStore.hasActiveFilters ? 'No tasks match filters' : 'No tasks yet' }}</h3>
-            <p class="mt-2 text-sm text-slate-500">
-              {{ tasksStore.hasActiveFilters ? 'Try clearing filters to widen the list.' : 'Create a task to start tracking follow-up work.' }}
-            </p>
-          </div>
+          <AppEmptyState
+            v-else-if="tasksStore.items.length === 0"
+            :title="tasksStore.hasActiveFilters ? 'No tasks match filters' : 'No tasks yet'"
+            :description="tasksStore.hasActiveFilters ? 'Try clearing filters to widen the list.' : 'Create a task to start tracking follow-up work.'"
+          />
 
-          <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
-            <li v-for="task in tasksStore.items" :key="task.id" class="py-4">
+          <ul v-else class="record-list mt-5">
+            <li v-for="task in tasksStore.items" :key="task.id" class="record-row px-1">
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0 space-y-2">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-900 dark:text-slate-100">{{ task.title }}</p>
+                    <p class="font-semibold text-slate-950 dark:text-white">{{ task.title }}</p>
                     <span class="status-chip">{{ getStatusLabel(task.status) }}</span>
                     <span class="status-chip">{{ getPriorityLabel(task.priority) }}</span>
                   </div>
@@ -355,9 +350,12 @@ onMounted(async () => {
         </div>
       </section>
 
-      <aside class="panel">
+      <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
-          <h2 class="text-lg font-semibold">{{ isEditing ? 'Edit Task' : 'Create Task' }}</h2>
+          <AppSectionHeader
+            :title="isEditing ? 'Edit Task' : 'Create Task'"
+            description="Assign work, due dates, and related records without leaving the operations queue."
+          />
           <p v-if="!canCreate" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Your role can view tasks, but cannot create or update them.
           </p>

@@ -57,11 +57,14 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
 
 <template>
   <section class="panel">
-    <div class="panel-body space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {{ t('transactions.filters.title') }}
-        </h3>
+    <div class="panel-body space-y-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-base font-semibold text-slate-950 dark:text-white">
+            {{ t('transactions.filters.title') }}
+          </h3>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Search, stage, type, and sort controls for the transaction workspace.</p>
+        </div>
         <button
           type="button"
           class="btn-secondary px-3 py-1.5 text-xs"
@@ -73,7 +76,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
       </div>
 
       <div
-        class="grid gap-3"
+        class="grid gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40"
         :class="
           props.canIncludeDeleted
             ? 'xl:grid-cols-[1.6fr,1fr,1fr,1fr,1fr]'
@@ -163,7 +166,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
 
         <label
           v-if="props.canIncludeDeleted"
-          class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+          class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         >
           <input
             :checked="Boolean(props.includeDeleted)"
