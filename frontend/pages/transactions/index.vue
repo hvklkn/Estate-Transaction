@@ -331,23 +331,13 @@ onUnmounted(() => {
 
 <template>
   <section class="space-y-8">
-    <header
-      class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7"
+    <AppPageHeader
+      :eyebrow="t('transactions.header.kicker')"
+      :title="t('transactions.header.title')"
+      :description="t('transactions.header.description')"
+      :meta="`Showing ${showingRange} of ${totalTransactions} records`"
     >
-      <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-            {{ t('transactions.header.kicker') }}
-          </p>
-          <h1 class="text-3xl font-semibold sm:text-4xl">{{ t('transactions.header.title') }}</h1>
-          <p class="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-            {{ t('transactions.header.description') }}
-          </p>
-          <p class="text-xs text-slate-500 dark:text-slate-400">
-            Showing {{ showingRange }} of {{ totalTransactions }} records
-          </p>
-        </div>
-
+      <template #actions>
         <div class="flex flex-wrap items-center gap-2">
           <span class="status-chip">
             {{ t('transactions.list.recordCount', { count: totalTransactions }) }}
@@ -371,8 +361,8 @@ onUnmounted(() => {
             {{ isRefreshing ? t('transactions.actions.refreshing') : t('transactions.actions.refresh') }}
           </button>
         </div>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div class="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
       <MetricCard
@@ -411,10 +401,11 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel">
         <div class="panel-body space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Stage Mix</p>
-            <NuxtLink to="/reports" class="btn-secondary">Reports</NuxtLink>
-          </div>
+          <AppSectionHeader title="Stage Mix" description="Lifecycle distribution for the current dashboard scope.">
+            <template #actions>
+              <NuxtLink to="/reports" class="btn-secondary">Reports</NuxtLink>
+            </template>
+          </AppSectionHeader>
           <div class="space-y-3">
             <div v-for="item in reportsSummary.transactionCountsByStage" :key="item.key" class="space-y-1">
               <div class="flex items-center justify-between text-xs">
@@ -434,15 +425,14 @@ onUnmounted(() => {
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Monthly Service Fee</p>
-              <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                {{ formatCurrency(reportsSummary.monthlyServiceFee) }}
-              </p>
-            </div>
-            <NuxtLink to="/reports" class="btn-secondary">Analyze</NuxtLink>
-          </div>
+          <AppSectionHeader title="Monthly Service Fee" description="Revenue signal from completed and active workflows.">
+            <template #actions>
+              <NuxtLink to="/reports" class="btn-secondary">Analyze</NuxtLink>
+            </template>
+          </AppSectionHeader>
+          <p class="text-3xl font-semibold text-slate-950 dark:text-white">
+            {{ formatCurrency(reportsSummary.monthlyServiceFee) }}
+          </p>
           <div class="grid gap-2 text-xs sm:grid-cols-2">
             <span class="status-chip">Agency: {{ formatCurrency(reportsSummary.commissionSummary.agencyTotal) }}</span>
             <span class="status-chip">Agent pool: {{ formatCurrency(reportsSummary.commissionSummary.agentPoolTotal) }}</span>
@@ -452,10 +442,11 @@ onUnmounted(() => {
 
       <article class="panel">
         <div class="panel-body space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Top Agents</p>
-            <NuxtLink to="/reports" class="btn-secondary">View</NuxtLink>
-          </div>
+          <AppSectionHeader title="Top Agents" description="Closed deal leaders in the current summary.">
+            <template #actions>
+              <NuxtLink to="/reports" class="btn-secondary">View</NuxtLink>
+            </template>
+          </AppSectionHeader>
           <ul v-if="dashboardTopAgents.length > 0" class="space-y-2">
             <li v-for="agent in dashboardTopAgents" :key="agent.agentId" class="flex items-center justify-between gap-3 text-sm">
               <span class="truncate font-medium text-slate-700 dark:text-slate-300">{{ agent.agentName }}</span>
@@ -470,18 +461,14 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-1">
         <div class="panel-body space-y-3">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                Task Snapshot
-              </p>
-              <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                {{ tasksStore.summary.pending }}
-              </p>
-              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Open tasks across the office</p>
-            </div>
-            <NuxtLink to="/tasks" class="btn-secondary">Open Tasks</NuxtLink>
-          </div>
+          <AppSectionHeader title="Task Snapshot" description="Open tasks across the office.">
+            <template #actions>
+              <NuxtLink to="/tasks" class="btn-secondary">Open Tasks</NuxtLink>
+            </template>
+          </AppSectionHeader>
+          <p class="text-3xl font-semibold text-slate-950 dark:text-white">
+            {{ tasksStore.summary.pending }}
+          </p>
           <div class="grid gap-2 text-xs sm:grid-cols-3">
             <span class="status-chip">Overdue: {{ tasksStore.summary.overdue }}</span>
             <span class="status-chip">Today: {{ tasksStore.summary.dueToday }}</span>
@@ -492,16 +479,17 @@ onUnmounted(() => {
 
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Recent Transaction Activity</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              @click="transactionNotesStore.fetchRecentNotes().catch(() => undefined)"
-            >
-              Refresh
-            </button>
-          </div>
+          <AppSectionHeader title="Recent Transaction Activity" description="Latest notes and operational updates.">
+            <template #actions>
+              <button
+                type="button"
+                class="btn-secondary"
+                @click="transactionNotesStore.fetchRecentNotes().catch(() => undefined)"
+              >
+                Refresh
+              </button>
+            </template>
+          </AppSectionHeader>
           <ul v-if="transactionNotesStore.recentItems.length > 0" class="space-y-2">
             <li
               v-for="note in transactionNotesStore.recentItems"
@@ -521,12 +509,7 @@ onUnmounted(() => {
               </p>
             </li>
           </ul>
-          <p
-            v-else
-            class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-          >
-            No recent transaction notes yet.
-          </p>
+          <AppEmptyState v-else title="No recent transaction notes yet" description="Activity will appear here once the team starts adding workflow notes." />
         </div>
       </article>
     </section>
@@ -534,20 +517,14 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-1">
         <div class="panel-body space-y-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                My Balance
-              </p>
-              <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                {{ balanceSummary ? formatCurrency(balanceSummary.balance) : '$0.00' }}
-              </p>
-              <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Total earned: {{ balanceSummary ? formatCurrency(balanceSummary.totalEarned) : '$0.00' }}
-              </p>
-            </div>
-            <NuxtLink to="/balance" class="btn-secondary">Open Balance</NuxtLink>
-          </div>
+          <AppSectionHeader title="My Balance" :description="`Total earned: ${balanceSummary ? formatCurrency(balanceSummary.totalEarned) : '$0.00'}`">
+            <template #actions>
+              <NuxtLink to="/balance" class="btn-secondary">Open Balance</NuxtLink>
+            </template>
+          </AppSectionHeader>
+          <p class="text-3xl font-semibold text-slate-950 dark:text-white">
+            {{ balanceSummary ? formatCurrency(balanceSummary.balance) : '$0.00' }}
+          </p>
 
           <div v-if="balanceStore.summaryError" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
             {{ balanceStore.summaryError }}
@@ -557,17 +534,18 @@ onUnmounted(() => {
 
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Recent Balance Movements</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              :disabled="balanceStore.isLoadingSummary"
-              @click="balanceStore.fetchSummary().catch(() => undefined)"
-            >
-              {{ balanceStore.isLoadingSummary ? 'Loading...' : 'Refresh' }}
-            </button>
-          </div>
+          <AppSectionHeader title="Recent Balance Movements" description="Latest credits, adjustments, and reversals.">
+            <template #actions>
+              <button
+                type="button"
+                class="btn-secondary"
+                :disabled="balanceStore.isLoadingSummary"
+                @click="balanceStore.fetchSummary().catch(() => undefined)"
+              >
+                {{ balanceStore.isLoadingSummary ? 'Loading...' : 'Refresh' }}
+              </button>
+            </template>
+          </AppSectionHeader>
 
           <div v-if="balanceStore.isLoadingSummary && !balanceSummary" class="space-y-2">
             <div class="skeleton h-10 w-full"></div>
@@ -600,12 +578,11 @@ onUnmounted(() => {
             </li>
           </ul>
 
-          <p
+          <AppEmptyState
             v-else
-            class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-          >
-            No balance movement yet. Completed transactions will generate commission credits here.
-          </p>
+            title="No balance movements yet"
+            description="Completed transactions will generate commission credits here."
+          />
         </div>
       </article>
     </section>
@@ -626,7 +603,7 @@ onUnmounted(() => {
 
     <div
       v-if="actionSuccessMessage"
-      class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200"
+      class="alert-success"
     >
       <div class="flex items-center justify-between gap-3">
         <p>{{ actionSuccessMessage }}</p>

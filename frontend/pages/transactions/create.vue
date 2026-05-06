@@ -40,32 +40,25 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header
-      class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7"
+    <AppPageHeader
+      :eyebrow="t('transactions.header.kicker')"
+      :title="t('transactions.form.title')"
+      :description="t('transactions.form.description')"
+      meta="Create the deal record first, then advance lifecycle stages from the transaction workspace."
     >
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-            {{ t('transactions.header.kicker') }}
-          </p>
-          <h1 class="text-3xl font-semibold sm:text-4xl">{{ t('transactions.form.title') }}</h1>
-          <p class="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-            {{ t('transactions.form.description') }}
-          </p>
-        </div>
-
+      <template #actions>
         <NuxtLink to="/transactions" class="btn-secondary">
           {{ t('transactions.list.title') }}
         </NuxtLink>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div v-if="transactionsStore.error" class="alert-error">
       <p class="font-medium">{{ t('transactions.errors.syncTitle') }}</p>
       <p class="mt-0.5 text-xs text-rose-700/90 dark:text-rose-300">{{ transactionsStore.error }}</p>
     </div>
 
-    <div class="max-w-3xl">
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,760px)_minmax(280px,1fr)]">
       <TransactionCreateForm
         :is-submitting="transactionsStore.isCreating"
         :agents="authStore.activeUsers"
@@ -75,6 +68,34 @@ onMounted(async () => {
         :is-resources-loading="clientsStore.isLoading || propertiesStore.isLoading"
         @submit="handleCreateTransaction"
       />
+      <aside class="panel h-fit lg:sticky lg:top-24">
+        <div class="panel-body space-y-4">
+          <AppSectionHeader
+            title="Creation Checklist"
+            description="The form validates deal details, linked records, and agent assignment before saving."
+          />
+          <div class="space-y-3">
+            <div class="surface-muted px-4 py-3">
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Property context</p>
+              <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                Link an inventory property when available, or use a standalone title for legacy records.
+              </p>
+            </div>
+            <div class="surface-muted px-4 py-3">
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Commission source</p>
+              <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                The service fee becomes the basis for the stage-driven financial breakdown.
+              </p>
+            </div>
+            <div class="surface-muted px-4 py-3">
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Agent assignment</p>
+              <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                Listing and selling agents are required while the transaction is created in agreement stage.
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   </section>
 </template>

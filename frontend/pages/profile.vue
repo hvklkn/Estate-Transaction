@@ -66,6 +66,11 @@ const sessionsError = ref<string | null>(null);
 
 const currentUserName = computed(() => authStore.currentUser?.name ?? '');
 const currentUserEmail = computed(() => authStore.currentUser?.email ?? '');
+const profileHeaderMeta = computed(() =>
+  currentUserName.value
+    ? `Signed in as ${currentUserName.value}${currentUserEmail.value ? ` (${currentUserEmail.value})` : ''}`
+    : undefined
+);
 const currentOrganizationName = computed(
   () => authStore.currentUser?.organization?.name ?? 'No organization assigned'
 );
@@ -305,30 +310,19 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-6">
-    <header class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7">
-      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">User Profile</p>
-      <h1 class="mt-2 text-3xl font-semibold sm:text-4xl">Profile</h1>
-      <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-        Manage your account details, security settings, and active sessions.
-      </p>
-      <p v-if="currentUserName" class="mt-3 text-xs text-slate-500 dark:text-slate-400">
-        Signed in as
-        <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentUserName }}</span>
-        <span v-if="currentUserEmail">({{ currentUserEmail }})</span>
-      </p>
-    </header>
+    <AppPageHeader
+      eyebrow="User Profile"
+      title="Profile"
+      description="Manage your account details, security settings, and active sessions."
+      :meta="profileHeaderMeta"
+    />
 
     <article class="panel">
       <div class="panel-body space-y-4">
-        <div>
-          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Organization</h2>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Your current workspace and access level for this session.
-          </p>
-        </div>
+        <AppSectionHeader title="Organization" description="Your current workspace and access level for this session." />
 
         <div class="grid gap-3 md:grid-cols-3">
-          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
               Organization
             </p>
@@ -336,7 +330,7 @@ onMounted(async () => {
               {{ currentOrganizationName }}
             </p>
           </div>
-          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
               Slug
             </p>
@@ -344,7 +338,7 @@ onMounted(async () => {
               {{ currentOrganizationSlug }}
             </p>
           </div>
-          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
               Role
             </p>
@@ -358,22 +352,18 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Profile Information</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Update your account details, email address, phone number, and IBAN.
-            </p>
-          </div>
-          <button type="button" class="btn-primary" :disabled="isSavingProfile || isLoadingProfile" @click="saveProfile">
-            Save Profile
-          </button>
-        </div>
+        <AppSectionHeader title="Profile Information" description="Update your account details, email address, phone number, and IBAN.">
+          <template #actions>
+            <button type="button" class="btn-primary" :disabled="isSavingProfile || isLoadingProfile" @click="saveProfile">
+              Save Profile
+            </button>
+          </template>
+        </AppSectionHeader>
 
         <div v-if="profileError" class="alert-error">{{ profileError }}</div>
         <div
           v-else-if="profileSuccess"
-          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          class="alert-success"
         >
           {{ profileSuccess }}
         </div>
@@ -402,12 +392,10 @@ onMounted(async () => {
     <div class="grid gap-4 xl:grid-cols-2">
       <article class="panel">
         <div class="panel-body space-y-5">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Change Password</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Update your password by entering your current password and confirming the new one.
-            </p>
-          </div>
+          <AppSectionHeader
+            title="Change Password"
+            description="Update your password by entering your current password and confirming the new one."
+          />
 
           <div class="space-y-3">
             <label class="block">
@@ -427,7 +415,7 @@ onMounted(async () => {
           <div v-if="passwordError" class="alert-error">{{ passwordError }}</div>
           <div
             v-else-if="passwordSuccess"
-            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+            class="alert-success"
           >
             {{ passwordSuccess }}
           </div>
@@ -440,12 +428,10 @@ onMounted(async () => {
 
       <article class="panel">
         <div class="panel-body space-y-5">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Two-Factor Authentication (2FA)</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Add an extra security layer to sign-in with authenticator-based 2FA.
-            </p>
-          </div>
+          <AppSectionHeader
+            title="Two-Factor Authentication (2FA)"
+            description="Add an extra security layer to sign-in with authenticator-based 2FA."
+          />
 
           <div class="flex flex-wrap items-center gap-2">
             <span class="status-chip">2FA: {{ twoFactorEnabled ? 'Enabled' : 'Disabled' }}</span>
@@ -462,7 +448,7 @@ onMounted(async () => {
             </select>
           </label>
 
-          <div v-if="twoFactorSecret" class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-800/60">
+          <div v-if="twoFactorSecret" class="surface-muted p-3 text-xs">
             <p class="font-semibold text-slate-700 dark:text-slate-200">Authenticator Secret</p>
             <p class="mt-1 font-mono text-slate-600 dark:text-slate-300">{{ twoFactorSecret }}</p>
             <p v-if="twoFactorOtpAuthUrl" class="mt-2 break-all text-slate-500 dark:text-slate-400">
@@ -485,7 +471,7 @@ onMounted(async () => {
           <div v-if="twoFactorError" class="alert-error">{{ twoFactorError }}</div>
           <div
             v-else-if="twoFactorSuccess"
-            class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+            class="alert-success"
           >
             {{ twoFactorSuccess }}
           </div>
@@ -518,35 +504,33 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Session Management</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              View active sessions and sign out from other devices.
-            </p>
-          </div>
-          <button type="button" class="btn-secondary" :disabled="isLoadingSessions" @click="revokeOtherSessions">
-            Sign Out Other Devices
-          </button>
-        </div>
+        <AppSectionHeader title="Session Management" description="View active sessions and sign out from other devices.">
+          <template #actions>
+            <button type="button" class="btn-secondary" :disabled="isLoadingSessions" @click="revokeOtherSessions">
+              Sign Out Other Devices
+            </button>
+          </template>
+        </AppSectionHeader>
 
         <div v-if="sessionsError" class="alert-error">{{ sessionsError }}</div>
         <div
           v-else-if="sessionsSuccess"
-          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          class="alert-success"
         >
           {{ sessionsSuccess }}
         </div>
 
-        <div v-if="sessions.length === 0" class="empty-state">
-          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">No active sessions</h4>
-        </div>
+        <AppEmptyState
+          v-if="sessions.length === 0"
+          title="No active sessions"
+          description="Signed-in sessions will appear here after profile data loads."
+        />
 
-        <div v-else class="space-y-3">
+        <div v-else class="record-list">
           <article
             v-for="session in sessions"
             :key="session.id"
-            class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+            class="record-row rounded-2xl px-1"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>

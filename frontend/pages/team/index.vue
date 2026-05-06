@@ -184,7 +184,7 @@ onMounted(async () => {
     </div>
     <div
       v-if="successMessage"
-      class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+      class="alert-success"
     >
       {{ successMessage }}
     </div>

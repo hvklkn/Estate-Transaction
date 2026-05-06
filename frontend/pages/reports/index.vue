@@ -110,77 +110,76 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
-          Office Analytics
-        </p>
-        <h1 class="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">
-          Reports
-        </h1>
-        <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-          Review organization-scoped production, commission, task, and activity trends.
-        </p>
-      </div>
-      <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="applyFilters">
-        {{ reportsStore.isLoading ? 'Refreshing...' : 'Refresh' }}
-      </button>
-    </header>
+  <section class="space-y-8">
+    <AppPageHeader
+      eyebrow="Office Analytics"
+      title="Reports"
+      description="Review organization-scoped production, commission, task, and activity trends."
+      meta="Executive reporting for transactions, properties, tasks, and commission movement."
+    >
+      <template #actions>
+        <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="applyFilters">
+          {{ reportsStore.isLoading ? 'Refreshing...' : 'Refresh' }}
+        </button>
+      </template>
+    </AppPageHeader>
 
     <section class="panel">
-      <form class="panel-body grid gap-4 md:grid-cols-6" @submit.prevent="applyFilters">
-        <label class="block">
-          <span class="field-label">From</span>
-          <input v-model="filterForm.dateFrom" type="date" class="input-base" />
-        </label>
-        <label class="block">
-          <span class="field-label">To</span>
-          <input v-model="filterForm.dateTo" type="date" class="input-base" />
-        </label>
-        <label class="block">
-          <span class="field-label">Type</span>
-          <select v-model="filterForm.transactionType" class="input-base">
-            <option value="">All</option>
-            <option v-for="option in transactionTypeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="field-label">Stage</span>
-          <select v-model="filterForm.transactionStage" class="input-base">
-            <option value="">All</option>
-            <option v-for="option in transactionStageOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="field-label">Listing</span>
-          <select v-model="filterForm.propertyListingType" class="input-base">
-            <option value="">All</option>
-            <option v-for="option in PROPERTY_LISTING_TYPE_OPTIONS" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="field-label">Status</span>
-          <select v-model="filterForm.status" class="input-base">
-            <option value="">All</option>
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-        <div class="flex flex-wrap items-end gap-2 md:col-span-6">
-          <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">Apply</button>
-          <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="clearFilters">
-            Clear
-          </button>
-        </div>
-      </form>
+      <div class="panel-body space-y-4">
+        <AppSectionHeader title="Report Filters" description="Scope analytics by date, deal type, lifecycle stage, property listing, or status." />
+        <form class="grid gap-4 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 md:grid-cols-6" @submit.prevent="applyFilters">
+          <label class="block">
+            <span class="field-label">From</span>
+            <input v-model="filterForm.dateFrom" type="date" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">To</span>
+            <input v-model="filterForm.dateTo" type="date" class="input-base" />
+          </label>
+          <label class="block">
+            <span class="field-label">Type</span>
+            <select v-model="filterForm.transactionType" class="input-base">
+              <option value="">All</option>
+              <option v-for="option in transactionTypeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="field-label">Stage</span>
+            <select v-model="filterForm.transactionStage" class="input-base">
+              <option value="">All</option>
+              <option v-for="option in transactionStageOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="field-label">Listing</span>
+            <select v-model="filterForm.propertyListingType" class="input-base">
+              <option value="">All</option>
+              <option v-for="option in PROPERTY_LISTING_TYPE_OPTIONS" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="field-label">Status</span>
+            <select v-model="filterForm.status" class="input-base">
+              <option value="">All</option>
+              <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <div class="flex flex-wrap items-end gap-2 md:col-span-6">
+            <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">Apply</button>
+            <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="clearFilters">
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <div v-if="reportsStore.error" class="alert-error">{{ reportsStore.error }}</div>
@@ -195,11 +194,12 @@ onMounted(() => {
     <section class="grid gap-4 xl:grid-cols-2">
       <article class="panel">
         <div class="panel-body space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Transactions by Stage</h2>
-            <NuxtLink to="/transactions" class="btn-secondary">Open</NuxtLink>
-          </div>
-          <div class="space-y-3">
+          <AppSectionHeader title="Transactions by Stage" description="Lifecycle visibility across filtered transactions.">
+            <template #actions>
+              <NuxtLink to="/transactions" class="btn-secondary">Open</NuxtLink>
+            </template>
+          </AppSectionHeader>
+          <div v-if="summary.transactionCountsByStage.length > 0" class="space-y-3">
             <div v-for="item in summary.transactionCountsByStage" :key="item.key" class="space-y-1">
               <div class="flex justify-between text-sm">
                 <span class="font-medium text-slate-700 dark:text-slate-300">{{ formatStageLabel(item.key) }}</span>
@@ -209,17 +209,15 @@ onMounted(() => {
                 <div class="h-2 rounded-full bg-brand-600" :style="{ width: `${Math.max(6, (item.count / maxStageCount) * 100)}%` }" />
               </div>
             </div>
-            <p v-if="summary.transactionCountsByStage.length === 0" class="empty-state text-sm">
-              No transaction data for this filter.
-            </p>
           </div>
+          <AppEmptyState v-else title="No transaction data" description="Adjust report filters to widen the stage view." />
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Service Fee Trend</h2>
-          <div class="flex h-48 items-end gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
+          <AppSectionHeader title="Service Fee Trend" description="Monthly service fee movement for the active filter set." />
+          <div v-if="summary.totalServiceFeeOverTime.length > 0" class="flex h-48 items-end gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
             <div
               v-for="item in summary.totalServiceFeeOverTime"
               :key="item.period"
@@ -233,9 +231,7 @@ onMounted(() => {
               <span class="w-full truncate text-center text-[11px] text-slate-500">{{ item.period }}</span>
             </div>
           </div>
-          <p v-if="summary.totalServiceFeeOverTime.length === 0" class="empty-state text-sm">
-            No fee trend yet.
-          </p>
+          <AppEmptyState v-else title="No fee trend yet" description="Trend bars will appear after transactions carry service fee data." />
         </div>
       </article>
     </section>
@@ -243,55 +239,50 @@ onMounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <h2 class="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Agent Performance</h2>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-              <thead class="text-xs uppercase tracking-[0.08em] text-slate-500">
+          <AppSectionHeader title="Agent Performance" description="Closed-deal output and commission earnings by agent." />
+          <div v-if="topAgents.length > 0" class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+            <table class="data-table">
+              <thead>
                 <tr>
-                  <th class="px-3 py-2">Agent</th>
-                  <th class="px-3 py-2">Closed Deals</th>
-                  <th class="px-3 py-2">Commission</th>
+                  <th>Agent</th>
+                  <th>Closed Deals</th>
+                  <th>Commission</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+              <tbody>
                 <tr v-for="agent in topAgents" :key="agent.agentId">
-                  <td class="px-3 py-3 font-medium">{{ agent.agentName }}</td>
-                  <td class="px-3 py-3">{{ agent.closedDeals }}</td>
-                  <td class="px-3 py-3">{{ formatCurrency(agent.totalCommissionEarnings) }}</td>
+                  <td class="font-medium text-slate-900 dark:text-slate-100">{{ agent.agentName }}</td>
+                  <td>{{ agent.closedDeals }}</td>
+                  <td>{{ formatCurrency(agent.totalCommissionEarnings) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p v-if="topAgents.length === 0" class="empty-state text-sm">No agent performance data yet.</p>
+          <AppEmptyState v-else title="No agent performance data yet" description="Closed transactions will populate this leaderboard." />
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
-          <ul class="space-y-2">
+          <AppSectionHeader title="Recent Activity" description="Latest reportable movement in the workspace." />
+          <ul v-if="summary.recentActivity.length > 0" class="space-y-2">
             <li
               v-for="item in summary.recentActivity"
               :key="`${item.type}-${item.occurredAt}-${item.title}`"
-              class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900"
+              class="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/40"
             >
               <p class="line-clamp-1 text-sm font-medium">{{ item.title }}</p>
               <p class="mt-1 text-xs text-slate-500">{{ formatDateTime(item.occurredAt) }}</p>
             </li>
           </ul>
-          <p v-if="summary.recentActivity.length === 0" class="empty-state text-sm">No recent activity yet.</p>
+          <AppEmptyState v-else title="No recent activity yet" description="Recent transactions, tasks, and property updates will appear here." />
         </div>
       </article>
     </section>
 
     <section v-if="canExport" class="panel">
       <div class="panel-body flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Exports</h2>
-          <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            CSV files respect the active report filters and organization scope.
-          </p>
-        </div>
+        <AppSectionHeader title="Exports" description="CSV files respect the active report filters and organization scope." />
         <div class="flex flex-wrap gap-2">
           <button
             v-for="option in exportOptions"
@@ -306,5 +297,5 @@ onMounted(() => {
         </div>
       </div>
     </section>
-  </main>
+  </section>
 </template>

@@ -169,20 +169,13 @@ onMounted(async () => {
 
 <template>
   <section class="space-y-8">
-    <header
-      class="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 sm:p-7"
+    <AppPageHeader
+      eyebrow="Balance Center"
+      title="My Balance"
+      description="Track your commission credits, audit trail entries, and balance timeline."
+      :meta="`Showing ${showingRange} of ${ledger.total} ledger entries`"
     >
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
-            Balance Center
-          </p>
-          <h1 class="text-3xl font-semibold sm:text-4xl">My Balance</h1>
-          <p class="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-            Track your commission credits, audit trail entries, and balance timeline.
-          </p>
-        </div>
-
+      <template #actions>
         <button
           type="button"
           class="btn-secondary"
@@ -191,8 +184,8 @@ onMounted(async () => {
         >
           {{ balanceStore.isLoadingSummary || balanceStore.isLoadingLedger ? 'Refreshing...' : 'Refresh' }}
         </button>
-      </div>
-    </header>
+      </template>
+    </AppPageHeader>
 
     <div class="grid gap-4 md:grid-cols-3">
       <article class="panel">
@@ -228,21 +221,16 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Sales Records</h2>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Transactions where you are assigned as the selling agent are listed here.
-            </p>
-          </div>
-
-          <div class="flex flex-wrap gap-2">
-            <span class="status-chip">Total Sales: {{ mySales.length }}</span>
-            <span class="status-chip">Completed: {{ completedSalesCount }}</span>
-            <span class="status-chip">Volume: {{ formatCurrency(totalSalesVolume) }}</span>
-            <span class="status-chip">Earnings: {{ formatCurrency(totalSalesEarnings) }}</span>
-          </div>
-        </div>
+        <AppSectionHeader title="Sales Records" description="Transactions where you are assigned as the selling agent are listed here.">
+          <template #actions>
+            <div class="flex flex-wrap gap-2">
+              <span class="status-chip">Total Sales: {{ mySales.length }}</span>
+              <span class="status-chip">Completed: {{ completedSalesCount }}</span>
+              <span class="status-chip">Volume: {{ formatCurrency(totalSalesVolume) }}</span>
+              <span class="status-chip">Earnings: {{ formatCurrency(totalSalesEarnings) }}</span>
+            </div>
+          </template>
+        </AppSectionHeader>
 
         <div v-if="transactionsStore.error" class="alert-error">
           {{ transactionsStore.error }}
@@ -253,18 +241,17 @@ onMounted(async () => {
           <div class="skeleton h-14 w-full"></div>
         </div>
 
-        <div v-else-if="mySales.length === 0" class="empty-state">
-          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">No sales found</h4>
-          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-            Your assigned sales transactions will appear here.
-          </p>
-        </div>
+        <AppEmptyState
+          v-else-if="mySales.length === 0"
+          title="No sales found"
+          description="Your assigned sales transactions will appear here."
+        />
 
-        <div v-else class="space-y-3">
+        <div v-else class="record-list">
           <article
             v-for="transaction in mySales"
             :key="transaction.id"
-            class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+            class="record-row rounded-2xl px-1"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -277,12 +264,12 @@ onMounted(async () => {
             </div>
 
             <div class="mt-3 grid gap-3 sm:grid-cols-3">
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+              <div class="surface-muted px-3 py-2">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Service Fee</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatCurrency(transaction.totalServiceFee) }}</p>
               </div>
 
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+              <div class="surface-muted px-3 py-2">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Your Earning</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {{
@@ -295,7 +282,7 @@ onMounted(async () => {
                 </p>
               </div>
 
-              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
+              <div class="surface-muted px-3 py-2">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Created At</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatDateTime(transaction.createdAt) }}</p>
               </div>
@@ -317,20 +304,15 @@ onMounted(async () => {
 
     <section class="panel">
       <div class="panel-body space-y-4">
-        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
-          <div>
-            <h3 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Ledger History</h3>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Showing {{ showingRange }} of {{ ledger.total }} entries
-            </p>
-          </div>
+        <AppSectionHeader title="Ledger History" :description="`Showing ${showingRange} of ${ledger.total} entries`">
+          <template #actions>
+            <NuxtLink to="/transactions" class="btn-secondary">Back to Transactions</NuxtLink>
+          </template>
+        </AppSectionHeader>
 
-          <NuxtLink to="/transactions" class="btn-secondary">Back to Transactions</NuxtLink>
-        </header>
-
-        <form class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/60 lg:grid-cols-5" @submit.prevent="applyFilters(1)">
-          <label class="grid gap-1 text-xs text-slate-600 dark:text-slate-300">
-            <span class="font-medium">Type</span>
+        <form class="grid gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-5" @submit.prevent="applyFilters(1)">
+          <label class="block">
+            <span class="field-label">Type</span>
             <select v-model="typeFilter" class="input-base text-sm">
               <option value="all">All</option>
               <option value="commission_credit">Commission Credit</option>
@@ -339,13 +321,13 @@ onMounted(async () => {
             </select>
           </label>
 
-          <label class="grid gap-1 text-xs text-slate-600 dark:text-slate-300">
-            <span class="font-medium">Date From</span>
+          <label class="block">
+            <span class="field-label">Date From</span>
             <input v-model="dateFrom" type="date" class="input-base text-sm" />
           </label>
 
-          <label class="grid gap-1 text-xs text-slate-600 dark:text-slate-300">
-            <span class="font-medium">Date To</span>
+          <label class="block">
+            <span class="field-label">Date To</span>
             <input v-model="dateTo" type="date" class="input-base text-sm" />
           </label>
 
@@ -373,40 +355,35 @@ onMounted(async () => {
           <div class="skeleton h-10 w-full"></div>
         </div>
 
-        <div v-else-if="ledger.items.length === 0" class="empty-state">
-          <h4 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ ledgerEmptyTitle }}</h4>
-          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-400">
-            {{ ledgerEmptyDescription }}
-          </p>
-        </div>
+        <AppEmptyState v-else-if="ledger.items.length === 0" :title="ledgerEmptyTitle" :description="ledgerEmptyDescription" />
 
-        <div v-else class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-          <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-800/70">
+        <div v-else class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+          <table class="data-table">
+            <thead>
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">Date</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">Type</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">Amount</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">New Balance</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">Related Transaction</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">Description</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>New Balance</th>
+                <th>Related Transaction</th>
+                <th>Description</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
+            <tbody>
               <tr v-for="entry in ledger.items" :key="entry.id">
-                <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ formatDateTime(entry.createdAt) }}</td>
-                <td class="px-4 py-3">
-                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                <td>{{ formatDateTime(entry.createdAt) }}</td>
+                <td>
+                  <span class="status-chip">
                     {{ getLedgerTypeLabel(entry.type) }}
                   </span>
                 </td>
-                <td class="px-4 py-3 font-semibold" :class="getAmountClasses(entry.amountCents)">
+                <td class="font-semibold" :class="getAmountClasses(entry.amountCents)">
                   {{ formatCurrency(entry.amount) }}
                 </td>
-                <td class="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">
+                <td class="font-medium text-slate-800 dark:text-slate-100">
                   {{ formatCurrency(entry.newBalance) }}
                 </td>
-                <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
+                <td class="text-xs">
                   <NuxtLink
                     v-if="entry.transactionId"
                     :to="`/transactions?search=${entry.transactionId}`"
@@ -416,7 +393,7 @@ onMounted(async () => {
                   </NuxtLink>
                   <span v-else>-</span>
                 </td>
-                <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">{{ entry.description }}</td>
+                <td class="text-xs">{{ entry.description }}</td>
               </tr>
             </tbody>
           </table>
