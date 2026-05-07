@@ -8,6 +8,7 @@ import { BalanceService } from '@/modules/balance/services/balance.service';
 import { ClientsService } from '@/modules/clients/services/clients.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
 import { PropertiesService } from '@/modules/properties/services/properties.service';
+import { PropertyStatus } from '@/modules/properties/domain/property-status.enum';
 import { CommissionAgentRole } from '@/modules/commissions/domain/commission.types';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
@@ -58,6 +59,8 @@ const buildExistingTransaction = (
     createdBy: Types.ObjectId | null;
     stage: TransactionStage;
     transactionType: TransactionType;
+    propertyId: Types.ObjectId | null;
+    isDeleted: boolean;
   }>
 ) => ({
   _id: VALID_TRANSACTION_ID,
@@ -69,6 +72,8 @@ const buildExistingTransaction = (
   createdBy: new Types.ObjectId(CREATOR_AGENT_ID),
   transactionType: TransactionType.SOLD,
   stage: TransactionStage.AGREEMENT,
+  propertyId: null,
+  isDeleted: false,
   ...overrides
 });
 
@@ -103,6 +108,7 @@ describe('TransactionsService', () => {
     findById: jest.fn(),
     findOneAndUpdate: jest.fn(),
     findByIdAndUpdate: jest.fn(),
+    exists: jest.fn(),
     countDocuments: jest.fn(),
     aggregate: jest.fn()
   };
@@ -125,7 +131,11 @@ describe('TransactionsService', () => {
   };
 
   const propertiesServiceMock = {
-    ensurePropertyBelongsToOrganization: jest.fn()
+    ensurePropertyBelongsToOrganization: jest.fn(),
+    ensurePropertyIsSelectableForTransaction: jest.fn(),
+    markReservedForTransaction: jest.fn(),
+    markCompletedForTransaction: jest.fn(),
+    restoreActiveForTransaction: jest.fn()
   };
 
   const stageTransitionPolicyServiceMock = {
@@ -143,6 +153,15 @@ describe('TransactionsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    transactionModelMock.exists.mockReturnValue(createBasicQueryMock(null));
+    propertiesServiceMock.ensurePropertyIsSelectableForTransaction.mockResolvedValue({
+      _id: PROPERTY_ID,
+      status: PropertyStatus.ACTIVE
+    });
+    propertiesServiceMock.markReservedForTransaction.mockResolvedValue(undefined);
+    propertiesServiceMock.markCompletedForTransaction.mockResolvedValue(undefined);
+    propertiesServiceMock.restoreActiveForTransaction.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -234,7 +253,17 @@ describe('TransactionsService', () => {
           }
         ]
       });
-      expect(propertiesServiceMock.ensurePropertyBelongsToOrganization).toHaveBeenCalledWith(
+      expect(propertiesServiceMock.ensurePropertyIsSelectableForTransaction).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
+      );
+      expect(transactionModelMock.exists).toHaveBeenCalledWith({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        isDeleted: false,
+        stage: { $ne: TransactionStage.COMPLETED }
+      });
+      expect(propertiesServiceMock.markReservedForTransaction).toHaveBeenCalledWith(
         PROPERTY_ID,
         ORGANIZATION_ID
       );
@@ -243,6 +272,32 @@ describe('TransactionsService', () => {
         ORGANIZATION_ID
       );
       expect(result).toEqual(createdTransaction);
+    });
+
+    it('rejects create when the linked property is already used by another active transaction', async () => {
+      const createDto = {
+        propertyTitle: 'Sunset Villas #12',
+        propertyId: PROPERTY_ID,
+        clientIds: [CLIENT_ID],
+        totalServiceFee: 100000,
+        listingAgentId: LISTING_AGENT_ID,
+        sellingAgentId: SELLING_AGENT_ID,
+        transactionType: TransactionType.SOLD
+      };
+
+      stageTransitionPolicyServiceMock.resolveInitialStageForCreate.mockReturnValue(
+        TransactionStage.AGREEMENT
+      );
+      transactionModelMock.exists.mockReturnValue(
+        createBasicQueryMock({ _id: '661b8c0134e2c40fd2f89b44' })
+      );
+
+      await expect(service.create(createDto, CREATOR_AGENT_ID, ORGANIZATION_ID)).rejects.toThrow(
+        'This property is already linked to another active transaction.'
+      );
+
+      expect(transactionModelMock.create).not.toHaveBeenCalled();
+      expect(propertiesServiceMock.markReservedForTransaction).not.toHaveBeenCalled();
     });
   });
 
@@ -445,7 +500,18 @@ describe('TransactionsService', () => {
 
       await service.update(VALID_TRANSACTION_ID, updateDto, CREATOR_AGENT_ID, ORGANIZATION_ID);
 
-      expect(propertiesServiceMock.ensurePropertyBelongsToOrganization).toHaveBeenCalledWith(
+      expect(propertiesServiceMock.ensurePropertyIsSelectableForTransaction).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
+      );
+      expect(transactionModelMock.exists).toHaveBeenCalledWith({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        isDeleted: false,
+        stage: { $ne: TransactionStage.COMPLETED },
+        _id: { $ne: new Types.ObjectId(VALID_TRANSACTION_ID) }
+      });
+      expect(propertiesServiceMock.markReservedForTransaction).toHaveBeenCalledWith(
         PROPERTY_ID,
         ORGANIZATION_ID
       );
@@ -460,6 +526,68 @@ describe('TransactionsService', () => {
           clientIds: [expect.any(Types.ObjectId)]
         }),
         expect.any(Object)
+      );
+    });
+
+    it('rejects update when the linked property is already used by another active transaction', async () => {
+      const existingTransaction = buildExistingTransaction();
+      const updateDto = {
+        propertyId: PROPERTY_ID
+      };
+
+      transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.exists.mockReturnValue(
+        createBasicQueryMock({ _id: '661b8c0134e2c40fd2f89b44' })
+      );
+
+      await expect(
+        service.update(VALID_TRANSACTION_ID, updateDto, CREATOR_AGENT_ID, ORGANIZATION_ID)
+      ).rejects.toThrow('This property is already linked to another active transaction.');
+
+      expect(transactionModelMock.exists).toHaveBeenCalledWith({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        isDeleted: false,
+        stage: { $ne: TransactionStage.COMPLETED },
+        _id: { $ne: new Types.ObjectId(VALID_TRANSACTION_ID) }
+      });
+      expect(transactionModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it('restores the old property to active when a non-completed transaction removes its link', async () => {
+      const existingTransaction = buildExistingTransaction({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        stage: TransactionStage.EARNEST_MONEY
+      });
+      const updateDto = {
+        propertyId: null
+      };
+      const recalculatedBreakdown = buildFinancialBreakdown();
+      const updatedTransaction = {
+        ...existingTransaction,
+        propertyId: null,
+        financialBreakdown: recalculatedBreakdown
+      };
+
+      transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.exists.mockReturnValue(createBasicQueryMock(null));
+      commissionCalculatorServiceMock.calculate.mockReturnValue(recalculatedBreakdown);
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createFindQueryMock(updatedTransaction)
+      );
+
+      await service.update(VALID_TRANSACTION_ID, updateDto, CREATOR_AGENT_ID, ORGANIZATION_ID);
+
+      expect(transactionModelMock.exists).toHaveBeenCalledWith({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        isDeleted: false,
+        stage: { $ne: TransactionStage.COMPLETED },
+        _id: { $ne: new Types.ObjectId(VALID_TRANSACTION_ID) }
+      });
+      expect(propertiesServiceMock.restoreActiveForTransaction).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
       );
     });
   });
@@ -567,6 +695,49 @@ describe('TransactionsService', () => {
       expect(result).toEqual(completedTransaction);
     });
 
+    it.each([
+      [TransactionType.SOLD, PropertyStatus.SOLD],
+      [TransactionType.RENTED, PropertyStatus.RENTED]
+    ])(
+      'marks a linked property as %s when a transaction is completed',
+      async (transactionType, expectedPropertyStatus) => {
+        const existingTransaction = buildExistingTransaction({
+          stage: TransactionStage.TITLE_DEED,
+          transactionType,
+          propertyId: new Types.ObjectId(PROPERTY_ID)
+        });
+        const completedTransaction = {
+          ...existingTransaction,
+          stage: TransactionStage.COMPLETED,
+          financialBreakdown: buildFinancialBreakdown()
+        };
+
+        transactionModelMock.findOne
+          .mockReturnValueOnce(createBasicQueryMock(existingTransaction))
+          .mockReturnValueOnce(createFindQueryMock(completedTransaction));
+        transactionModelMock.findOneAndUpdate.mockReturnValue(
+          createFindQueryMock(completedTransaction)
+        );
+        balanceServiceMock.applyCommissionCreditsForCompletedTransaction.mockResolvedValue({
+          applied: true,
+          ledgerIds: []
+        });
+
+        await service.updateStage(
+          VALID_TRANSACTION_ID,
+          TransactionStage.COMPLETED,
+          CREATOR_AGENT_ID,
+          ORGANIZATION_ID
+        );
+
+        expect(propertiesServiceMock.markCompletedForTransaction).toHaveBeenCalledWith(
+          PROPERTY_ID,
+          ORGANIZATION_ID,
+          expectedPropertyStatus
+        );
+      }
+    );
+
     it('rejects invalid ids for stage updates', async () => {
       await expect(
         service.updateStage(
@@ -612,6 +783,33 @@ describe('TransactionsService', () => {
           updatedBy: expect.any(Types.ObjectId)
         }),
         { new: false }
+      );
+    });
+
+    it('restores linked property to active when soft-deleting a non-completed transaction', async () => {
+      const existingTransaction = buildExistingTransaction({
+        stage: TransactionStage.EARNEST_MONEY,
+        propertyId: new Types.ObjectId(PROPERTY_ID)
+      });
+
+      transactionModelMock.findOne.mockReturnValue(createBasicQueryMock(existingTransaction));
+      transactionModelMock.findOneAndUpdate.mockReturnValue(
+        createBasicQueryMock(existingTransaction)
+      );
+      transactionModelMock.exists.mockReturnValue(createBasicQueryMock(null));
+
+      await service.remove(VALID_TRANSACTION_ID, CREATOR_AGENT_ID, 'agent', ORGANIZATION_ID);
+
+      expect(transactionModelMock.exists).toHaveBeenCalledWith({
+        propertyId: new Types.ObjectId(PROPERTY_ID),
+        organizationId: new Types.ObjectId(ORGANIZATION_ID),
+        isDeleted: false,
+        stage: { $ne: TransactionStage.COMPLETED },
+        _id: { $ne: new Types.ObjectId(VALID_TRANSACTION_ID) }
+      });
+      expect(propertiesServiceMock.restoreActiveForTransaction).toHaveBeenCalledWith(
+        PROPERTY_ID,
+        ORGANIZATION_ID
       );
     });
 

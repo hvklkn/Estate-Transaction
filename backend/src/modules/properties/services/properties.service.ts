@@ -3,9 +3,16 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, Types } from 'mongoose';
 
 import { ClientsService } from '@/modules/clients/services/clients.service';
+import { PropertyStatus } from '@/modules/properties/domain/property-status.enum';
 import { CreatePropertyDto } from '@/modules/properties/dto/create-property.dto';
 import { UpdatePropertyDto } from '@/modules/properties/dto/update-property.dto';
 import { Property, PropertyDocument } from '@/modules/properties/schemas/property.schema';
+
+const COMPLETED_OR_UNAVAILABLE_PROPERTY_STATUSES: readonly PropertyStatus[] = [
+  PropertyStatus.SOLD,
+  PropertyStatus.RENTED,
+  PropertyStatus.ARCHIVED
+] as const;
 
 @Injectable()
 export class PropertiesService {
@@ -146,6 +153,111 @@ export class PropertiesService {
     if (!exists) {
       throw new BadRequestException('Linked property was not found for this organization.');
     }
+  }
+
+  async ensurePropertyIsSelectableForTransaction(
+    propertyId: string | null | undefined,
+    organizationId: string
+  ): Promise<PropertyDocument | null> {
+    if (!propertyId) {
+      return null;
+    }
+
+    this.validateObjectId(propertyId, 'propertyId');
+
+    const property = await this.propertyModel
+      .findOne({
+        ...this.activeTenantFilter(organizationId),
+        _id: new Types.ObjectId(propertyId)
+      })
+      .exec();
+
+    if (!property) {
+      throw new BadRequestException('Linked property was not found for this organization.');
+    }
+
+    if (COMPLETED_OR_UNAVAILABLE_PROPERTY_STATUSES.includes(property.status)) {
+      throw new BadRequestException(
+        'This property cannot be selected because it is already completed or unavailable.'
+      );
+    }
+
+    return property;
+  }
+
+  async markReservedForTransaction(
+    propertyId: string | null | undefined,
+    organizationId: string
+  ): Promise<void> {
+    if (!propertyId) {
+      return;
+    }
+
+    this.validateObjectId(propertyId, 'propertyId');
+
+    await this.propertyModel
+      .findOneAndUpdate(
+        {
+          ...this.activeTenantFilter(organizationId),
+          _id: new Types.ObjectId(propertyId),
+          status: { $nin: COMPLETED_OR_UNAVAILABLE_PROPERTY_STATUSES }
+        },
+        {
+          status: PropertyStatus.RESERVED
+        },
+        { runValidators: true }
+      )
+      .exec();
+  }
+
+  async markCompletedForTransaction(
+    propertyId: string | null | undefined,
+    organizationId: string,
+    status: PropertyStatus.SOLD | PropertyStatus.RENTED
+  ): Promise<void> {
+    if (!propertyId) {
+      return;
+    }
+
+    this.validateObjectId(propertyId, 'propertyId');
+
+    await this.propertyModel
+      .findOneAndUpdate(
+        {
+          ...this.activeTenantFilter(organizationId),
+          _id: new Types.ObjectId(propertyId)
+        },
+        {
+          status
+        },
+        { runValidators: true }
+      )
+      .exec();
+  }
+
+  async restoreActiveForTransaction(
+    propertyId: string | null | undefined,
+    organizationId: string
+  ): Promise<void> {
+    if (!propertyId) {
+      return;
+    }
+
+    this.validateObjectId(propertyId, 'propertyId');
+
+    await this.propertyModel
+      .findOneAndUpdate(
+        {
+          ...this.activeTenantFilter(organizationId),
+          _id: new Types.ObjectId(propertyId),
+          status: { $nin: COMPLETED_OR_UNAVAILABLE_PROPERTY_STATUSES }
+        },
+        {
+          status: PropertyStatus.ACTIVE
+        },
+        { runValidators: true }
+      )
+      .exec();
   }
 
   private async ensureOwnerClientBelongsToOrganization(

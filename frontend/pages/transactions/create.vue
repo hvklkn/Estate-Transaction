@@ -33,7 +33,14 @@ onMounted(async () => {
   await Promise.all([
     authStore.fetchUsers().catch(() => undefined),
     clientsStore.fetchClients({ force: true }).catch(() => undefined),
-    propertiesStore.fetchProperties({ force: true }).catch(() => undefined)
+    propertiesStore.fetchProperties({ force: true }).catch(() => undefined),
+    transactionsStore.fetchTransactions({
+      force: true,
+      query: {
+        page: 1,
+        limit: 100
+      }
+    }).catch(() => undefined)
   ]);
 });
 </script>
@@ -65,6 +72,7 @@ onMounted(async () => {
         :is-agents-loading="authStore.isLoadingUsers"
         :clients="clientsStore.items"
         :properties="propertiesStore.items"
+        :transactions="transactionsStore.items"
         :is-resources-loading="clientsStore.isLoading || propertiesStore.isLoading"
         @submit="handleCreateTransaction"
       />

@@ -5,7 +5,7 @@ import { useAppI18n } from '~/composables/useAppI18n';
 import type { AgentUser } from '~/types/agent';
 import type { ClientSummary } from '~/types/client';
 import type { PropertySummary } from '~/types/property';
-import { TransactionStage, TransactionType, type CreateTransactionPayload } from '~/types/transaction';
+import { TransactionStage, TransactionType, type CreateTransactionPayload, type Transaction } from '~/types/transaction';
 
 const props = defineProps<{
   isSubmitting: boolean;
@@ -13,6 +13,7 @@ const props = defineProps<{
   isAgentsLoading?: boolean;
   clients?: ClientSummary[];
   properties?: PropertySummary[];
+  transactions?: Transaction[];
   isResourcesLoading?: boolean;
 }>();
 
@@ -48,6 +49,22 @@ const hasErrors = computed(() => Object.values(errors).some((value) => value.len
 const hasAgents = computed(() => props.agents.length > 0);
 const canSubmit = computed(
   () => !props.isSubmitting && !props.isAgentsLoading && !props.isResourcesLoading && hasAgents.value
+);
+const activeLinkedPropertyIds = computed(
+  () =>
+    new Set(
+      (props.transactions ?? [])
+        .filter((transaction) => !transaction.isDeleted && transaction.stage !== TransactionStage.COMPLETED)
+        .map((transaction) => transaction.propertyId)
+        .filter((propertyId): propertyId is string => Boolean(propertyId))
+    )
+);
+const selectableProperties = computed(() =>
+  (props.properties ?? []).filter(
+    (property) =>
+      (property.status === 'active' || property.status === 'draft') &&
+      !activeLinkedPropertyIds.value.has(property.id)
+  )
 );
 
 const resetErrors = () => {
@@ -132,7 +149,7 @@ const transactionTypeLabel = (type: TransactionType) =>
 
 const handlePropertySelect = () => {
   clearFieldError('propertyId');
-  const property = props.properties?.find((item) => item.id === form.propertyId);
+  const property = selectableProperties.value.find((item) => item.id === form.propertyId);
   if (property && !form.propertyTitle.trim()) {
     form.propertyTitle = property.title;
     clearFieldError('propertyTitle');
@@ -190,7 +207,7 @@ const handlePropertySelect = () => {
               >
                 <option value="">No linked property</option>
                 <option
-                  v-for="property in props.properties ?? []"
+                  v-for="property in selectableProperties"
                   :key="property.id"
                   :value="property.id"
                 >

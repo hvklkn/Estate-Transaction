@@ -222,6 +222,7 @@ const notifyIfEnabled = async (title: string, body: string) => {
 const handleStageChange = async (payload: { id: string; stage: TransactionStage }) => {
   try {
     const transaction = await transactionsStore.updateTransactionStage(payload.id, payload.stage);
+    await propertiesStore.refreshProperties().catch(() => undefined);
     await notifyIfEnabled(
       t('transactions.notifications.stageChangedTitle'),
       t('transactions.notifications.stageChangedBody', {
@@ -235,7 +236,10 @@ const handleStageChange = async (payload: { id: string; stage: TransactionStage 
 };
 
 const handleRefresh = async () => {
-  await transactionsStore.refreshTransactions();
+  await Promise.all([
+    transactionsStore.refreshTransactions(),
+    propertiesStore.refreshProperties().catch(() => undefined)
+  ]);
 };
 
 const handleEditClick = (id: string) => {
@@ -251,6 +255,7 @@ const handleEditClose = () => {
 const handleEditSubmit = async (payload: { id: string; data: UpdateTransactionPayload }) => {
   try {
     await transactionsStore.updateTransaction(payload.id, payload.data);
+    await propertiesStore.refreshProperties().catch(() => undefined);
     actionSuccessMessage.value = 'Transaction updated successfully.';
     handleEditClose();
   } catch {
@@ -273,6 +278,7 @@ const handleDeleteClick = async (id: string) => {
 
   try {
     await transactionsStore.deleteTransaction(id);
+    await propertiesStore.refreshProperties().catch(() => undefined);
     actionSuccessMessage.value = 'Transaction deleted successfully.';
   } catch {
     // Error is managed by store state.
@@ -694,6 +700,7 @@ onUnmounted(() => {
       :agents="authStore.activeUsers"
       :clients="clientsStore.items"
       :properties="propertiesStore.items"
+      :transactions="transactionsStore.items"
       :is-submitting="Boolean(transactionsStore.updateTransactionId)"
       @close="handleEditClose"
       @submit="handleEditSubmit"

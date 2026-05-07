@@ -17,6 +17,7 @@ const props = defineProps<{
   agents: AgentUser[];
   clients?: ClientSummary[];
   properties?: PropertySummary[];
+  transactions?: Transaction[];
   isSubmitting: boolean;
 }>();
 
@@ -48,6 +49,41 @@ const fieldErrors = reactive({
 
 const canEditWorkflowFields = computed(
   () => props.transaction?.stage === TransactionStage.AGREEMENT
+);
+const currentTransactionId = computed(() => props.transaction?.id ?? null);
+const currentPropertyId = computed(() => props.transaction?.propertyId ?? null);
+const activePropertyOwnerByPropertyId = computed(() => {
+  const ownerMap = new Map<string, string>();
+
+  for (const transaction of props.transactions ?? []) {
+    if (
+      transaction.isDeleted ||
+      transaction.stage === TransactionStage.COMPLETED ||
+      !transaction.propertyId
+    ) {
+      continue;
+    }
+
+    ownerMap.set(transaction.propertyId, transaction.id);
+  }
+
+  return ownerMap;
+});
+const selectableProperties = computed(() =>
+  (props.properties ?? []).filter((property) => {
+    const currentTransactionOwnsProperty = property.id === currentPropertyId.value;
+    const activeOwnerId = activePropertyOwnerByPropertyId.value.get(property.id);
+
+    if (activeOwnerId && activeOwnerId !== currentTransactionId.value) {
+      return false;
+    }
+
+    if (property.status === 'active' || property.status === 'draft') {
+      return true;
+    }
+
+    return property.status === 'reserved' && currentTransactionOwnsProperty;
+  })
 );
 
 const clearErrors = () => {
@@ -185,7 +221,7 @@ const onClose = () => {
 
 const handlePropertySelect = () => {
   fieldErrors.propertyId = '';
-  const property = props.properties?.find((item) => item.id === form.propertyId);
+  const property = selectableProperties.value.find((item) => item.id === form.propertyId);
   if (property && !form.propertyTitle.trim()) {
     form.propertyTitle = property.title;
     fieldErrors.propertyTitle = '';
@@ -246,7 +282,7 @@ const handlePropertySelect = () => {
               @change="handlePropertySelect"
             >
               <option value="">No linked property</option>
-              <option v-for="property in props.properties ?? []" :key="property.id" :value="property.id">
+              <option v-for="property in selectableProperties" :key="property.id" :value="property.id">
                 {{ property.title }} · {{ property.city || 'No city' }} · {{ property.status }}
               </option>
             </select>

@@ -7,9 +7,11 @@ import { AgentsService } from '@/modules/agents/services/agents.service';
 import { BalanceService } from '@/modules/balance/services/balance.service';
 import { ClientsService } from '@/modules/clients/services/clients.service';
 import { CommissionCalculatorService } from '@/modules/commissions/commission-calculator.service';
+import { PropertyStatus } from '@/modules/properties/domain/property-status.enum';
 import { PropertiesService } from '@/modules/properties/services/properties.service';
 import { StageTransitionPolicyService } from '@/modules/stage-policy/stage-transition-policy.service';
 import { TransactionStage } from '@/modules/transactions/domain/transaction-stage.enum';
+import { TransactionType } from '@/modules/transactions/domain/transaction-type.enum';
 import { CreateTransactionDto } from '@/modules/transactions/dto/create-transaction.dto';
 import {
   ListTransactionsQueryDto,
@@ -79,10 +81,7 @@ export class TransactionsService {
 
     await this.agentsService.ensureAgentExists(createTransactionDto.listingAgentId, organizationId);
     await this.agentsService.ensureAgentExists(createTransactionDto.sellingAgentId, organizationId);
-    await this.propertiesService.ensurePropertyBelongsToOrganization(
-      createTransactionDto.propertyId,
-      organizationId
-    );
+    await this.ensurePropertyCanBeLinked(createTransactionDto.propertyId, organizationId);
     await this.clientsService.ensureClientsBelongToOrganization(
       createTransactionDto.clientIds,
       organizationId
@@ -102,7 +101,7 @@ export class TransactionsService {
       })
     ];
 
-    return this.transactionModel.create({
+    const createdTransaction = await this.transactionModel.create({
       ...createTransactionDto,
       propertyId: createTransactionDto.propertyId
         ? new Types.ObjectId(createTransactionDto.propertyId)
@@ -120,6 +119,10 @@ export class TransactionsService {
       balanceDistributionAppliedBy: null,
       balanceDistributionLedgerIds: []
     });
+
+    await this.syncPropertyStatusAfterTransactionCreate(createdTransaction, organizationId);
+
+    return createdTransaction;
   }
 
   async findAll(
@@ -231,10 +234,7 @@ export class TransactionsService {
     }
 
     if (updateTransactionDto.propertyId !== undefined) {
-      await this.propertiesService.ensurePropertyBelongsToOrganization(
-        updateTransactionDto.propertyId,
-        organizationId
-      );
+      await this.ensurePropertyCanBeLinked(updateTransactionDto.propertyId, organizationId, id);
     }
 
     if (updateTransactionDto.clientIds !== undefined) {
@@ -290,6 +290,12 @@ export class TransactionsService {
       throw new NotFoundException('Transaction not found');
     }
 
+    await this.syncPropertyStatusAfterTransactionUpdate(
+      existingTransaction,
+      updatedTransaction,
+      organizationId
+    );
+
     return updatedTransaction;
   }
 
@@ -342,6 +348,8 @@ export class TransactionsService {
     }
 
     if (stage === TransactionStage.COMPLETED) {
+      await this.syncPropertyStatusAfterStageChange(updatedTransaction, organizationId);
+
       await this.balanceService.applyCommissionCreditsForCompletedTransaction({
         transactionId: id,
         actorAgentId,
@@ -410,6 +418,8 @@ export class TransactionsService {
         { new: false }
       )
       .exec();
+
+    await this.syncPropertyStatusAfterTransactionDelete(existingTransaction, organizationId);
   }
 
   async getCompletedEarningsSummary(
@@ -571,6 +581,190 @@ export class TransactionsService {
     if (!Types.ObjectId.isValid(value)) {
       throw new BadRequestException(`${field} must be a valid MongoDB ObjectId`);
     }
+  }
+
+  private async ensurePropertyCanBeLinked(
+    propertyId: string | null | undefined,
+    organizationId: string,
+    currentTransactionId?: string
+  ): Promise<void> {
+    if (!propertyId) {
+      return;
+    }
+
+    this.validateObjectId(propertyId, 'propertyId');
+    if (currentTransactionId) {
+      this.validateObjectId(currentTransactionId, 'transactionId');
+    }
+
+    const property = await this.propertiesService.ensurePropertyIsSelectableForTransaction(
+      propertyId,
+      organizationId
+    );
+
+    const hasDuplicateLink = await this.hasAnotherActiveTransactionForProperty(
+      propertyId,
+      organizationId,
+      currentTransactionId
+    );
+
+    if (hasDuplicateLink) {
+      throw new BadRequestException(
+        'This property is already linked to another active transaction.'
+      );
+    }
+
+    const isReservedByCurrentTransaction =
+      property?.status === PropertyStatus.RESERVED &&
+      currentTransactionId &&
+      (await this.transactionModel
+        .exists({
+          _id: new Types.ObjectId(currentTransactionId),
+          organizationId: new Types.ObjectId(organizationId),
+          propertyId: new Types.ObjectId(propertyId),
+          isDeleted: false,
+          stage: { $ne: TransactionStage.COMPLETED }
+        })
+        .exec());
+
+    if (property?.status === PropertyStatus.RESERVED && !isReservedByCurrentTransaction) {
+      throw new BadRequestException(
+        'This property cannot be selected because it is already completed or unavailable.'
+      );
+    }
+  }
+
+  private async hasAnotherActiveTransactionForProperty(
+    propertyId: string | Types.ObjectId | null | undefined,
+    organizationId: string,
+    excludeTransactionId?: string
+  ): Promise<boolean> {
+    if (!propertyId) {
+      return false;
+    }
+
+    const normalizedPropertyId = propertyId.toString();
+    this.validateObjectId(normalizedPropertyId, 'propertyId');
+    if (excludeTransactionId) {
+      this.validateObjectId(excludeTransactionId, 'transactionId');
+    }
+
+    const filter: FilterQuery<Transaction> = {
+      propertyId: new Types.ObjectId(normalizedPropertyId),
+      organizationId: new Types.ObjectId(organizationId),
+      isDeleted: false,
+      stage: { $ne: TransactionStage.COMPLETED }
+    };
+
+    if (excludeTransactionId) {
+      filter._id = { $ne: new Types.ObjectId(excludeTransactionId) };
+    }
+
+    const existingLink = await this.transactionModel.exists(filter).exec();
+
+    return Boolean(existingLink);
+  }
+
+  private async syncPropertyStatusAfterTransactionCreate(
+    transaction: Pick<Transaction, 'propertyId'>,
+    organizationId: string
+  ): Promise<void> {
+    await this.propertiesService.markReservedForTransaction(
+      this.toObjectIdString(transaction.propertyId),
+      organizationId
+    );
+  }
+
+  private async syncPropertyStatusAfterStageChange(
+    transaction: Pick<Transaction, 'propertyId' | 'transactionType' | 'stage'>,
+    organizationId: string
+  ): Promise<void> {
+    if (transaction.stage !== TransactionStage.COMPLETED) {
+      return;
+    }
+
+    const completedPropertyStatus =
+      transaction.transactionType === TransactionType.RENTED
+        ? PropertyStatus.RENTED
+        : PropertyStatus.SOLD;
+
+    await this.propertiesService.markCompletedForTransaction(
+      this.toObjectIdString(transaction.propertyId),
+      organizationId,
+      completedPropertyStatus
+    );
+  }
+
+  private async syncPropertyStatusAfterTransactionUpdate(
+    previousTransaction: {
+      _id: Types.ObjectId | string;
+      propertyId?: Types.ObjectId | string | null;
+      stage: TransactionStage;
+    },
+    updatedTransaction: {
+      _id: Types.ObjectId | string;
+      propertyId?: Types.ObjectId | string | null;
+      stage: TransactionStage;
+    },
+    organizationId: string
+  ): Promise<void> {
+    const previousPropertyId = this.toObjectIdString(previousTransaction.propertyId);
+    const nextPropertyId = this.toObjectIdString(updatedTransaction.propertyId);
+
+    if (nextPropertyId && nextPropertyId !== previousPropertyId) {
+      await this.propertiesService.markReservedForTransaction(nextPropertyId, organizationId);
+    }
+
+    if (
+      previousTransaction.stage !== TransactionStage.COMPLETED &&
+      previousPropertyId &&
+      previousPropertyId !== nextPropertyId
+    ) {
+      const hasActiveLink = await this.hasAnotherActiveTransactionForProperty(
+        previousPropertyId,
+        organizationId,
+        updatedTransaction._id.toString()
+      );
+
+      if (!hasActiveLink) {
+        await this.propertiesService.restoreActiveForTransaction(
+          previousPropertyId,
+          organizationId
+        );
+      }
+    }
+  }
+
+  private async syncPropertyStatusAfterTransactionDelete(
+    transaction: {
+      _id: Types.ObjectId | string;
+      propertyId?: Types.ObjectId | string | null;
+      stage: TransactionStage;
+    },
+    organizationId: string
+  ): Promise<void> {
+    if (transaction.stage === TransactionStage.COMPLETED) {
+      return;
+    }
+
+    const propertyId = this.toObjectIdString(transaction.propertyId);
+    if (!propertyId) {
+      return;
+    }
+
+    const hasActiveLink = await this.hasAnotherActiveTransactionForProperty(
+      propertyId,
+      organizationId,
+      transaction._id.toString()
+    );
+
+    if (!hasActiveLink) {
+      await this.propertiesService.restoreActiveForTransaction(propertyId, organizationId);
+    }
+  }
+
+  private toObjectIdString(value: Types.ObjectId | string | null | undefined): string | null {
+    return value ? value.toString() : null;
   }
 
   private createStageHistoryEntry(params: {
