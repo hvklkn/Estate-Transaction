@@ -13,10 +13,10 @@ import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeCurrency } from '~/uti
 const authStore = useAuthStore();
 const clientsStore = useClientsStore();
 const propertiesStore = usePropertiesStore();
-const { formatCurrency } = useAppI18n();
+const { t, formatCurrency } = useAppI18n();
 const { settings, hydrateFromStorage } = useUserSettings();
 
-useHead({ title: 'Properties' });
+useHead(() => ({ title: t('propertiesPage.meta.title') }));
 
 const selectedPropertyId = ref<string | null>(null);
 const successMessage = ref('');
@@ -65,11 +65,11 @@ const normalizeOptionalNumber = (value: unknown): { value?: number; error?: stri
 
   const numericValue = Number(rawValue);
   if (!Number.isFinite(numericValue)) {
-    return { error: 'Price must be a valid number.' };
+    return { error: t('propertiesPage.messages.priceInvalid') };
   }
 
   if (numericValue < 0) {
-    return { error: 'Price must be zero or greater.' };
+    return { error: t('propertiesPage.messages.priceMin') };
   }
 
   return { value: numericValue };
@@ -85,34 +85,36 @@ const selectedOwnerClient = computed(() => (normalizedOwnerClientId.value ? (cli
 const selectedOwnerClientMissing = computed(() => Boolean(normalizedOwnerClientId.value) && !clientsStore.isLoading && !selectedOwnerClient.value);
 const isSaving = computed(() => propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId));
 const canSubmit = computed(() => !isSaving.value);
-const currentRoleLabel = computed(() => authStore.currentUser?.role ?? 'unknown');
+const currentRoleLabel = computed(() =>
+  authStore.currentUser?.role ? t(`roles.${authStore.currentUser.role}`) : t('layout.noRole')
+);
 const currentOrganizationIdLabel = computed(() => authStore.currentUser?.organizationId ?? 'none');
-const currentOrganizationLabel = computed(() => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? 'none');
+const currentOrganizationLabel = computed(() => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? t('layout.noOrganization'));
 const visibleError = computed(() => submitError.value || propertiesStore.error || clientsStore.error);
 const priceValidationError = computed(() => normalizeOptionalNumber(form.price).error ?? '');
 const isDebugVisible = import.meta.dev;
 const submitBlockReason = computed(() => {
   if (!authStore.isAuthenticated || !authStore.currentUser) {
-    return 'Session is not loaded. Please sign in again.';
+    return t('propertiesPage.messages.noSession');
   }
 
   if (!authStore.sessionToken) {
-    return 'Session token is missing. Please sign in again.';
+    return t('propertiesPage.messages.missingToken');
   }
 
   if (!canEditForm.value) {
     return isEditing.value
-      ? 'You do not have permission to update properties.'
-      : 'You do not have permission to create properties.';
+      ? t('propertiesPage.messages.noUpdatePermission')
+      : t('propertiesPage.messages.noCreatePermission');
   }
 
   const title = toTrimmedText(form.title);
   if (title.length === 0) {
-    return 'Title is required.';
+    return t('propertiesPage.messages.titleRequired');
   }
 
   if (title.length < 2) {
-    return 'Title must be at least 2 characters.';
+    return t('propertiesPage.messages.titleMin');
   }
 
   if (priceValidationError.value) {
@@ -120,7 +122,7 @@ const submitBlockReason = computed(() => {
   }
 
   if (selectedOwnerClientMissing.value) {
-    return "Owner client must be selected from this organization's active clients.";
+    return t('propertiesPage.messages.ownerRequired');
   }
 
   return '';
@@ -131,15 +133,15 @@ const permissionNotice = computed(() => {
   }
 
   if (isEditing.value && canCreate.value) {
-    return 'Your role can create and view properties, but cannot edit or archive them.';
+    return t('propertiesPage.messages.createOnlyPermission');
   }
 
-  return 'Your role can view properties, but cannot create, edit, or archive them.';
+  return t('propertiesPage.messages.viewOnlyPermission');
 });
 
 const formatMoney = (value: number | null, currency: string) =>
   value === null
-    ? 'Price not set'
+    ? t('propertiesPage.messages.priceNotSet')
     : formatCurrency(value, {
         currency,
         maximumFractionDigits: 0
@@ -224,12 +226,12 @@ const submitForm = async () => {
     if (selectedProperty.value) {
       setSubmitStatus(`Sending update for property ${selectedProperty.value.id}...`);
       await propertiesStore.updateProperty(selectedProperty.value.id, buildPayload());
-      successMessage.value = 'Property updated.';
+      successMessage.value = t('propertiesPage.messages.updated');
     } else {
       const payload = buildPayload();
       setSubmitStatus('Sending POST /properties...');
       const property = await propertiesStore.createProperty(payload);
-      successMessage.value = `Property created: ${property.title}.`;
+      successMessage.value = t('propertiesPage.messages.created', { title: property.title });
     }
     setSubmitStatus(`Submit succeeded. Inventory now has ${propertiesStore.count} records.`);
     resetForm();
@@ -246,14 +248,14 @@ const deleteProperty = async (property: Property) => {
     return;
   }
 
-  const confirmed = window.confirm(`Archive ${property.title}? This keeps audit history.`);
+  const confirmed = window.confirm(t('propertiesPage.messages.archiveConfirm', { title: property.title }));
   if (!confirmed) {
     return;
   }
 
   try {
     await propertiesStore.deleteProperty(property.id);
-    successMessage.value = 'Property archived.';
+    successMessage.value = t('propertiesPage.messages.archived');
     if (selectedPropertyId.value === property.id) {
       resetForm();
     }
@@ -276,26 +278,45 @@ onMounted(async () => {
   }
   await Promise.all([clientsStore.fetchClients({ force: true }), propertiesStore.fetchProperties({ force: true })]);
 });
+
+const propertyTypeOptions = computed(() =>
+  PROPERTY_TYPE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`property.types.${option.value}`)
+  }))
+);
+const propertyListingTypeOptions = computed(() =>
+  PROPERTY_LISTING_TYPE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`property.listingTypes.${option.value}`)
+  }))
+);
+const propertyStatusOptions = computed(() =>
+  PROPERTY_STATUS_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`property.statuses.${option.value}`)
+  }))
+);
 </script>
 
 <template>
   <section class="space-y-6">
     <AppPageHeader
-      eyebrow="Inventory"
-      title="Properties"
-      description="Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows."
+      :eyebrow="t('propertiesPage.header.kicker')"
+      :title="t('propertiesPage.header.title')"
+      :description="t('propertiesPage.header.description')"
     >
       <template #meta>
         <p class="text-xs text-slate-500 dark:text-slate-400">
-          Session role:
+          {{ t('propertiesPage.header.sessionRole') }}:
           <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentRoleLabel }}</span>
-          · Organization:
+          · {{ t('propertiesPage.header.organization') }}:
           <span class="font-semibold text-slate-700 dark:text-slate-200">{{ currentOrganizationLabel }}</span>
         </p>
       </template>
       <template #actions>
         <button type="button" class="btn-secondary" :disabled="propertiesStore.isLoading" @click="propertiesStore.refreshProperties()">
-          {{ propertiesStore.isLoading ? 'Loading...' : 'Refresh' }}
+          {{ propertiesStore.isLoading ? t('common.loading') : t('common.refresh') }}
         </button>
       </template>
     </AppPageHeader>
@@ -309,36 +330,36 @@ onMounted(async () => {
     <div v-if="isDebugVisible" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <p>
-          Role:
+          {{ t('propertiesPage.debug.role') }}:
           <span class="font-semibold">{{ currentRoleLabel }}</span>
         </p>
         <p>
-          Organization:
+          {{ t('propertiesPage.debug.organization') }}:
           <span class="font-semibold">{{ currentOrganizationLabel }}</span>
         </p>
         <p>
-          Organization ID:
+          {{ t('propertiesPage.debug.organizationId') }}:
           <span class="font-semibold">{{ currentOrganizationIdLabel }}</span>
         </p>
         <p>
-          canCreate/canManage:
+          {{ t('propertiesPage.debug.permissions') }}:
           <span class="font-semibold">{{ canCreate }}/{{ canManage }}</span>
         </p>
         <p>
-          isCreating:
+          {{ t('propertiesPage.debug.isCreating') }}:
           <span class="font-semibold">{{ propertiesStore.isCreating }}</span>
         </p>
         <p>
-          Store error:
-          <span class="font-semibold">{{ propertiesStore.error || 'none' }}</span>
+          {{ t('propertiesPage.debug.storeError') }}:
+          <span class="font-semibold">{{ propertiesStore.error || t('propertiesPage.debug.none') }}</span>
         </p>
         <p>
-          Submit:
+          {{ t('propertiesPage.debug.submit') }}:
           <span class="font-semibold">{{ submitStatus }}</span>
         </p>
         <p>
-          Last refresh count:
-          <span class="font-semibold">{{ propertiesStore.lastRefreshCount ?? 'not loaded' }}</span>
+          {{ t('propertiesPage.debug.lastRefreshCount') }}:
+          <span class="font-semibold">{{ propertiesStore.lastRefreshCount ?? t('propertiesPage.debug.notLoaded') }}</span>
         </p>
       </div>
     </div>
@@ -346,7 +367,10 @@ onMounted(async () => {
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <AppSectionHeader title="Property Inventory" :description="`${propertiesStore.count} active records ready for transaction workflows.`" />
+          <AppSectionHeader
+            :title="t('propertiesPage.inventory.title')"
+            :description="t('propertiesPage.inventory.description', { count: propertiesStore.count })"
+          />
 
           <div v-if="propertiesStore.isLoading && propertiesStore.items.length === 0" class="space-y-3">
             <div class="skeleton h-20 w-full"></div>
@@ -354,9 +378,13 @@ onMounted(async () => {
             <div class="skeleton h-20 w-full"></div>
           </div>
 
-          <AppEmptyState v-else-if="propertiesStore.items.length === 0" title="No properties yet" description="Create property inventory to connect listings to transactions.">
+          <AppEmptyState
+            v-else-if="propertiesStore.items.length === 0"
+            :title="t('propertiesPage.inventory.emptyTitle')"
+            :description="t('propertiesPage.inventory.emptyDescription')"
+          >
             <template #actions>
-              <button type="button" class="btn-primary" :disabled="!canCreate" @click="resetForm">Create property</button>
+              <button type="button" class="btn-primary" :disabled="!canCreate" @click="resetForm">{{ t('propertiesPage.form.createProperty') }}</button>
             </template>
           </AppEmptyState>
 
@@ -368,26 +396,26 @@ onMounted(async () => {
                     <p class="font-semibold text-slate-950 dark:text-white">
                       {{ property.title }}
                     </p>
-                    <span class="status-chip capitalize">{{ property.status }}</span>
-                    <span class="status-chip capitalize">{{ property.listingType }}</span>
+                    <span class="status-chip">{{ t(`property.statuses.${property.status}`) }}</span>
+                    <span class="status-chip">{{ t(`property.listingTypes.${property.listingType}`) }}</span>
                   </div>
                   <div class="mt-2 flex flex-wrap gap-2 text-sm">
                     <span class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                      {{ property.city || 'City not set' }}<span v-if="property.district">, {{ property.district }}</span>
+                      {{ property.city || t('propertiesPage.inventory.cityNotSet') }}<span v-if="property.district">, {{ property.district }}</span>
                     </span>
                     <span class="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
                       {{ formatMoney(property.price, property.currency) }}
                     </span>
                   </div>
-                  <p v-if="property.ownerClient" class="mt-1 text-xs text-slate-500">Owner: {{ property.ownerClient.fullName }}</p>
+                  <p v-if="property.ownerClient" class="mt-1 text-xs text-slate-500">{{ t('propertiesPage.inventory.owner') }}: {{ property.ownerClient.fullName }}</p>
                   <p v-if="property.description" class="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                     {{ property.description }}
                   </p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
-                  <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="editProperty(property)">Edit</button>
+                  <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="editProperty(property)">{{ t('common.edit') }}</button>
                   <button v-if="canManage" type="button" class="btn-secondary px-3 py-1.5 text-xs" :disabled="propertiesStore.deletePropertyId === property.id" @click="deleteProperty(property)">
-                    {{ propertiesStore.deletePropertyId === property.id ? 'Archiving...' : 'Archive' }}
+                    {{ propertiesStore.deletePropertyId === property.id ? t('common.archiving') : t('common.archive') }}
                   </button>
                 </div>
               </div>
@@ -399,8 +427,8 @@ onMounted(async () => {
       <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
           <AppSectionHeader
-            :title="isEditing ? 'Edit Property' : 'Create Property'"
-            description="Keep listing details, owner links, pricing, and status ready for deal intake."
+            :title="isEditing ? t('propertiesPage.form.editTitle') : t('propertiesPage.form.createTitle')"
+            :description="t('propertiesPage.form.description')"
           />
           <p v-if="permissionNotice" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {{ permissionNotice }}
@@ -408,27 +436,27 @@ onMounted(async () => {
           <p v-if="submitBlockReason" class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             {{ submitBlockReason }}
           </p>
-          <p v-if="selectedOwnerClientMissing" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Owner client is not in the active client list for this organization.</p>
+          <p v-if="selectedOwnerClientMissing" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{{ t('propertiesPage.form.ownerMissing') }}</p>
 
           <form class="mt-5 space-y-4" @submit.prevent="submitForm">
             <label class="block">
-              <span class="field-label">Title</span>
+              <span class="field-label">{{ t('propertiesPage.form.title') }}</span>
               <input v-model="form.title" class="input-base" type="text" :disabled="!canEditForm" />
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="field-label">Type</span>
+                <span class="field-label">{{ t('propertiesPage.form.type') }}</span>
                 <select v-model="form.type" class="input-base" :disabled="!canEditForm">
-                  <option v-for="option in PROPERTY_TYPE_OPTIONS" :key="option.value" :value="option.value">
+                  <option v-for="option in propertyTypeOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
                 </select>
               </label>
               <label class="block">
-                <span class="field-label">Listing</span>
+                <span class="field-label">{{ t('propertiesPage.form.listingType') }}</span>
                 <select v-model="form.listingType" class="input-base" :disabled="!canEditForm">
-                  <option v-for="option in PROPERTY_LISTING_TYPE_OPTIONS" :key="option.value" :value="option.value">
+                  <option v-for="option in propertyListingTypeOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
                 </select>
@@ -436,9 +464,9 @@ onMounted(async () => {
             </div>
 
             <label class="block">
-              <span class="field-label">Owner Client</span>
+              <span class="field-label">{{ t('propertiesPage.form.ownerClient') }}</span>
               <select v-model="form.ownerClientId" class="input-base" :disabled="!canEditForm || clientsStore.isLoading">
-                <option value="">No owner linked</option>
+                <option value="">{{ t('propertiesPage.form.noOwnerLinked') }}</option>
                 <option v-for="client in clientsStore.items" :key="client.id" :value="client.id">
                   {{ client.fullName }}
                 </option>
@@ -446,28 +474,28 @@ onMounted(async () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Address</span>
+              <span class="field-label">{{ t('propertiesPage.form.address') }}</span>
               <input v-model="form.address" class="input-base" type="text" :disabled="!canEditForm" />
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="field-label">City</span>
+                <span class="field-label">{{ t('propertiesPage.form.city') }}</span>
                 <input v-model="form.city" class="input-base" type="text" :disabled="!canEditForm" />
               </label>
               <label class="block">
-                <span class="field-label">District</span>
+                <span class="field-label">{{ t('propertiesPage.form.district') }}</span>
                 <input v-model="form.district" class="input-base" type="text" :disabled="!canEditForm" />
               </label>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-[1fr_110px]">
               <label class="block">
-                <span class="field-label">Price</span>
+                <span class="field-label">{{ t('propertiesPage.form.price') }}</span>
                 <input v-model="form.price" class="input-base" min="0" step="0.01" type="number" :disabled="!canEditForm" />
               </label>
               <label class="block">
-                <span class="field-label">Currency</span>
+                <span class="field-label">{{ t('propertiesPage.form.currency') }}</span>
                 <select v-model="form.currency" class="input-base uppercase" :disabled="!canEditForm">
                   <option v-for="option in SUPPORTED_CURRENCIES" :key="option.code" :value="option.code">
                     {{ option.code }}
@@ -477,23 +505,23 @@ onMounted(async () => {
             </div>
 
             <label class="block">
-              <span class="field-label">Status</span>
+              <span class="field-label">{{ t('propertiesPage.form.status') }}</span>
               <select v-model="form.status" class="input-base" :disabled="!canEditForm">
-                <option v-for="option in PROPERTY_STATUS_OPTIONS" :key="option.value" :value="option.value">
+                <option v-for="option in propertyStatusOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>
             </label>
 
             <label class="block">
-              <span class="field-label">Description</span>
+              <span class="field-label">{{ t('propertiesPage.form.descriptionLabel') }}</span>
               <textarea v-model="form.description" class="input-base min-h-28" :disabled="!canEditForm"></textarea>
             </label>
 
             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
-              <button type="button" class="btn-secondary" :disabled="propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId)" @click="resetForm">Clear</button>
+              <button type="button" class="btn-secondary" :disabled="propertiesStore.isCreating || Boolean(propertiesStore.updatePropertyId)" @click="resetForm">{{ t('common.clear') }}</button>
               <button type="submit" class="btn-primary" :disabled="!canSubmit">
-                {{ propertiesStore.isCreating || propertiesStore.updatePropertyId ? 'Saving...' : isEditing ? 'Save Property' : 'Create Property' }}
+                {{ propertiesStore.isCreating || propertiesStore.updatePropertyId ? t('common.saving') : isEditing ? t('propertiesPage.form.saveProperty') : t('propertiesPage.form.createProperty') }}
               </button>
             </div>
           </form>

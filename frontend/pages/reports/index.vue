@@ -63,13 +63,13 @@ const statusOptions = computed(() => [
     label: t(`tasks.statuses.${option.value}`)
   }))
 ]);
-const exportOptions: Array<{ kind: ReportExportKind; label: string }> = [
-  { kind: 'transactions', label: 'Transactions' },
-  { kind: 'clients', label: 'Clients' },
-  { kind: 'properties', label: 'Properties' },
-  { kind: 'tasks', label: 'Tasks' },
-  { kind: 'commissions', label: 'Commissions' }
-];
+const exportOptions = computed<Array<{ kind: ReportExportKind; label: string }>>(() => [
+  { kind: 'transactions', label: t('reports.export.transactions') },
+  { kind: 'clients', label: t('reports.export.clients') },
+  { kind: 'properties', label: t('reports.export.properties') },
+  { kind: 'tasks', label: t('reports.export.tasks') },
+  { kind: 'commissions', label: t('reports.export.commissions') }
+]);
 
 const canExport = computed(() => {
   const role = authStore.currentUser?.role;
@@ -141,18 +141,18 @@ onMounted(() => {
 
     <section class="panel">
       <div class="panel-body space-y-4">
-        <AppSectionHeader title="Report Filters" description="Scope analytics by date, deal type, lifecycle stage, property listing, or status." />
+        <AppSectionHeader :title="t('reports.filters.title')" :description="t('reports.filters.description')" />
         <form class="grid gap-4 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 md:grid-cols-6" @submit.prevent="applyFilters">
           <label class="block">
-            <span class="field-label">From</span>
+            <span class="field-label">{{ t('reports.filters.dateFrom') }}</span>
             <input v-model="filterForm.dateFrom" type="date" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">To</span>
+            <span class="field-label">{{ t('reports.filters.dateTo') }}</span>
             <input v-model="filterForm.dateTo" type="date" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">Type</span>
+            <span class="field-label">{{ t('reports.filters.type') }}</span>
             <select v-model="filterForm.transactionType" class="input-base">
               <option value="">{{ t('common.all') }}</option>
               <option v-for="option in transactionTypeOptions" :key="option.value" :value="option.value">
@@ -161,7 +161,7 @@ onMounted(() => {
             </select>
           </label>
           <label class="block">
-            <span class="field-label">Stage</span>
+            <span class="field-label">{{ t('reports.filters.stage') }}</span>
             <select v-model="filterForm.transactionStage" class="input-base">
               <option value="">{{ t('common.all') }}</option>
               <option v-for="option in transactionStageOptions" :key="option.value" :value="option.value">
@@ -170,7 +170,7 @@ onMounted(() => {
             </select>
           </label>
           <label class="block">
-            <span class="field-label">Listing</span>
+            <span class="field-label">{{ t('reports.filters.listing') }}</span>
             <select v-model="filterForm.propertyListingType" class="input-base">
               <option value="">{{ t('common.all') }}</option>
               <option v-for="option in propertyListingTypeOptions" :key="option.value" :value="option.value">
@@ -179,7 +179,7 @@ onMounted(() => {
             </select>
           </label>
           <label class="block">
-            <span class="field-label">Status</span>
+            <span class="field-label">{{ t('reports.filters.status') }}</span>
             <select v-model="filterForm.status" class="input-base">
               <option value="">{{ t('common.all') }}</option>
               <option v-for="option in statusOptions" :key="option.value" :value="option.value">
@@ -188,9 +188,9 @@ onMounted(() => {
             </select>
           </label>
           <div class="flex flex-wrap items-end gap-2 md:col-span-6">
-            <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">{{ t('common.apply') }}</button>
+            <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">{{ t('reports.filters.applyFilters') }}</button>
             <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="clearFilters">
-              {{ t('common.clear') }}
+              {{ t('reports.filters.clearFilters') }}
             </button>
           </div>
         </form>
@@ -200,18 +200,18 @@ onMounted(() => {
     <div v-if="reportsStore.error" class="alert-error">{{ reportsStore.error }}</div>
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard :label="t('reports.metrics.monthlyServiceFee')" :value="formatCurrency(summary.monthlyServiceFee)" helper="Current calendar month" emphasis />
-      <MetricCard :label="t('reports.metrics.agencyTotal')" :value="formatCurrency(summary.commissionSummary.agencyTotal)" helper="Completed deals" />
-      <MetricCard :label="t('reports.metrics.agentEarnings')" :value="formatCurrency(summary.commissionSummary.agentEarningsTotal)" helper="Commission allocations" />
-      <MetricCard :label="t('reports.metrics.overdueTasks')" :value="String(summary.taskSummary.overdue)" helper="Open tasks before today" />
+      <MetricCard :label="t('reports.metrics.monthlyServiceFee')" :value="formatCurrency(summary.monthlyServiceFee)" :helper="t('reports.helpers.currentCalendarMonth')" emphasis />
+      <MetricCard :label="t('reports.metrics.agencyTotal')" :value="formatCurrency(summary.commissionSummary.agencyTotal)" :helper="t('reports.helpers.completedDeals')" />
+      <MetricCard :label="t('reports.metrics.agentEarnings')" :value="formatCurrency(summary.commissionSummary.agentEarningsTotal)" :helper="t('reports.helpers.commissionAllocations')" />
+      <MetricCard :label="t('reports.metrics.overdueTasks')" :value="String(summary.taskSummary.overdue)" :helper="t('reports.helpers.openTasksBeforeToday')" />
     </section>
 
     <section class="grid gap-4 xl:grid-cols-2">
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="Transactions by Stage" description="Lifecycle visibility across filtered transactions.">
+          <AppSectionHeader :title="t('reports.sections.transactionsByStage')" :description="t('reports.sections.transactionsByStageDescription')">
             <template #actions>
-              <NuxtLink to="/transactions" class="btn-secondary">Open</NuxtLink>
+              <NuxtLink to="/transactions" class="btn-secondary">{{ t('common.open') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <div v-if="summary.transactionCountsByStage.length > 0" class="space-y-3">
@@ -225,13 +225,13 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <AppEmptyState v-else title="No transaction data" description="Adjust report filters to widen the stage view." />
+          <AppEmptyState v-else :title="t('reports.empty.noTransactionData')" :description="t('reports.empty.noTransactionDataDescription')" />
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="Service Fee Trend" description="Monthly service fee movement for the active filter set." />
+          <AppSectionHeader :title="t('reports.sections.serviceFeeTrend')" :description="t('reports.sections.serviceFeeTrendDescription')" />
           <div v-if="summary.totalServiceFeeOverTime.length > 0" class="flex h-48 items-end gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
             <div
               v-for="item in summary.totalServiceFeeOverTime"
@@ -246,7 +246,7 @@ onMounted(() => {
               <span class="w-full truncate text-center text-[11px] text-slate-500">{{ item.period }}</span>
             </div>
           </div>
-          <AppEmptyState v-else title="No fee trend yet" description="Trend bars will appear after transactions carry service fee data." />
+          <AppEmptyState v-else :title="t('reports.empty.noFeeTrend')" :description="t('reports.empty.noFeeTrendDescription')" />
         </div>
       </article>
     </section>
@@ -254,14 +254,14 @@ onMounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <AppSectionHeader title="Agent Performance" description="Closed-deal output and commission earnings by agent." />
+          <AppSectionHeader :title="t('reports.sections.agentPerformance')" :description="t('reports.sections.agentPerformanceDescription')" />
           <div v-if="topAgents.length > 0" class="mt-5 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Agent</th>
-                  <th>Closed Deals</th>
-                  <th>Commission</th>
+                  <th>{{ t('reports.table.agent') }}</th>
+                  <th>{{ t('reports.table.closedDeals') }}</th>
+                  <th>{{ t('reports.table.commission') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,13 +273,13 @@ onMounted(() => {
               </tbody>
             </table>
           </div>
-          <AppEmptyState v-else title="No agent performance data yet" description="Closed transactions will populate this leaderboard." />
+          <AppEmptyState v-else :title="t('reports.empty.noAgentPerformance')" :description="t('reports.empty.noAgentPerformanceDescription')" />
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="Recent Activity" description="Latest reportable movement in the workspace." />
+          <AppSectionHeader :title="t('reports.sections.recentActivity')" :description="t('reports.sections.recentActivityDescription')" />
           <ul v-if="summary.recentActivity.length > 0" class="space-y-2">
             <li
               v-for="item in summary.recentActivity"
@@ -290,14 +290,14 @@ onMounted(() => {
               <p class="mt-1 text-xs text-slate-500">{{ formatDateTime(item.occurredAt) }}</p>
             </li>
           </ul>
-          <AppEmptyState v-else title="No recent activity yet" description="Recent transactions, tasks, and property updates will appear here." />
+          <AppEmptyState v-else :title="t('reports.empty.noRecentActivity')" :description="t('reports.empty.noRecentActivityDescription')" />
         </div>
       </article>
     </section>
 
     <section v-if="canExport" class="panel">
       <div class="panel-body flex flex-wrap items-center justify-between gap-3">
-        <AppSectionHeader title="Exports" description="CSV files respect the active report filters and organization scope." />
+        <AppSectionHeader :title="t('reports.sections.exports')" :description="t('reports.sections.exportsDescription')" />
         <div class="flex flex-wrap gap-2">
           <button
             v-for="option in exportOptions"
@@ -307,7 +307,7 @@ onMounted(() => {
             :disabled="Boolean(reportsStore.exportKind)"
             @click="reportsStore.exportCsv(option.kind)"
           >
-            {{ reportsStore.exportKind === option.kind ? 'Exporting...' : option.label }}
+            {{ reportsStore.exportKind === option.kind ? t('reports.export.exporting') : option.label }}
           </button>
         </div>
       </div>

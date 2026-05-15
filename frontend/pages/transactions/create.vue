@@ -51,7 +51,7 @@ onMounted(async () => {
       :eyebrow="t('transactions.header.kicker')"
       :title="t('transactions.form.title')"
       :description="t('transactions.form.description')"
-      meta="Create the deal record first, then advance lifecycle stages from the transaction workspace."
+      :meta="t('transactions.form.createMeta')"
     >
       <template #actions>
         <NuxtLink to="/transactions" class="btn-secondary">
@@ -79,26 +79,26 @@ onMounted(async () => {
       <aside class="panel h-fit lg:sticky lg:top-24">
         <div class="panel-body space-y-4">
           <AppSectionHeader
-            title="Creation Checklist"
-            description="The form validates deal details, linked records, and agent assignment before saving."
+            :title="t('transactions.form.checklist.title')"
+            :description="t('transactions.form.checklist.description')"
           />
           <div class="space-y-3">
             <div class="surface-muted px-4 py-3">
-              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Property context</p>
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.form.checklist.propertyContext') }}</p>
               <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                Link an inventory property when available, or use a standalone title for legacy records.
+                {{ t('transactions.form.checklist.propertyContextDescription') }}
               </p>
             </div>
             <div class="surface-muted px-4 py-3">
-              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Commission source</p>
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.form.checklist.commissionSource') }}</p>
               <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                The service fee becomes the basis for the stage-driven financial breakdown.
+                {{ t('transactions.form.checklist.commissionSourceDescription') }}
               </p>
             </div>
             <div class="surface-muted px-4 py-3">
-              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Agent assignment</p>
+              <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.form.checklist.agentAssignment') }}</p>
               <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                Listing and selling agents are required while the transaction is created in agreement stage.
+                {{ t('transactions.form.checklist.agentAssignmentDescription') }}
               </p>
             </div>
           </div>

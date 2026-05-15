@@ -103,11 +103,11 @@ const showingRange = computed(() => {
   return `${first}-${last}`;
 });
 const emptyStateTitle = computed(() =>
-  transactionsStore.hasActiveFilters ? 'No transactions match current filters' : t('transactions.list.emptyTitle')
+  transactionsStore.hasActiveFilters ? t('transactions.dashboard.emptyFilteredTitle') : t('transactions.list.emptyTitle')
 );
 const emptyStateDescription = computed(() =>
   transactionsStore.hasActiveFilters
-    ? 'Try clearing search, stage, or transaction type filters to widen the result set.'
+    ? t('transactions.dashboard.emptyFilteredDescription')
     : t('transactions.list.emptyDescription')
 );
 const summaryEmailHref = computed(() => {
@@ -256,7 +256,7 @@ const handleEditSubmit = async (payload: { id: string; data: UpdateTransactionPa
   try {
     await transactionsStore.updateTransaction(payload.id, payload.data);
     await propertiesStore.refreshProperties().catch(() => undefined);
-    actionSuccessMessage.value = 'Transaction updated successfully.';
+    actionSuccessMessage.value = t('transactions.dashboard.updated');
     handleEditClose();
   } catch {
     // Error is managed by store state.
@@ -268,9 +268,7 @@ const handleDeleteClick = async (id: string) => {
     return;
   }
 
-  const confirmed = window.confirm(
-    'Are you sure you want to delete this transaction? This will perform a soft delete and keep audit history.'
-  );
+  const confirmed = window.confirm(t('transactions.dashboard.deleteConfirm'));
 
   if (!confirmed) {
     return;
@@ -279,7 +277,7 @@ const handleDeleteClick = async (id: string) => {
   try {
     await transactionsStore.deleteTransaction(id);
     await propertiesStore.refreshProperties().catch(() => undefined);
-    actionSuccessMessage.value = 'Transaction deleted successfully.';
+    actionSuccessMessage.value = t('transactions.dashboard.deleted');
   } catch {
     // Error is managed by store state.
   }
@@ -341,7 +339,7 @@ onUnmounted(() => {
       :eyebrow="t('transactions.header.kicker')"
       :title="t('transactions.header.title')"
       :description="t('transactions.header.description')"
-      :meta="`Showing ${showingRange} of ${totalTransactions} records`"
+      :meta="t('transactions.dashboard.showingMeta', { range: showingRange, total: totalTransactions })"
     >
       <template #actions>
         <div class="flex flex-wrap items-center gap-2">
@@ -374,17 +372,17 @@ onUnmounted(() => {
       <MetricCard
         :label="t('transactions.metrics.totalTransactions.label')"
         :value="String(totalTransactions)"
-        :helper="'Server-side paginated count'"
+        :helper="t('transactions.dashboard.serverPaginatedCount')"
       />
       <MetricCard
         :label="t('transactions.metrics.completedTransactions.label')"
         :value="String(transactionsStore.completedTransactionsCount)"
-        :helper="'Completed in current page'"
+        :helper="t('transactions.dashboard.completedCurrentPage')"
       />
       <MetricCard
         :label="t('transactions.metrics.openTransactions.label')"
         :value="String(transactionsStore.openTransactionsCount)"
-        :helper="'Open in current page'"
+        :helper="t('transactions.dashboard.openCurrentPage')"
       />
       <MetricCard
         :label="t('transactions.metrics.totalCommissionVolume.label')"
@@ -407,7 +405,7 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="Stage Mix" description="Lifecycle distribution for the current dashboard scope.">
+          <AppSectionHeader :title="t('transactions.dashboard.stageMix')" :description="t('transactions.dashboard.stageMixDescription')">
             <template #actions>
               <NuxtLink to="/reports" class="btn-secondary">{{ t('layout.navigation.reports') }}</NuxtLink>
             </template>
@@ -423,7 +421,7 @@ onUnmounted(() => {
               </div>
             </div>
             <p v-if="reportsSummary.transactionCountsByStage.length === 0" class="text-xs text-slate-500">
-              No stage data yet.
+              {{ t('transactions.dashboard.noStageData') }}
             </p>
           </div>
         </div>
@@ -431,7 +429,7 @@ onUnmounted(() => {
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader :title="t('reports.metrics.monthlyServiceFee')" description="Revenue signal from completed and active workflows.">
+          <AppSectionHeader :title="t('reports.metrics.monthlyServiceFee')" :description="t('transactions.dashboard.revenueSignal')">
             <template #actions>
               <NuxtLink to="/reports" class="btn-secondary">{{ t('layout.navigation.reports') }}</NuxtLink>
             </template>
@@ -448,18 +446,18 @@ onUnmounted(() => {
 
       <article class="panel">
         <div class="panel-body space-y-3">
-          <AppSectionHeader title="Top Agents" description="Closed deal leaders in the current summary.">
+          <AppSectionHeader :title="t('transactions.dashboard.topAgents')" :description="t('transactions.dashboard.topAgentsDescription')">
             <template #actions>
-              <NuxtLink to="/reports" class="btn-secondary">View</NuxtLink>
+              <NuxtLink to="/reports" class="btn-secondary">{{ t('common.view') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <ul v-if="dashboardTopAgents.length > 0" class="space-y-2">
             <li v-for="agent in dashboardTopAgents" :key="agent.agentId" class="flex items-center justify-between gap-3 text-sm">
               <span class="truncate font-medium text-slate-700 dark:text-slate-300">{{ agent.agentName }}</span>
-              <span class="shrink-0 text-xs text-slate-500">{{ agent.closedDeals }} closed</span>
+              <span class="shrink-0 text-xs text-slate-500">{{ t('transactions.dashboard.closedCount', { count: agent.closedDeals }) }}</span>
             </li>
           </ul>
-          <p v-else class="text-xs text-slate-500">Closed deal rankings will appear here.</p>
+          <p v-else class="text-xs text-slate-500">{{ t('transactions.dashboard.closedRankingsEmpty') }}</p>
         </div>
       </article>
     </section>
@@ -467,32 +465,32 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-1">
         <div class="panel-body space-y-3">
-          <AppSectionHeader title="Task Snapshot" description="Open tasks across the office.">
+          <AppSectionHeader :title="t('transactions.dashboard.taskSnapshot')" :description="t('transactions.dashboard.taskSnapshotDescription')">
             <template #actions>
-              <NuxtLink to="/tasks" class="btn-secondary">Open Tasks</NuxtLink>
+              <NuxtLink to="/tasks" class="btn-secondary">{{ t('transactions.dashboard.openTasks') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <p class="text-3xl font-semibold text-slate-950 dark:text-white">
             {{ tasksStore.summary.pending }}
           </p>
           <div class="grid gap-2 text-xs sm:grid-cols-3">
-            <span class="status-chip">Overdue: {{ tasksStore.summary.overdue }}</span>
-            <span class="status-chip">Today: {{ tasksStore.summary.dueToday }}</span>
-            <span class="status-chip">Week: {{ tasksStore.summary.dueThisWeek }}</span>
+            <span class="status-chip">{{ t('transactions.dashboard.overdue') }}: {{ tasksStore.summary.overdue }}</span>
+            <span class="status-chip">{{ t('transactions.dashboard.today') }}: {{ tasksStore.summary.dueToday }}</span>
+            <span class="status-chip">{{ t('transactions.dashboard.week') }}: {{ tasksStore.summary.dueThisWeek }}</span>
           </div>
         </div>
       </article>
 
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <AppSectionHeader title="Recent Transaction Activity" description="Latest notes and operational updates.">
+          <AppSectionHeader :title="t('transactions.dashboard.recentActivity')" :description="t('transactions.dashboard.recentActivityDescription')">
             <template #actions>
               <button
                 type="button"
                 class="btn-secondary"
                 @click="transactionNotesStore.fetchRecentNotes().catch(() => undefined)"
               >
-                Refresh
+                {{ t('common.refresh') }}
               </button>
             </template>
           </AppSectionHeader>
@@ -504,18 +502,18 @@ onUnmounted(() => {
             >
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="font-medium text-slate-800 dark:text-slate-200">
-                  {{ note.transaction?.propertyTitle ?? 'Transaction note' }}
+                  {{ note.transaction?.propertyTitle ?? t('transactions.dashboard.transactionNote') }}
                 </p>
                 <p class="text-xs text-slate-500 dark:text-slate-400">
                   {{ formatDateTime(note.createdAt) }}
                 </p>
               </div>
               <p class="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
-                {{ note.author?.name ?? 'Unknown author' }}: {{ note.content }}
+                {{ note.author?.name ?? t('transactions.detail.unknownAuthor') }}: {{ note.content }}
               </p>
             </li>
           </ul>
-          <AppEmptyState v-else title="No recent transaction notes yet" description="Activity will appear here once the team starts adding workflow notes." />
+          <AppEmptyState v-else :title="t('transactions.dashboard.noRecentNotes')" :description="t('transactions.dashboard.noRecentNotesDescription')" />
         </div>
       </article>
     </section>
@@ -540,7 +538,7 @@ onUnmounted(() => {
 
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <AppSectionHeader :title="t('balance.metrics.recentMovements')" description="Latest credits, adjustments, and reversals.">
+          <AppSectionHeader :title="t('balance.metrics.recentMovements')" :description="t('transactions.dashboard.latestBalanceMovements')">
             <template #actions>
               <button
                 type="button"
@@ -586,8 +584,8 @@ onUnmounted(() => {
 
           <AppEmptyState
             v-else
-            title="No balance movements yet"
-            description="Completed transactions will generate commission credits here."
+            :title="t('transactions.dashboard.noBalanceMovements')"
+            :description="t('transactions.dashboard.noBalanceMovementsDescription')"
           />
         </div>
       </article>
@@ -670,7 +668,7 @@ onUnmounted(() => {
       >
         <div class="panel-body flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-sm text-slate-600 dark:text-slate-300">
-            Page {{ currentPage }} of {{ totalPages }}
+            {{ t('common.pageOf', { page: currentPage, total: totalPages }) }}
           </p>
           <div class="flex items-center gap-2">
             <button
@@ -679,7 +677,7 @@ onUnmounted(() => {
               :disabled="transactionsStore.isLoading || currentPage <= 1"
               @click="goToPreviousPage"
             >
-              Previous
+              {{ t('common.previous') }}
             </button>
             <button
               type="button"
@@ -687,7 +685,7 @@ onUnmounted(() => {
               :disabled="transactionsStore.isLoading || currentPage >= totalPages"
               @click="goToNextPage"
             >
-              Next
+              {{ t('common.next') }}
             </button>
           </div>
         </div>

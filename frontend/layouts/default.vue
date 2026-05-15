@@ -2,9 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
+import type { AppLocale } from '~/locales/messages';
 import { useAuthStore } from '~/stores/auth';
 
-const { t, locale } = useAppI18n();
+const { t, locale, locales, setLocale } = useAppI18n();
 const authStore = useAuthStore();
 const route = useRoute();
 const runtimeConfig = useRuntimeConfig();
@@ -92,6 +93,12 @@ const workspaceNavigationItems = computed<NavigationItem[]>(() => {
   return items;
 });
 const isWorkspaceActive = computed(() => workspaceNavigationItems.value.some((item) => isRouteActive(item.to)));
+const selectedLocale = computed({
+  get: () => locale.value,
+  set: (nextLocale: AppLocale | string) => {
+    setLocale(nextLocale);
+  }
+});
 
 const handleLogout = async () => {
   await authStore.logout();
@@ -138,10 +145,7 @@ const formatRoleLabel = (role: string | null): string => {
     return t('layout.noRole');
   }
 
-  return role
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  return t(`roles.${role}`);
 };
 
 watch(
@@ -193,7 +197,7 @@ watch(
             </NuxtLink>
           </div>
 
-          <nav class="hidden min-w-0 flex-1 justify-center lg:flex" aria-label="Primary navigation">
+          <nav class="hidden min-w-0 flex-1 justify-center lg:flex" :aria-label="t('layout.primaryNavigation')">
             <div class="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-slate-200 bg-slate-50/80 p-1 dark:border-slate-800 dark:bg-slate-900/70">
               <NuxtLink
                 v-for="navigationItem in primaryNavigationItems"
@@ -208,6 +212,21 @@ watch(
           </nav>
 
           <div class="ml-auto flex min-w-0 items-center justify-end gap-2 lg:w-[320px]">
+            <ClientOnly>
+              <label class="block">
+                <span class="sr-only">{{ t('layout.language') }}</span>
+                <select
+                  v-model="selectedLocale"
+                  class="h-9 w-[92px] rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-900 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 sm:w-auto sm:px-3"
+                  :aria-label="t('layout.language')"
+                >
+                  <option v-for="option in locales" :key="option.code" :value="option.code">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+            </ClientOnly>
+
             <button
               type="button"
               class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-900 dark:hover:bg-blue-950/50 dark:hover:text-blue-300"
@@ -312,7 +331,7 @@ watch(
         </div>
 
         <div v-if="isMobileMenuOpen" class="border-t border-slate-200 py-3 dark:border-slate-800 lg:hidden">
-          <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Mobile primary navigation">
+          <nav class="flex gap-2 overflow-x-auto pb-1" :aria-label="t('layout.mobilePrimaryNavigation')">
             <NuxtLink
               v-for="navigationItem in primaryNavigationItems"
               :key="navigationItem.to"
@@ -355,7 +374,7 @@ watch(
                 <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-xs font-bold text-white shadow-sm shadow-blue-600/25">ET</span>
                 <div>
                   <p class="text-base font-semibold text-slate-950 dark:text-white">Estate Transaction</p>
-                  <p class="text-xs font-medium text-blue-700 dark:text-blue-300">Real estate operations dashboard</p>
+                  <p class="text-xs font-medium text-blue-700 dark:text-blue-300">{{ t('layout.brandTagline') }}</p>
                 </div>
               </div>
               <p class="mt-4 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -400,9 +419,9 @@ watch(
         </div>
 
         <div class="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <p>&copy; {{ currentYear }} Estate Transaction. All rights reserved.</p>
+          <p>&copy; {{ currentYear }} Estate Transaction. {{ t('layout.allRightsReserved') }}</p>
           <div class="flex flex-wrap items-center gap-2">
-            <span class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">ENV: {{ appEnv }}</span>
+            <span class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{{ t('layout.environment') }}: {{ appEnv }}</span>
             <a href="#" class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 transition hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-blue-300">{{ t('layout.cookiePolicy') }}</a>
           </div>
         </div>

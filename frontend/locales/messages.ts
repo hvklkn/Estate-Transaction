@@ -19,13 +19,17 @@ export const MESSAGES = {
         tasks: 'Tasks',
         reports: 'Reports',
         balance: 'Balance',
-        team: 'Agents',
+        team: 'Team',
+        agents: 'Agents',
         profile: 'Profile',
         settings: 'Settings',
         auth: 'User Access'
       },
       language: 'Language',
+      primaryNavigation: 'Primary navigation',
+      mobilePrimaryNavigation: 'Mobile primary navigation',
       workspace: 'Workspace',
+      environment: 'ENV',
       signIn: 'Sign in',
       noOrganization: 'No organization',
       noRole: 'No role',
@@ -33,6 +37,8 @@ export const MESSAGES = {
       support: 'Support',
       footerDescription:
         'A focused operating layer for transaction lifecycle tracking, client context, property inventory, tasks, and commission visibility.',
+      brandTagline: 'Real estate operations dashboard',
+      allRightsReserved: 'All rights reserved.',
       privacyPolicy: 'Privacy Policy',
       termsOfService: 'Terms of Service',
       cookiePolicy: 'Cookie Policy',
@@ -64,7 +70,109 @@ export const MESSAGES = {
         loggingIn: 'Signing In...',
         register: 'Register',
         registering: 'Registering...',
-        logout: 'Logout'
+        logout: 'Sign out',
+        createWorkspace: 'Create Workspace',
+        forgotPassword: 'Forgot password?',
+        back: 'Back',
+        sendVerificationCode: 'Send verification code',
+        resetPassword: 'Reset password'
+      },
+      marketing: {
+        valueBullets: {
+          stageTraceability: 'Stage traceability from intake to close',
+          crmInventory: 'CRM clients and inventory in the same workspace',
+          commissionVisibility: 'Commission and balance visibility without spreadsheet drift'
+        },
+        stats: {
+          lifecycleVisibility: 'Lifecycle visibility',
+          sourceOfTruth: 'Operational source of truth',
+          balanceTracking: 'Balance tracking'
+        },
+        heroKicker: 'Estate operations platform',
+        heroTitle: 'Run every property deal from one calm operating system.',
+        heroDescription:
+          'Estate Transaction brings lifecycle stages, CRM clients, property inventory, tasks, and commission visibility into a single workspace built for modern real estate teams.',
+        previewTitle: 'Live workspace preview',
+        previewSubtitle: 'Transaction Command Center',
+        live: 'Live',
+        operational: 'Operational',
+        pipelineStage: 'Pipeline stage',
+        activeDeals: '{count} active deals',
+        offer: 'Offer',
+        contract: 'Contract',
+        closing: 'Closing',
+        commissionPipeline: 'Commission pipeline',
+        overdueTasks: 'Overdue tasks',
+        secureAccess: 'Secure access',
+        welcomeBack: 'Welcome back',
+        createWorkspace: 'Create your workspace',
+        loginDescription: 'Sign in to continue managing transactions, tasks, inventory, and balances.',
+        registerDescription:
+          'Public registration is for the first workspace owner. Team members are created inside the app.',
+        registrationNotice:
+          'Public registration creates the initial office owner workspace. Existing teams are managed from Team after sign-in.',
+        platformValue: 'Platform value',
+        platformTitle: 'Built for the real estate transaction office.',
+        platformDescription:
+          'A focused operating layer for teams that need cleaner stage control, client context, property visibility, and financial clarity.',
+        workflowKicker: 'Workflow',
+        workflowTitle: 'From workspace setup to operational control.',
+        workflowDescription:
+          'The public page starts the workspace. The authenticated app handles team creation, permissions, transaction activity, and reporting.'
+      },
+      recovery: {
+        kicker: 'Account recovery',
+        title: 'Reset password',
+        description: 'Use a verification code to securely regain access to your workspace.',
+        emailSent: 'Verification code has been sent to your e-mail address.',
+        passwordUpdated: 'Password updated. You can now sign in with your new password.',
+        developmentCode: 'Development code: {code}'
+      },
+      features: {
+        lifecycle: {
+          eyebrow: 'Lifecycle',
+          title: 'Transaction Lifecycle',
+          description: 'Track every deal through centralized stages, participant assignments, notes, and operational status.',
+          metric: 'Pipeline, closings, and completed deals stay visible.'
+        },
+        crm: {
+          eyebrow: 'CRM',
+          title: 'CRM Clients',
+          description: 'Keep buyer, seller, tenant, and landlord records connected to transactions and property workflows.',
+          metric: 'Client context follows the deal.'
+        },
+        inventory: {
+          eyebrow: 'Inventory',
+          title: 'Property Inventory',
+          description: 'Manage listings, owner links, pricing, and availability from the same workspace as transactions.',
+          metric: 'Properties become reusable operational assets.'
+        },
+        finance: {
+          eyebrow: 'Finance',
+          title: 'Commission & Balance Visibility',
+          description: 'Make agency and advisor earnings easier to review with clear balance and ledger-style visibility.',
+          metric: 'Less reconciliation work at closing.'
+        },
+        operations: {
+          eyebrow: 'Operations',
+          title: 'Reports & Tasks',
+          description: 'Monitor workload, overdue tasks, stage distribution, and performance signals with focused dashboards.',
+          metric: 'Daily operations become easier to scan.'
+        }
+      },
+      workflowSteps: {
+        createWorkspace: {
+          title: 'Create a workspace or sign in',
+          description: 'The first account creates the office workspace. Team members are added later from the authenticated Team area.'
+        },
+        operatingBase: {
+          title: 'Build your operating base',
+          description: 'Add clients, properties, agents, and transaction records with organization-aware permissions.'
+        },
+        transactionFlow: {
+          title: 'Run the transaction flow',
+          description: 'Move deals through stages, assign tasks, and keep balance visibility aligned with the operational record.'
+        }
       },
       verification: {
         emailTitle: 'Email Verification',
@@ -81,11 +189,30 @@ export const MESSAGES = {
       },
       fields: {
         name: 'Full Name',
-        email: 'Work Email'
+        email: 'Work Email',
+        password: 'Password',
+        confirmPassword: 'Confirm Password',
+        organizationName: 'Organization Name',
+        organizationSlug: 'Organization Slug',
+        authenticatorCode: 'Authenticator Code',
+        smsCode: 'SMS Code',
+        verificationCode: 'Verification Code',
+        newPassword: 'New Password',
+        confirmNewPassword: 'Confirm New Password'
       },
       placeholders: {
         name: 'Alex Johnson',
-        email: 'name@example.com'
+        email: 'name@example.com',
+        organizationName: 'Kalkan Estate',
+        organizationSlug: 'kalkan-estate-demo',
+        sixDigitCode: '6-digit code',
+        recoveryEmail: 'you@example.com'
+      },
+      validation: {
+        passwordMinLength: 'Password must be at least 8 characters.',
+        passwordMismatch: 'Password confirmation does not match.',
+        twoFactorAuthenticatorHint: 'Enter the 6-digit code from your authenticator app.',
+        twoFactorSmsHint: 'Enter the 6-digit SMS verification code.'
       }
     },
     transactions: {
@@ -171,6 +298,39 @@ export const MESSAGES = {
       errors: {
         syncTitle: 'Unable to sync transaction data'
       },
+      dashboard: {
+        showingMeta: 'Showing {range} of {total} records',
+        serverPaginatedCount: 'Server-side paginated count',
+        completedCurrentPage: 'Completed in current page',
+        openCurrentPage: 'Open in current page',
+        stageMix: 'Stage Mix',
+        stageMixDescription: 'Lifecycle distribution for the current dashboard scope.',
+        noStageData: 'No stage data yet.',
+        revenueSignal: 'Revenue signal from completed and active workflows.',
+        topAgents: 'Top Agents',
+        topAgentsDescription: 'Closed deal leaders in the current summary.',
+        closedCount: '{count} closed',
+        closedRankingsEmpty: 'Closed deal rankings will appear here.',
+        taskSnapshot: 'Task Snapshot',
+        taskSnapshotDescription: 'Open tasks across the office.',
+        openTasks: 'Open Tasks',
+        overdue: 'Overdue',
+        today: 'Today',
+        week: 'Week',
+        recentActivity: 'Recent Transaction Activity',
+        recentActivityDescription: 'Latest notes and operational updates.',
+        transactionNote: 'Transaction note',
+        noRecentNotes: 'No recent transaction notes yet',
+        noRecentNotesDescription: 'Activity will appear here once the team starts adding workflow notes.',
+        latestBalanceMovements: 'Latest credits, adjustments, and reversals.',
+        noBalanceMovements: 'No balance movements yet',
+        noBalanceMovementsDescription: 'Completed transactions will generate commission credits here.',
+        emptyFilteredTitle: 'No transactions match current filters',
+        emptyFilteredDescription: 'Try clearing search, stage, or transaction type filters to widen the result set.',
+        updated: 'Transaction updated successfully.',
+        deleted: 'Transaction deleted successfully.',
+        deleteConfirm: 'Are you sure you want to delete this transaction? This will perform a soft delete and keep audit history.'
+      },
       list: {
         title: 'Transaction List',
         description: 'Stage progression and financial allocation for each transaction.',
@@ -194,7 +354,19 @@ export const MESSAGES = {
         viewDetails: 'View details',
         hideDetails: 'Hide details',
         advanceTo: 'Advance to {stage}',
-        completed: 'Completed'
+        completed: 'Completed',
+        deleted: 'Deleted',
+        workflowClosed: 'Workflow closed',
+        balanceCredited: 'Balance credited',
+        balancePending: 'Balance pending',
+        linkedProperty: 'Linked property',
+        clients: 'Clients',
+        createdBy: 'Created by',
+        lastEditedBy: 'Last edited by',
+        lastEditedAt: 'Last edited at',
+        deletedBy: 'Deleted by',
+        deletedAt: 'Deleted at',
+        deletedReadOnly: 'Deleted transactions are read-only for audit traceability.'
       },
       detail: {
         currentStage: 'Current Stage',
@@ -243,6 +415,20 @@ export const MESSAGES = {
         title: 'Create Transaction',
         description:
           'Add a new deal record. Commission breakdown and lifecycle rules are handled by backend policies.',
+        createMeta: 'Create the deal record first, then advance lifecycle stages from the transaction workspace.',
+        checklist: {
+          title: 'Creation Checklist',
+          description: 'The form validates deal details, linked records, and agent assignment before saving.',
+          propertyContext: 'Property context',
+          propertyContextDescription:
+            'Link an inventory property when available, or use a standalone title for legacy records.',
+          commissionSource: 'Commission source',
+          commissionSourceDescription:
+            'The service fee becomes the basis for the stage-driven financial breakdown.',
+          agentAssignment: 'Agent assignment',
+          agentAssignmentDescription:
+            'Listing and selling agents are required while the transaction is created in agreement stage.'
+        },
         validationSummary:
           'Please review highlighted fields and correct validation issues before submitting.',
         sections: {
@@ -366,6 +552,92 @@ export const MESSAGES = {
         dark: 'Dark'
       }
     },
+    profilePage: {
+      meta: {
+        title: 'Profile'
+      },
+      header: {
+        eyebrow: 'User Profile',
+        title: 'Profile',
+        description: 'Manage your account details, security settings, and active sessions.',
+        signedInAs: 'Signed in as {name}',
+        signedInAsWithEmail: 'Signed in as {name} ({email})'
+      },
+      organization: {
+        title: 'Organization',
+        description: 'Your current workspace and access level for this session.',
+        organization: 'Organization',
+        slug: 'Slug',
+        noOrganization: 'No organization assigned',
+        notAvailable: 'Not available',
+        noRole: 'No role'
+      },
+      profile: {
+        title: 'Profile Information',
+        description: 'Update your account details, email address, phone number, and IBAN.',
+        fields: {
+          fullName: 'Full Name',
+          email: 'Email',
+          phone: 'Phone Number',
+          iban: 'IBAN'
+        }
+      },
+      password: {
+        title: 'Change Password',
+        description: 'Update your password by entering your current password and confirming the new one.',
+        currentPassword: 'Current Password',
+        newPassword: 'New Password',
+        confirmNewPassword: 'Confirm New Password',
+        updatePassword: 'Update Password',
+        updating: 'Updating...'
+      },
+      twoFactor: {
+        title: 'Two-Factor Authentication (2FA)',
+        description: 'Add an extra security layer to sign-in with authenticator-based 2FA.',
+        method: '2FA Method',
+        authenticatorApp: 'Authenticator App',
+        smsProvider: 'SMS (requires provider)',
+        authenticatorSecret: 'Authenticator Secret',
+        verificationCode: '2FA Verification Code',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        verifiedAt: 'Verified: {date}',
+        preparing: 'Preparing...',
+        startSetup: 'Start 2FA Setup',
+        verifying: 'Verifying...',
+        verify: 'Verify 2FA',
+        disabling: 'Disabling...',
+        disable: 'Disable 2FA',
+        codePlaceholder: '6-digit code'
+      },
+      sessions: {
+        title: 'Session Management',
+        description: 'View active sessions and sign out from other devices.',
+        signOutOtherDevices: 'Sign Out Other Devices',
+        emptyTitle: 'No active sessions',
+        emptyDescription: 'Signed-in sessions will appear here after profile data loads.',
+        lastActive: 'Last active: {date}',
+        currentSession: 'Current Session',
+        active: 'Active',
+        revokeSession: 'Revoke Session',
+        currentSessionId: 'Current session ID'
+      },
+      actions: {
+        saveProfile: 'Save Profile'
+      },
+      messages: {
+        sessionMissing: 'Session token not found. Please sign in again.',
+        profileUpdated: 'Profile updated successfully.',
+        passwordChanged: 'Password changed successfully.',
+        twoFactorSecretGenerated:
+          '2FA secret generated. Scan this key in your authenticator app and verify with a 6-digit code.',
+        twoFactorEnabled: '2FA enabled at {date}.',
+        twoFactorDisabled: '2FA disabled successfully.',
+        sessionRevoked: 'Session revoked successfully.',
+        otherSessionsRevoked: 'All other sessions were revoked.',
+        signInRequired: 'You need to sign in again to manage profile and security settings.'
+      }
+    },
     balance: {
       meta: {
         title: 'My Balance'
@@ -387,6 +659,44 @@ export const MESSAGES = {
         commission_credit: 'Commission Credit',
         manual_adjustment: 'Manual Adjustment',
         reversal: 'Reversal'
+      },
+      sections: {
+        salesRecords: 'Sales Records',
+        salesRecordsDescription: 'Transactions where you are assigned as the selling agent are listed here.',
+        totalSales: 'Total Sales',
+        completed: 'Completed',
+        volume: 'Volume',
+        earnings: 'Earnings',
+        transactionId: 'Transaction ID',
+        serviceFee: 'Service Fee',
+        yourEarning: 'Your Earning',
+        createdAt: 'Created At',
+        summaryError: 'Could not load balance summary',
+        ledgerHistory: 'Ledger History',
+        ledgerMeta: 'Showing {range} of {total} entries',
+        backToTransactions: 'Back to Transactions',
+        ledgerError: 'Could not load ledger entries'
+      },
+      filters: {
+        type: 'Type',
+        dateFrom: 'Date From',
+        dateTo: 'Date To'
+      },
+      table: {
+        date: 'Date',
+        type: 'Type',
+        amount: 'Amount',
+        newBalance: 'New Balance',
+        relatedTransaction: 'Related Transaction',
+        description: 'Description'
+      },
+      empty: {
+        noSales: 'No sales found',
+        noSalesDescription: 'Your assigned sales transactions will appear here.',
+        noLedgerRowsFiltered: 'No ledger rows match your filters',
+        noBalanceMovements: 'No balance movements yet',
+        ledgerFilteredDescription: 'Try clearing type/date filters to see a wider result set.',
+        noBalanceMovementsDescription: 'Your commission credits and adjustments will appear here once activity starts.'
       }
     },
     reports: {
@@ -404,6 +714,294 @@ export const MESSAGES = {
         agencyTotal: 'Agency Total',
         agentEarnings: 'Agent Earnings',
         overdueTasks: 'Overdue Tasks'
+      },
+      helpers: {
+        currentCalendarMonth: 'Current calendar month',
+        completedDeals: 'Completed deals',
+        commissionAllocations: 'Commission allocations',
+        openTasksBeforeToday: 'Open tasks before today'
+      },
+      filters: {
+        title: 'Report Filters',
+        description: 'Scope analytics by date, deal type, lifecycle stage, property listing, or status.',
+        dateFrom: 'Date From',
+        dateTo: 'Date To',
+        type: 'Type',
+        stage: 'Stage',
+        listing: 'Listing',
+        status: 'Status',
+        applyFilters: 'Apply Filters',
+        clearFilters: 'Clear Filters'
+      },
+      sections: {
+        transactionsByStage: 'Transactions by Stage',
+        transactionsByStageDescription: 'Lifecycle visibility across filtered transactions.',
+        serviceFeeTrend: 'Service Fee Trend',
+        serviceFeeTrendDescription: 'Monthly service fee movement for the active filter set.',
+        agentPerformance: 'Agent Performance',
+        agentPerformanceDescription: 'Closed-deal output and commission earnings by agent.',
+        recentActivity: 'Recent Activity',
+        recentActivityDescription: 'Latest reportable movement in the workspace.',
+        exports: 'Exports',
+        exportsDescription: 'CSV files respect the active report filters and organization scope.'
+      },
+      table: {
+        agent: 'Agent',
+        closedDeals: 'Closed Deals',
+        commission: 'Commission'
+      },
+      empty: {
+        noTransactionData: 'No transaction data',
+        noTransactionDataDescription: 'Adjust report filters to widen the stage view.',
+        noFeeTrend: 'No fee trend yet',
+        noFeeTrendDescription: 'Trend bars will appear after transactions carry service fee data.',
+        noAgentPerformance: 'No agent performance data yet',
+        noAgentPerformanceDescription: 'Closed transactions will populate this leaderboard.',
+        noRecentActivity: 'No recent activity yet',
+        noRecentActivityDescription: 'Recent transactions, tasks, and property updates will appear here.'
+      },
+      export: {
+        transactions: 'Transactions',
+        clients: 'Clients',
+        properties: 'Properties',
+        tasks: 'Tasks',
+        commissions: 'Commissions',
+        exporting: 'Exporting...'
+      }
+    },
+    roles: {
+      super_admin: 'Super Admin',
+      office_owner: 'Office Owner',
+      admin: 'Admin',
+      manager: 'Manager',
+      agent: 'Agent',
+      assistant: 'Assistant',
+      finance: 'Finance'
+    },
+    userStatuses: {
+      active: 'Active',
+      inactive: 'Inactive'
+    },
+    clients: {
+      meta: {
+        title: 'Clients'
+      },
+      header: {
+        kicker: 'CRM',
+        title: 'Clients',
+        description: 'Manage buyer, seller, landlord, tenant, and investor contacts inside your organization.',
+        meta: '{count} active CRM records'
+      },
+      directory: {
+        title: 'Client Directory',
+        description: '{count} active records across your CRM workspace.',
+        emptyTitle: 'No clients yet',
+        emptyDescription: 'Create your first client to connect people to properties and transactions.'
+      },
+      form: {
+        createTitle: 'Create Client',
+        editTitle: 'Edit Client',
+        description: 'Capture contact details once and reuse them across properties and transactions.',
+        cannotCreate: 'Your role can view clients, but cannot create or edit them.',
+        fullName: 'Full Name',
+        phone: 'Phone',
+        email: 'Email',
+        type: 'Type',
+        notes: 'Notes',
+        saveClient: 'Save Client',
+        createClient: 'Create Client'
+      },
+      messages: {
+        created: 'Client created.',
+        updated: 'Client updated.',
+        archived: 'Client archived.',
+        archiveConfirm: 'Archive {name}? This keeps audit history.',
+        noEmail: 'No email'
+      },
+      types: {
+        buyer: 'Buyer',
+        seller: 'Seller',
+        landlord: 'Landlord',
+        tenant: 'Tenant',
+        investor: 'Investor',
+        other: 'Other'
+      }
+    },
+    propertiesPage: {
+      meta: {
+        title: 'Properties'
+      },
+      header: {
+        kicker: 'Inventory',
+        title: 'Properties',
+        description: 'Maintain sale and rental inventory, owner links, status, and pricing for transaction workflows.',
+        sessionRole: 'Session role',
+        organization: 'Organization'
+      },
+      debug: {
+        role: 'Role',
+        organization: 'Organization',
+        organizationId: 'Organization ID',
+        permissions: 'canCreate/canManage',
+        isCreating: 'isCreating',
+        storeError: 'Store error',
+        submit: 'Submit',
+        lastRefreshCount: 'Last refresh count',
+        none: 'none',
+        notLoaded: 'not loaded'
+      },
+      inventory: {
+        title: 'Property Inventory',
+        description: '{count} active records ready for transaction workflows.',
+        emptyTitle: 'No properties yet',
+        emptyDescription: 'Create property inventory to connect listings to transactions.',
+        cityNotSet: 'City not set',
+        owner: 'Owner'
+      },
+      form: {
+        createTitle: 'Create Property',
+        editTitle: 'Edit Property',
+        description: 'Keep listing details, owner links, pricing, and status ready for deal intake.',
+        title: 'Title',
+        type: 'Property Type',
+        listingType: 'Listing Type',
+        ownerClient: 'Owner Client',
+        noOwnerLinked: 'No owner linked',
+        address: 'Address',
+        city: 'City',
+        district: 'District',
+        price: 'Price',
+        currency: 'Currency',
+        status: 'Status',
+        descriptionLabel: 'Description',
+        saveProperty: 'Save Property',
+        createProperty: 'Create Property',
+        ownerMissing: 'Owner client is not in the active client list for this organization.'
+      },
+      messages: {
+        created: 'Property created: {title}.',
+        updated: 'Property updated.',
+        archived: 'Property archived.',
+        archiveConfirm: 'Archive {title}? This keeps audit history.',
+        priceNotSet: 'Price not set',
+        priceInvalid: 'Price must be a valid number.',
+        priceMin: 'Price must be zero or greater.',
+        noSession: 'Session is not loaded. Please sign in again.',
+        missingToken: 'Session token is missing. Please sign in again.',
+        noUpdatePermission: 'You do not have permission to update properties.',
+        noCreatePermission: 'You do not have permission to create properties.',
+        titleRequired: 'Title is required.',
+        titleMin: 'Title must be at least 2 characters.',
+        ownerRequired: "Owner client must be selected from this organization's active clients.",
+        createOnlyPermission: 'Your role can create and view properties, but cannot edit or archive them.',
+        viewOnlyPermission: 'Your role can view properties, but cannot create, edit, or archive them.'
+      }
+    },
+    team: {
+      meta: {
+        title: 'Team'
+      },
+      header: {
+        kicker: 'Access',
+        title: 'Team',
+        description: 'Create and review users for {organization}.',
+        meta: 'Public registration starts a workspace. Existing teams add members here after sign-in.'
+      },
+      users: {
+        title: 'Users',
+        description: '{count} team members in this workspace.',
+        emptyTitle: 'No team members found',
+        emptyDescription: 'Create the first user for this workspace.',
+        cannotManage: 'Your role can view your own profile, but cannot create or list team members.',
+        noOrganization: 'No organization',
+        currentOrganization: 'Current organization'
+      },
+      form: {
+        title: 'Create User',
+        description: 'New users are added to {organization}.',
+        name: 'Name',
+        email: 'Email',
+        temporaryPassword: 'Temporary Password',
+        role: 'Role',
+        active: 'Active',
+        activeHint: 'Allow sign-in immediately.',
+        createUser: 'Create User',
+        creating: 'Creating...'
+      },
+      messages: {
+        invalid: 'Enter a valid name, email, password, and allowed role.',
+        added: '{name} was added to {organization}.'
+      }
+    },
+    tasksPage: {
+      meta: {
+        title: 'Tasks'
+      },
+      header: {
+        kicker: 'Operations',
+        title: 'Tasks',
+        description: 'Track follow-ups, assignments, and deal work across transactions, clients, and properties.',
+        meta: '{count} records in the current task view'
+      },
+      metrics: {
+        pendingTasks: 'Pending Tasks',
+        pendingHelper: 'Todo and in progress',
+        overdue: 'Overdue',
+        overdueHelper: 'Open tasks before today',
+        dueToday: 'Due Today',
+        dueTodayHelper: 'Open tasks due today',
+        dueThisWeek: 'Due This Week',
+        dueThisWeekHelper: 'Next 7 days'
+      },
+      controls: {
+        title: 'Task Controls',
+        description: 'Filter by status, priority, assignee, and due window.',
+        allStatuses: 'All statuses',
+        allPriorities: 'All priorities',
+        assignedUser: 'Assigned User',
+        anyone: 'Anyone',
+        due: 'Due',
+        anyDueDate: 'Any due date'
+      },
+      list: {
+        title: 'Task List',
+        description: '{count} records prioritized for the operations queue.',
+        emptyFilteredTitle: 'No tasks match filters',
+        emptyFilteredDescription: 'Try clearing filters to widen the list.',
+        emptyTitle: 'No tasks yet',
+        emptyDescription: 'Create a task to start tracking follow-up work.',
+        noDueDate: 'No due date',
+        assignedTo: 'Assigned to',
+        unassigned: 'Unassigned',
+        transaction: 'Transaction',
+        client: 'Client',
+        property: 'Property'
+      },
+      form: {
+        createTitle: 'Create Task',
+        editTitle: 'Edit Task',
+        description: 'Assign work, due dates, and related records without leaving the operations queue.',
+        cannotCreate: 'Your role can view tasks, but cannot create or update them.',
+        title: 'Title',
+        descriptionLabel: 'Description',
+        dueDate: 'Due Date',
+        assignedTo: 'Assigned To',
+        status: 'Status',
+        priority: 'Priority',
+        transaction: 'Transaction',
+        noTransaction: 'No transaction',
+        client: 'Client',
+        noClient: 'No client',
+        property: 'Property',
+        noProperty: 'No property',
+        saveTask: 'Save Task',
+        createTask: 'Create Task'
+      },
+      messages: {
+        created: 'Task created.',
+        updated: 'Task updated.',
+        archived: 'Task archived.',
+        archiveConfirm: 'Archive "{title}"? This keeps task history.'
       }
     },
     stages: {
@@ -417,6 +1015,15 @@ export const MESSAGES = {
       rented: 'Rented'
     },
     property: {
+      types: {
+        apartment: 'Apartment',
+        house: 'House',
+        land: 'Land',
+        office: 'Office',
+        shop: 'Shop',
+        building: 'Building',
+        other: 'Other'
+      },
       listingTypes: {
         sale: 'Sale',
         rent: 'Rent'
@@ -436,6 +1043,17 @@ export const MESSAGES = {
         in_progress: 'In Progress',
         done: 'Done',
         cancelled: 'Cancelled'
+      },
+      priorities: {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        urgent: 'Urgent'
+      },
+      dueFilters: {
+        overdue: 'Overdue',
+        today: 'Due today',
+        week: 'Due this week'
       }
     },
     common: {
@@ -448,22 +1066,42 @@ export const MESSAGES = {
       save: 'Save',
       cancel: 'Cancel',
       search: 'Search',
+      filter: 'Filter',
       exportCsv: 'Export CSV',
       status: 'Status',
       stage: 'Stage',
+      type: 'Type',
+      name: 'Name',
+      email: 'Email',
+      role: 'Role',
+      title: 'Title',
+      description: 'Description',
+      date: 'Date',
+      amount: 'Amount',
       totalAmount: 'Total Amount',
       completed: 'Completed',
       pending: 'Pending',
+      active: 'Active',
+      inactive: 'Inactive',
       refresh: 'Refresh',
       refreshing: 'Refreshing...',
       loading: 'Loading...',
       clear: 'Clear',
       apply: 'Apply',
+      applyFilters: 'Apply Filters',
+      clearFilters: 'Clear Filters',
       retry: 'Retry',
       previous: 'Previous',
       next: 'Next',
       dismiss: 'Dismiss',
-      all: 'All'
+      all: 'All',
+      archive: 'Archive',
+      archiving: 'Archiving...',
+      saving: 'Saving...',
+      pageOf: 'Page {page} of {total}',
+      open: 'Open',
+      view: 'View',
+      back: 'Back'
     }
   },
   tr: {
@@ -476,14 +1114,18 @@ export const MESSAGES = {
         properties: 'Gayrimenkuller',
         tasks: 'Görevler',
         reports: 'Raporlar',
-        balance: 'Bakiye',
-        team: 'Temsilciler',
+        balance: 'Finansal Özet',
+        team: 'Ekip',
+        agents: 'Temsilciler',
         profile: 'Profil',
         settings: 'Ayarlar',
         auth: 'Kullanıcı Erişimi'
       },
       language: 'Dil',
+      primaryNavigation: 'Ana navigasyon',
+      mobilePrimaryNavigation: 'Mobil ana navigasyon',
       workspace: 'Çalışma Alanı',
+      environment: 'ORTAM',
       signIn: 'Giriş yap',
       noOrganization: 'Organizasyon yok',
       noRole: 'Rol yok',
@@ -491,6 +1133,8 @@ export const MESSAGES = {
       support: 'Destek',
       footerDescription:
         'İşlem yaşam döngüsü, müşteri bilgileri, gayrimenkul envanteri, görevler ve komisyon görünürlüğü için odaklı bir operasyon katmanı.',
+      brandTagline: 'Gayrimenkul operasyon paneli',
+      allRightsReserved: 'Tüm hakları saklıdır.',
       privacyPolicy: 'Gizlilik Politikası',
       termsOfService: 'Kullanım Şartları',
       cookiePolicy: 'Çerez Politikası',
@@ -522,7 +1166,109 @@ export const MESSAGES = {
         loggingIn: 'Giriş Yapılıyor...',
         register: 'Kayıt Ol',
         registering: 'Kaydediliyor...',
-        logout: 'Çıkış Yap'
+        logout: 'Çıkış Yap',
+        createWorkspace: 'Çalışma Alanı Oluştur',
+        forgotPassword: 'Şifremi unuttum?',
+        back: 'Geri',
+        sendVerificationCode: 'Doğrulama kodu gönder',
+        resetPassword: 'Şifreyi sıfırla'
+      },
+      marketing: {
+        valueBullets: {
+          stageTraceability: 'Başlangıçtan kapanışa kadar aşama izlenebilirliği',
+          crmInventory: 'CRM müşterileri ve envanter aynı çalışma alanında',
+          commissionVisibility: 'Elektronik tablo karmaşası olmadan komisyon ve bakiye görünürlüğü'
+        },
+        stats: {
+          lifecycleVisibility: 'Yaşam döngüsü görünürlüğü',
+          sourceOfTruth: 'Operasyonel tek gerçek kaynak',
+          balanceTracking: 'Bakiye takibi'
+        },
+        heroKicker: 'Gayrimenkul operasyon platformu',
+        heroTitle: 'Her gayrimenkul işlemini sakin bir operasyon sistemiyle yönetin.',
+        heroDescription:
+          'Estate Transaction; işlem aşamalarını, CRM müşterilerini, gayrimenkul envanterini, görevleri ve komisyon görünürlüğünü modern emlak ekipleri için tek çalışma alanında toplar.',
+        previewTitle: 'Canlı çalışma alanı önizlemesi',
+        previewSubtitle: 'İşlem Komuta Merkezi',
+        live: 'Canlı',
+        operational: 'Operasyonel',
+        pipelineStage: 'Hat aşaması',
+        activeDeals: '{count} aktif işlem',
+        offer: 'Teklif',
+        contract: 'Sözleşme',
+        closing: 'Kapanış',
+        commissionPipeline: 'Komisyon hattı',
+        overdueTasks: 'Geciken görevler',
+        secureAccess: 'Güvenli erişim',
+        welcomeBack: 'Tekrar hoş geldiniz',
+        createWorkspace: 'Çalışma alanınızı oluşturun',
+        loginDescription: 'İşlemler, görevler, envanter ve bakiyeleri yönetmeye devam etmek için giriş yapın.',
+        registerDescription:
+          'Genel kayıt ilk çalışma alanı sahibi içindir. Ekip üyeleri uygulama içinden oluşturulur.',
+        registrationNotice:
+          'Genel kayıt ilk ofis sahibi çalışma alanını oluşturur. Mevcut ekipler girişten sonra Ekip bölümünden yönetilir.',
+        platformValue: 'Platform değeri',
+        platformTitle: 'Gayrimenkul işlem ofisi için tasarlandı.',
+        platformDescription:
+          'Daha net aşama kontrolü, müşteri bağlamı, gayrimenkul görünürlüğü ve finansal netlik isteyen ekipler için odaklı bir operasyon katmanı.',
+        workflowKicker: 'İş Akışı',
+        workflowTitle: 'Çalışma alanı kurulumundan operasyonel kontrole.',
+        workflowDescription:
+          'Genel sayfa çalışma alanını başlatır. Kimlik doğrulamalı uygulama ekip oluşturma, yetkiler, işlem aktivitesi ve raporlamayı yönetir.'
+      },
+      recovery: {
+        kicker: 'Hesap kurtarma',
+        title: 'Şifreyi sıfırla',
+        description: 'Çalışma alanınıza güvenli biçimde tekrar erişmek için doğrulama kodu kullanın.',
+        emailSent: 'Doğrulama kodu e-posta adresinize gönderildi.',
+        passwordUpdated: 'Şifre güncellendi. Yeni şifrenizle giriş yapabilirsiniz.',
+        developmentCode: 'Geliştirme kodu: {code}'
+      },
+      features: {
+        lifecycle: {
+          eyebrow: 'Yaşam Döngüsü',
+          title: 'İşlem Yaşam Döngüsü',
+          description: 'Her işlemi merkezi aşamalar, katılımcı atamaları, notlar ve operasyonel durumla takip edin.',
+          metric: 'Hat, kapanışlar ve tamamlanan işlemler görünür kalır.'
+        },
+        crm: {
+          eyebrow: 'CRM',
+          title: 'CRM Müşterileri',
+          description: 'Alıcı, satıcı, kiracı ve ev sahibi kayıtlarını işlemler ve gayrimenkul akışlarıyla bağlantılı tutun.',
+          metric: 'Müşteri bağlamı işlemi takip eder.'
+        },
+        inventory: {
+          eyebrow: 'Envanter',
+          title: 'Gayrimenkul Envanteri',
+          description: 'İlanları, sahip bağlantılarını, fiyatlandırmayı ve uygunluğu işlemlerle aynı çalışma alanında yönetin.',
+          metric: 'Gayrimenkuller yeniden kullanılabilir operasyonel varlıklara dönüşür.'
+        },
+        finance: {
+          eyebrow: 'Finans',
+          title: 'Komisyon ve Bakiye Görünürlüğü',
+          description: 'Ajans ve danışman kazançlarını net bakiye ve defter görünürlüğüyle daha kolay inceleyin.',
+          metric: 'Kapanışta daha az mutabakat işi.'
+        },
+        operations: {
+          eyebrow: 'Operasyon',
+          title: 'Raporlar ve Görevler',
+          description: 'İş yükünü, geciken görevleri, aşama dağılımını ve performans sinyallerini odaklı panellerle izleyin.',
+          metric: 'Günlük operasyonlar daha kolay taranır.'
+        }
+      },
+      workflowSteps: {
+        createWorkspace: {
+          title: 'Çalışma alanı oluşturun veya giriş yapın',
+          description: 'İlk hesap ofis çalışma alanını oluşturur. Ekip üyeleri daha sonra kimlik doğrulamalı Ekip alanından eklenir.'
+        },
+        operatingBase: {
+          title: 'Operasyon tabanınızı kurun',
+          description: 'Organizasyon kapsamlı yetkilerle müşteriler, gayrimenkuller, temsilciler ve işlem kayıtları ekleyin.'
+        },
+        transactionFlow: {
+          title: 'İşlem akışını yürütün',
+          description: 'İşlemleri aşamalar arasında ilerletin, görev atayın ve bakiye görünürlüğünü operasyon kaydıyla uyumlu tutun.'
+        }
       },
       verification: {
         emailTitle: 'E-posta Doğrulama',
@@ -539,11 +1285,30 @@ export const MESSAGES = {
       },
       fields: {
         name: 'Ad Soyad',
-        email: 'İş E-postası'
+        email: 'İş E-postası',
+        password: 'Şifre',
+        confirmPassword: 'Şifreyi Onayla',
+        organizationName: 'Organizasyon Adı',
+        organizationSlug: 'Organizasyon Slug',
+        authenticatorCode: 'Authenticator Kodu',
+        smsCode: 'SMS Kodu',
+        verificationCode: 'Doğrulama Kodu',
+        newPassword: 'Yeni Şifre',
+        confirmNewPassword: 'Yeni Şifreyi Onayla'
       },
       placeholders: {
         name: 'Ahmet Yılmaz',
-        email: 'name@example.com'
+        email: 'name@example.com',
+        organizationName: 'Kalkan Estate',
+        organizationSlug: 'kalkan-estate-demo',
+        sixDigitCode: '6 haneli kod',
+        recoveryEmail: 'siz@example.com'
+      },
+      validation: {
+        passwordMinLength: 'Şifre en az 8 karakter olmalıdır.',
+        passwordMismatch: 'Şifre onayı eşleşmiyor.',
+        twoFactorAuthenticatorHint: 'Authenticator uygulamanızdaki 6 haneli kodu girin.',
+        twoFactorSmsHint: '6 haneli SMS doğrulama kodunu girin.'
       }
     },
     transactions: {
@@ -629,6 +1394,39 @@ export const MESSAGES = {
       errors: {
         syncTitle: 'İşlem verisi eşitlenemedi'
       },
+      dashboard: {
+        showingMeta: '{total} kayıttan {range} gösteriliyor',
+        serverPaginatedCount: 'Sunucu tarafında sayfalanmış sayı',
+        completedCurrentPage: 'Geçerli sayfada tamamlanan',
+        openCurrentPage: 'Geçerli sayfada açık',
+        stageMix: 'Aşama Dağılımı',
+        stageMixDescription: 'Geçerli panel kapsamı için yaşam döngüsü dağılımı.',
+        noStageData: 'Henüz aşama verisi yok.',
+        revenueSignal: 'Tamamlanan ve aktif akışlardan gelir sinyali.',
+        topAgents: 'En İyi Temsilciler',
+        topAgentsDescription: 'Geçerli özette kapanan işlem liderleri.',
+        closedCount: '{count} kapandı',
+        closedRankingsEmpty: 'Kapanan işlem sıralaması burada görünecek.',
+        taskSnapshot: 'Görev Özeti',
+        taskSnapshotDescription: 'Ofis genelindeki açık görevler.',
+        openTasks: 'Görevleri Aç',
+        overdue: 'Geciken',
+        today: 'Bugün',
+        week: 'Hafta',
+        recentActivity: 'Son İşlem Aktivitesi',
+        recentActivityDescription: 'Son notlar ve operasyonel güncellemeler.',
+        transactionNote: 'İşlem notu',
+        noRecentNotes: 'Henüz son işlem notu yok',
+        noRecentNotesDescription: 'Ekip iş akışı notları ekledikçe aktivite burada görünecek.',
+        latestBalanceMovements: 'Son alacaklar, düzeltmeler ve ters kayıtlar.',
+        noBalanceMovements: 'Henüz bakiye hareketi yok',
+        noBalanceMovementsDescription: 'Tamamlanan işlemler burada komisyon alacakları oluşturur.',
+        emptyFilteredTitle: 'Geçerli filtrelerle eşleşen işlem yok',
+        emptyFilteredDescription: 'Sonuçları genişletmek için arama, aşama veya işlem türü filtrelerini temizleyin.',
+        updated: 'İşlem başarıyla güncellendi.',
+        deleted: 'İşlem başarıyla silindi.',
+        deleteConfirm: 'Bu işlemi silmek istediğinizden emin misiniz? Bu işlem soft delete yapar ve denetim geçmişini korur.'
+      },
       list: {
         title: 'İşlem Listesi',
         description: 'Her işlem için aşama ilerleyişi ve finansal dağılım.',
@@ -652,7 +1450,19 @@ export const MESSAGES = {
         viewDetails: 'Detayları görüntüle',
         hideDetails: 'Detayları gizle',
         advanceTo: '{stage} aşamasına ilerlet',
-        completed: 'Tamamlandı'
+        completed: 'Tamamlandı',
+        deleted: 'Silindi',
+        workflowClosed: 'İş akışı kapandı',
+        balanceCredited: 'Bakiye işlendi',
+        balancePending: 'Bakiye bekliyor',
+        linkedProperty: 'Bağlı gayrimenkul',
+        clients: 'Müşteriler',
+        createdBy: 'Oluşturan',
+        lastEditedBy: 'Son düzenleyen',
+        lastEditedAt: 'Son düzenleme tarihi',
+        deletedBy: 'Silen',
+        deletedAt: 'Silinme tarihi',
+        deletedReadOnly: 'Silinen işlemler denetim izi için salt okunurdur.'
       },
       detail: {
         currentStage: 'Geçerli Aşama',
@@ -701,6 +1511,20 @@ export const MESSAGES = {
         title: 'İşlem Oluştur',
         description:
           'Yeni bir işlem kaydı ekleyin. Komisyon dağılımı ve yaşam döngüsü kuralları backend policy servislerinde çalışır.',
+        createMeta: 'Önce işlem kaydını oluşturun, ardından işlem çalışma alanından yaşam döngüsü aşamalarını ilerletin.',
+        checklist: {
+          title: 'Oluşturma Kontrol Listesi',
+          description: 'Form, kaydetmeden önce işlem detaylarını, bağlı kayıtları ve danışman atamasını doğrular.',
+          propertyContext: 'Gayrimenkul bağlamı',
+          propertyContextDescription:
+            'Uygun olduğunda envanterdeki bir gayrimenkule bağlayın veya eski kayıtlar için bağımsız bir başlık kullanın.',
+          commissionSource: 'Komisyon kaynağı',
+          commissionSourceDescription:
+            'Hizmet bedeli, aşama odaklı finansal dağılımın temelini oluşturur.',
+          agentAssignment: 'Danışman ataması',
+          agentAssignmentDescription:
+            'İşlem sözleşme aşamasında oluşturulurken listeleyen ve satış danışmanları zorunludur.'
+        },
         validationSummary:
           'Lütfen vurgulanan alanları kontrol edin ve gönderim öncesi doğrulama hatalarını düzeltin.',
         sections: {
@@ -824,6 +1648,92 @@ export const MESSAGES = {
         dark: 'Koyu'
       }
     },
+    profilePage: {
+      meta: {
+        title: 'Profil'
+      },
+      header: {
+        eyebrow: 'Kullanıcı Profili',
+        title: 'Profil',
+        description: 'Hesap bilgilerinizi, güvenlik ayarlarınızı ve aktif oturumlarınızı yönetin.',
+        signedInAs: '{name} olarak giriş yapıldı',
+        signedInAsWithEmail: '{name} ({email}) olarak giriş yapıldı'
+      },
+      organization: {
+        title: 'Organizasyon',
+        description: 'Bu oturum için geçerli çalışma alanınız ve erişim düzeyiniz.',
+        organization: 'Organizasyon',
+        slug: 'Slug',
+        noOrganization: 'Organizasyon atanmamış',
+        notAvailable: 'Mevcut değil',
+        noRole: 'Rol yok'
+      },
+      profile: {
+        title: 'Profil Bilgileri',
+        description: 'Hesap bilgilerinizi, e-posta adresinizi, telefon numaranızı ve IBAN bilginizi güncelleyin.',
+        fields: {
+          fullName: 'Ad Soyad',
+          email: 'E-posta',
+          phone: 'Telefon Numarası',
+          iban: 'IBAN'
+        }
+      },
+      password: {
+        title: 'Şifre Değiştir',
+        description: 'Mevcut şifrenizi girip yeni şifreyi onaylayarak şifrenizi güncelleyin.',
+        currentPassword: 'Mevcut Şifre',
+        newPassword: 'Yeni Şifre',
+        confirmNewPassword: 'Yeni Şifreyi Onayla',
+        updatePassword: 'Şifreyi Güncelle',
+        updating: 'Güncelleniyor...'
+      },
+      twoFactor: {
+        title: 'İki Aşamalı Doğrulama (2FA)',
+        description: 'Authenticator tabanlı 2FA ile girişe ek güvenlik katmanı ekleyin.',
+        method: '2FA Yöntemi',
+        authenticatorApp: 'Authenticator Uygulaması',
+        smsProvider: 'SMS (sağlayıcı gerektirir)',
+        authenticatorSecret: 'Authenticator Gizli Anahtarı',
+        verificationCode: '2FA Doğrulama Kodu',
+        enabled: 'Etkin',
+        disabled: 'Devre dışı',
+        verifiedAt: 'Doğrulandı: {date}',
+        preparing: 'Hazırlanıyor...',
+        startSetup: '2FA Kurulumunu Başlat',
+        verifying: 'Doğrulanıyor...',
+        verify: '2FA Doğrula',
+        disabling: 'Devre dışı bırakılıyor...',
+        disable: '2FA Devre Dışı Bırak',
+        codePlaceholder: '6 haneli kod'
+      },
+      sessions: {
+        title: 'Oturum Yönetimi',
+        description: 'Aktif oturumları görüntüleyin ve diğer cihazlardan çıkış yapın.',
+        signOutOtherDevices: 'Diğer Cihazlardan Çıkış Yap',
+        emptyTitle: 'Aktif oturum yok',
+        emptyDescription: 'Profil verisi yüklendikten sonra giriş yapılmış oturumlar burada görünür.',
+        lastActive: 'Son aktif: {date}',
+        currentSession: 'Geçerli Oturum',
+        active: 'Aktif',
+        revokeSession: 'Oturumu İptal Et',
+        currentSessionId: 'Geçerli oturum ID'
+      },
+      actions: {
+        saveProfile: 'Profili Kaydet'
+      },
+      messages: {
+        sessionMissing: 'Oturum tokenı bulunamadı. Lütfen tekrar giriş yapın.',
+        profileUpdated: 'Profil başarıyla güncellendi.',
+        passwordChanged: 'Şifre başarıyla değiştirildi.',
+        twoFactorSecretGenerated:
+          '2FA gizli anahtarı oluşturuldu. Bu anahtarı authenticator uygulamanızda tarayın ve 6 haneli kod ile doğrulayın.',
+        twoFactorEnabled: '2FA {date} tarihinde etkinleştirildi.',
+        twoFactorDisabled: '2FA başarıyla devre dışı bırakıldı.',
+        sessionRevoked: 'Oturum başarıyla iptal edildi.',
+        otherSessionsRevoked: 'Diğer tüm oturumlar iptal edildi.',
+        signInRequired: 'Profil ve güvenlik ayarlarını yönetmek için tekrar giriş yapmanız gerekiyor.'
+      }
+    },
     balance: {
       meta: {
         title: 'Bakiyem'
@@ -845,6 +1755,44 @@ export const MESSAGES = {
         commission_credit: 'Komisyon Alacağı',
         manual_adjustment: 'Manuel Düzeltme',
         reversal: 'Ters Kayıt'
+      },
+      sections: {
+        salesRecords: 'Satış Kayıtları',
+        salesRecordsDescription: 'Satış temsilcisi olarak atandığınız işlemler burada listelenir.',
+        totalSales: 'Toplam Satış',
+        completed: 'Tamamlandı',
+        volume: 'Hacim',
+        earnings: 'Kazanç',
+        transactionId: 'İşlem ID',
+        serviceFee: 'Hizmet Bedeli',
+        yourEarning: 'Kazancınız',
+        createdAt: 'Oluşturulma Tarihi',
+        summaryError: 'Bakiye özeti yüklenemedi',
+        ledgerHistory: 'Defter Geçmişi',
+        ledgerMeta: '{total} kayıt içinden {range} gösteriliyor',
+        backToTransactions: 'İşlemlere Dön',
+        ledgerError: 'Defter kayıtları yüklenemedi'
+      },
+      filters: {
+        type: 'Tür',
+        dateFrom: 'Başlangıç Tarihi',
+        dateTo: 'Bitiş Tarihi'
+      },
+      table: {
+        date: 'Tarih',
+        type: 'Tür',
+        amount: 'Tutar',
+        newBalance: 'Yeni Bakiye',
+        relatedTransaction: 'İlgili İşlem',
+        description: 'Açıklama'
+      },
+      empty: {
+        noSales: 'Satış bulunamadı',
+        noSalesDescription: 'Size atanmış satış işlemleri burada görünecek.',
+        noLedgerRowsFiltered: 'Filtrelerle eşleşen defter satırı yok',
+        noBalanceMovements: 'Henüz bakiye hareketi yok',
+        ledgerFilteredDescription: 'Daha geniş sonuç için tür/tarih filtrelerini temizleyin.',
+        noBalanceMovementsDescription: 'Komisyon alacaklarınız ve düzeltmeleriniz aktivite başladığında burada görünür.'
       }
     },
     reports: {
@@ -862,22 +1810,319 @@ export const MESSAGES = {
         agencyTotal: 'Ajans Toplamı',
         agentEarnings: 'Temsilci Kazancı',
         overdueTasks: 'Geciken Görevler'
+      },
+      helpers: {
+        currentCalendarMonth: 'Geçerli takvim ayı',
+        completedDeals: 'Tamamlanan işlemler',
+        commissionAllocations: 'Komisyon dağılımları',
+        openTasksBeforeToday: 'Bugünden önceki açık görevler'
+      },
+      filters: {
+        title: 'Rapor Filtreleri',
+        description: 'Analitiği tarih, işlem türü, yaşam döngüsü aşaması, ilan türü veya duruma göre sınırlayın.',
+        dateFrom: 'Başlangıç Tarihi',
+        dateTo: 'Bitiş Tarihi',
+        type: 'Tür',
+        stage: 'Aşama',
+        listing: 'İlan',
+        status: 'Durum',
+        applyFilters: 'Filtreleri Uygula',
+        clearFilters: 'Filtreleri Temizle'
+      },
+      sections: {
+        transactionsByStage: 'Aşamaya Göre İşlemler',
+        transactionsByStageDescription: 'Filtrelenmiş işlemler genelinde yaşam döngüsü görünürlüğü.',
+        serviceFeeTrend: 'Hizmet Bedeli Trendi',
+        serviceFeeTrendDescription: 'Aktif filtre seti için aylık hizmet bedeli hareketi.',
+        agentPerformance: 'Temsilci Performansı',
+        agentPerformanceDescription: 'Temsilci bazında kapanan işlem ve komisyon kazancı.',
+        recentActivity: 'Son Aktivite',
+        recentActivityDescription: 'Çalışma alanındaki son raporlanabilir hareket.',
+        exports: 'Dışa Aktarımlar',
+        exportsDescription: 'CSV dosyaları aktif rapor filtrelerine ve organizasyon kapsamına uyar.'
+      },
+      table: {
+        agent: 'Temsilci',
+        closedDeals: 'Kapanan İşlemler',
+        commission: 'Komisyon'
+      },
+      empty: {
+        noTransactionData: 'İşlem verisi yok',
+        noTransactionDataDescription: 'Aşama görünümünü genişletmek için rapor filtrelerini değiştirin.',
+        noFeeTrend: 'Henüz ücret trendi yok',
+        noFeeTrendDescription: 'İşlemlerde hizmet bedeli verisi oluştuğunda trend çubukları burada görünür.',
+        noAgentPerformance: 'Henüz temsilci performans verisi yok',
+        noAgentPerformanceDescription: 'Kapanan işlemler bu lider tablosunu doldurur.',
+        noRecentActivity: 'Henüz son aktivite yok',
+        noRecentActivityDescription: 'Son işlemler, görevler ve gayrimenkul güncellemeleri burada görünür.'
+      },
+      export: {
+        transactions: 'İşlemler',
+        clients: 'Müşteriler',
+        properties: 'Gayrimenkuller',
+        tasks: 'Görevler',
+        commissions: 'Komisyonlar',
+        exporting: 'Dışa aktarılıyor...'
+      }
+    },
+    roles: {
+      super_admin: 'Süper Yönetici',
+      office_owner: 'Ofis Sahibi',
+      admin: 'Yönetici',
+      manager: 'Müdür',
+      agent: 'Temsilci',
+      assistant: 'Asistan',
+      finance: 'Finans'
+    },
+    userStatuses: {
+      active: 'Aktif',
+      inactive: 'Pasif'
+    },
+    clients: {
+      meta: {
+        title: 'Müşteriler'
+      },
+      header: {
+        kicker: 'CRM',
+        title: 'Müşteriler',
+        description: 'Alıcı, satıcı, ev sahibi, kiracı ve yatırımcı kişilerini organizasyonunuz içinde yönetin.',
+        meta: '{count} aktif CRM kaydı'
+      },
+      directory: {
+        title: 'Müşteri Dizini',
+        description: 'CRM çalışma alanınızda {count} aktif kayıt.',
+        emptyTitle: 'Henüz müşteri yok',
+        emptyDescription: 'Kişileri gayrimenkuller ve işlemlerle ilişkilendirmek için ilk müşteriyi oluşturun.'
+      },
+      form: {
+        createTitle: 'Müşteri Oluştur',
+        editTitle: 'Müşteriyi Düzenle',
+        description: 'İletişim bilgilerini bir kez kaydedin ve gayrimenkuller ile işlemlerde tekrar kullanın.',
+        cannotCreate: 'Rolünüz müşterileri görüntüleyebilir, ancak oluşturamaz veya düzenleyemez.',
+        fullName: 'Ad Soyad',
+        phone: 'Telefon',
+        email: 'E-posta',
+        type: 'Tür',
+        notes: 'Notlar',
+        saveClient: 'Müşteriyi Kaydet',
+        createClient: 'Müşteri Oluştur'
+      },
+      messages: {
+        created: 'Müşteri oluşturuldu.',
+        updated: 'Müşteri güncellendi.',
+        archived: 'Müşteri arşivlendi.',
+        archiveConfirm: '{name} arşivlensin mi? Bu işlem denetim geçmişini korur.',
+        noEmail: 'E-posta yok'
+      },
+      types: {
+        buyer: 'Alıcı',
+        seller: 'Satıcı',
+        landlord: 'Ev Sahibi',
+        tenant: 'Kiracı',
+        investor: 'Yatırımcı',
+        other: 'Diğer'
+      }
+    },
+    propertiesPage: {
+      meta: {
+        title: 'Gayrimenkuller'
+      },
+      header: {
+        kicker: 'Envanter',
+        title: 'Gayrimenkuller',
+        description: 'İşlem akışları için satış ve kiralama envanterini, sahip bağlantılarını, durumu ve fiyatı yönetin.',
+        sessionRole: 'Oturum rolü',
+        organization: 'Organizasyon'
+      },
+      debug: {
+        role: 'Rol',
+        organization: 'Organizasyon',
+        organizationId: 'Organizasyon ID',
+        permissions: 'canCreate/canManage',
+        isCreating: 'isCreating',
+        storeError: 'Store hatası',
+        submit: 'Gönderim',
+        lastRefreshCount: 'Son yenileme sayısı',
+        none: 'yok',
+        notLoaded: 'yüklenmedi'
+      },
+      inventory: {
+        title: 'Gayrimenkul Envanteri',
+        description: 'İşlem akışları için hazır {count} aktif kayıt.',
+        emptyTitle: 'Henüz gayrimenkul yok',
+        emptyDescription: 'İlanları işlemlere bağlamak için gayrimenkul envanteri oluşturun.',
+        cityNotSet: 'Şehir belirtilmedi',
+        owner: 'Sahip'
+      },
+      form: {
+        createTitle: 'Gayrimenkul Oluştur',
+        editTitle: 'Gayrimenkulü Düzenle',
+        description: 'İşlem alımı için ilan detaylarını, sahip bağlantılarını, fiyatı ve durumu hazır tutun.',
+        title: 'Başlık',
+        type: 'Gayrimenkul Türü',
+        listingType: 'İlan Türü',
+        ownerClient: 'Sahip Müşteri',
+        noOwnerLinked: 'Sahip bağlantısı yok',
+        address: 'Adres',
+        city: 'Şehir',
+        district: 'İlçe',
+        price: 'Fiyat',
+        currency: 'Para Birimi',
+        status: 'Durum',
+        descriptionLabel: 'Açıklama',
+        saveProperty: 'Gayrimenkulü Kaydet',
+        createProperty: 'Gayrimenkul Oluştur',
+        ownerMissing: 'Sahip müşteri bu organizasyonun aktif müşteri listesinde değil.'
+      },
+      messages: {
+        created: 'Gayrimenkul oluşturuldu: {title}.',
+        updated: 'Gayrimenkul güncellendi.',
+        archived: 'Gayrimenkul arşivlendi.',
+        archiveConfirm: '{title} arşivlensin mi? Bu işlem denetim geçmişini korur.',
+        priceNotSet: 'Fiyat belirtilmedi',
+        priceInvalid: 'Fiyat geçerli bir sayı olmalıdır.',
+        priceMin: 'Fiyat sıfır veya daha büyük olmalıdır.',
+        noSession: 'Oturum yüklenmedi. Lütfen tekrar giriş yapın.',
+        missingToken: 'Oturum anahtarı eksik. Lütfen tekrar giriş yapın.',
+        noUpdatePermission: 'Gayrimenkulleri güncelleme yetkiniz yok.',
+        noCreatePermission: 'Gayrimenkul oluşturma yetkiniz yok.',
+        titleRequired: 'Başlık zorunludur.',
+        titleMin: 'Başlık en az 2 karakter olmalıdır.',
+        ownerRequired: 'Sahip müşteri bu organizasyonun aktif müşterileri arasından seçilmelidir.',
+        createOnlyPermission: 'Rolünüz gayrimenkul oluşturup görüntüleyebilir, ancak düzenleyemez veya arşivleyemez.',
+        viewOnlyPermission: 'Rolünüz gayrimenkulleri görüntüleyebilir, ancak oluşturamaz, düzenleyemez veya arşivleyemez.'
+      }
+    },
+    team: {
+      meta: {
+        title: 'Ekip'
+      },
+      header: {
+        kicker: 'Erişim',
+        title: 'Ekip',
+        description: '{organization} için kullanıcıları oluşturun ve inceleyin.',
+        meta: 'Genel kayıt bir çalışma alanı başlatır. Mevcut ekipler girişten sonra buradan üye ekler.'
+      },
+      users: {
+        title: 'Kullanıcılar',
+        description: 'Bu çalışma alanında {count} ekip üyesi var.',
+        emptyTitle: 'Ekip üyesi bulunamadı',
+        emptyDescription: 'Bu çalışma alanı için ilk kullanıcıyı oluşturun.',
+        cannotManage: 'Rolünüz kendi profilinizi görüntüleyebilir, ancak ekip üyesi oluşturamaz veya listeleyemez.',
+        noOrganization: 'Organizasyon yok',
+        currentOrganization: 'Geçerli organizasyon'
+      },
+      form: {
+        title: 'Kullanıcı Oluştur',
+        description: 'Yeni kullanıcılar {organization} organizasyonuna eklenir.',
+        name: 'Ad Soyad',
+        email: 'E-posta',
+        temporaryPassword: 'Geçici Şifre',
+        role: 'Rol',
+        active: 'Aktif',
+        activeHint: 'Hemen giriş yapmasına izin ver.',
+        createUser: 'Kullanıcı Oluştur',
+        creating: 'Oluşturuluyor...'
+      },
+      messages: {
+        invalid: 'Geçerli bir ad, e-posta, şifre ve izin verilen rol girin.',
+        added: '{name}, {organization} organizasyonuna eklendi.'
+      }
+    },
+    tasksPage: {
+      meta: {
+        title: 'Görevler'
+      },
+      header: {
+        kicker: 'Operasyon',
+        title: 'Görevler',
+        description: 'İşlemler, müşteriler ve gayrimenkuller genelinde takipleri, atamaları ve işlem işlerini yönetin.',
+        meta: 'Geçerli görev görünümünde {count} kayıt'
+      },
+      metrics: {
+        pendingTasks: 'Bekleyen Görevler',
+        pendingHelper: 'Yapılacak ve devam eden',
+        overdue: 'Geciken',
+        overdueHelper: 'Bugünden önceki açık görevler',
+        dueToday: 'Bugün Biten',
+        dueTodayHelper: 'Bugün bitmesi gereken açık görevler',
+        dueThisWeek: 'Bu Hafta Biten',
+        dueThisWeekHelper: 'Sonraki 7 gün'
+      },
+      controls: {
+        title: 'Görev Kontrolleri',
+        description: 'Durum, öncelik, atanan kişi ve bitiş penceresine göre filtreleyin.',
+        allStatuses: 'Tüm durumlar',
+        allPriorities: 'Tüm öncelikler',
+        assignedUser: 'Atanan Kullanıcı',
+        anyone: 'Herkes',
+        due: 'Bitiş',
+        anyDueDate: 'Herhangi bir bitiş tarihi'
+      },
+      list: {
+        title: 'Görev Listesi',
+        description: 'Operasyon kuyruğu için önceliklendirilmiş {count} kayıt.',
+        emptyFilteredTitle: 'Filtrelerle eşleşen görev yok',
+        emptyFilteredDescription: 'Listeyi genişletmek için filtreleri temizleyin.',
+        emptyTitle: 'Henüz görev yok',
+        emptyDescription: 'Takip işlerini izlemeye başlamak için görev oluşturun.',
+        noDueDate: 'Bitiş tarihi yok',
+        assignedTo: 'Atanan',
+        unassigned: 'Atanmamış',
+        transaction: 'İşlem',
+        client: 'Müşteri',
+        property: 'Gayrimenkul'
+      },
+      form: {
+        createTitle: 'Görev Oluştur',
+        editTitle: 'Görevi Düzenle',
+        description: 'Operasyon kuyruğundan ayrılmadan iş, bitiş tarihi ve ilişkili kayıtları atayın.',
+        cannotCreate: 'Rolünüz görevleri görüntüleyebilir, ancak oluşturamaz veya güncelleyemez.',
+        title: 'Başlık',
+        descriptionLabel: 'Açıklama',
+        dueDate: 'Bitiş Tarihi',
+        assignedTo: 'Atanan Kişi',
+        status: 'Durum',
+        priority: 'Öncelik',
+        transaction: 'İşlem',
+        noTransaction: 'İşlem yok',
+        client: 'Müşteri',
+        noClient: 'Müşteri yok',
+        property: 'Gayrimenkul',
+        noProperty: 'Gayrimenkul yok',
+        saveTask: 'Görevi Kaydet',
+        createTask: 'Görev Oluştur'
+      },
+      messages: {
+        created: 'Görev oluşturuldu.',
+        updated: 'Görev güncellendi.',
+        archived: 'Görev arşivlendi.',
+        archiveConfirm: '"{title}" arşivlensin mi? Bu işlem görev geçmişini korur.'
       }
     },
     stages: {
       agreement: 'Sözleşme',
       earnest_money: 'Kapora',
-      title_deed: 'Tapu Devri',
+      title_deed: 'Tapu',
       completed: 'Tamamlandı'
     },
     transactionTypes: {
-      sold: 'Satıldı',
-      rented: 'Kiralandı'
+      sold: 'Satış',
+      rented: 'Kiralama'
     },
     property: {
+      types: {
+        apartment: 'Daire',
+        house: 'Ev',
+        land: 'Arsa',
+        office: 'Ofis',
+        shop: 'Dükkan',
+        building: 'Bina',
+        other: 'Diğer'
+      },
       listingTypes: {
-        sale: 'Satılık',
-        rent: 'Kiralık'
+        sale: 'Satış',
+        rent: 'Kiralama'
       },
       statuses: {
         draft: 'Taslak',
@@ -894,6 +2139,17 @@ export const MESSAGES = {
         in_progress: 'Devam Ediyor',
         done: 'Tamamlandı',
         cancelled: 'İptal Edildi'
+      },
+      priorities: {
+        low: 'Düşük',
+        medium: 'Orta',
+        high: 'Yüksek',
+        urgent: 'Acil'
+      },
+      dueFilters: {
+        overdue: 'Geciken',
+        today: 'Bugün biten',
+        week: 'Bu hafta biten'
       }
     },
     common: {
@@ -906,22 +2162,42 @@ export const MESSAGES = {
       save: 'Kaydet',
       cancel: 'İptal',
       search: 'Ara',
+      filter: 'Filtrele',
       exportCsv: 'CSV Dışa Aktar',
       status: 'Durum',
       stage: 'Aşama',
+      type: 'Tür',
+      name: 'Ad Soyad',
+      email: 'E-posta',
+      role: 'Rol',
+      title: 'Başlık',
+      description: 'Açıklama',
+      date: 'Tarih',
+      amount: 'Tutar',
       totalAmount: 'Toplam Tutar',
       completed: 'Tamamlandı',
       pending: 'Beklemede',
+      active: 'Aktif',
+      inactive: 'Pasif',
       refresh: 'Yenile',
       refreshing: 'Yenileniyor...',
       loading: 'Yükleniyor...',
       clear: 'Temizle',
       apply: 'Uygula',
+      applyFilters: 'Filtreleri Uygula',
+      clearFilters: 'Filtreleri Temizle',
       retry: 'Tekrar Dene',
       previous: 'Önceki',
       next: 'Sonraki',
       dismiss: 'Kapat',
-      all: 'Tümü'
+      all: 'Tümü',
+      archive: 'Arşivle',
+      archiving: 'Arşivleniyor...',
+      saving: 'Kaydediliyor...',
+      pageOf: 'Sayfa {page} / {total}',
+      open: 'Aç',
+      view: 'Görüntüle',
+      back: 'Geri'
     }
   },
   fr: {

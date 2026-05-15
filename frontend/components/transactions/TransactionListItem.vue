@@ -30,19 +30,22 @@ const emit = defineEmits<{
 const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 const isDetailsVisible = ref(false);
 const listingAgentName = computed(
-  () => props.transaction.listingAgent?.name?.trim() || 'Unknown Agent'
+  () => props.transaction.listingAgent?.name?.trim() || t('transactions.detail.unknownAgent')
 );
 const sellingAgentName = computed(
-  () => props.transaction.sellingAgent?.name?.trim() || 'Unknown Agent'
+  () => props.transaction.sellingAgent?.name?.trim() || t('transactions.detail.unknownAgent')
 );
 const createdByLabel = computed(
-  () => props.transaction.createdBy?.name?.trim() || props.transaction.createdById || 'Unknown'
+  () => props.transaction.createdBy?.name?.trim() || props.transaction.createdById || t('transactions.detail.unknown')
 );
 const updatedByLabel = computed(
   () => props.transaction.updatedBy?.name?.trim() || props.transaction.updatedById || null
 );
 const deletedByLabel = computed(
   () => props.transaction.deletedBy?.name?.trim() || props.transaction.deletedById || null
+);
+const propertyStatusLabel = computed(() =>
+  props.transaction.property ? t(`property.statuses.${props.transaction.property.status}`) : ''
 );
 const isParticipant = computed(() => {
   const currentUserId = props.currentUserId;
@@ -137,13 +140,13 @@ const onDelete = () => {
             v-if="props.transaction.isDeleted"
             class="rounded-full border border-rose-300 bg-rose-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
           >
-            Deleted
+            {{ t('transactions.item.deleted') }}
           </span>
           <span
             v-if="!props.nextStage && !props.transaction.isDeleted"
             class="rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
           >
-            Workflow closed
+            {{ t('transactions.item.workflowClosed') }}
           </span>
           <span
             v-if="!props.nextStage && !props.transaction.isDeleted"
@@ -156,8 +159,8 @@ const onDelete = () => {
           >
             {{
               props.transaction.balanceDistributionApplied
-                ? 'Balance credited'
-                : 'Balance pending'
+                ? t('transactions.item.balanceCredited')
+                : t('transactions.item.balancePending')
             }}
           </span>
           <p class="text-xs text-slate-500 dark:text-slate-400">
@@ -171,11 +174,11 @@ const onDelete = () => {
         class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300"
       >
         <p v-if="props.transaction.property">
-          <span class="font-semibold text-slate-700 dark:text-slate-200">Linked property:</span>
-          {{ props.transaction.property.title }} · {{ props.transaction.property.status }}
+          <span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.linkedProperty') }}:</span>
+          {{ props.transaction.property.title }} · {{ propertyStatusLabel }}
         </p>
         <p v-if="props.transaction.clients.length > 0">
-          <span class="font-semibold text-slate-700 dark:text-slate-200">Clients:</span>
+          <span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.clients') }}:</span>
           {{ props.transaction.clients.map((client) => client.fullName).join(', ') }}
         </p>
       </section>
@@ -215,12 +218,12 @@ const onDelete = () => {
       />
 
       <section class="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
-        <p><span class="font-semibold text-slate-700 dark:text-slate-200">Created by:</span> {{ createdByLabel }}</p>
-        <p><span class="font-semibold text-slate-700 dark:text-slate-200">Last edited by:</span> {{ updatedByLabel ?? 'Not available' }}</p>
-        <p><span class="font-semibold text-slate-700 dark:text-slate-200">Last edited at:</span> {{ formatDateTime(props.transaction.updatedAt) }}</p>
+        <p><span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.createdBy') }}:</span> {{ createdByLabel }}</p>
+        <p><span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.lastEditedBy') }}:</span> {{ updatedByLabel ?? t('transactions.detail.notAvailable') }}</p>
+        <p><span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.lastEditedAt') }}:</span> {{ formatDateTime(props.transaction.updatedAt) }}</p>
         <template v-if="props.transaction.isDeleted && props.canViewDeletedMetadata">
-          <p><span class="font-semibold text-slate-700 dark:text-slate-200">Deleted by:</span> {{ deletedByLabel ?? 'Unknown' }}</p>
-          <p><span class="font-semibold text-slate-700 dark:text-slate-200">Deleted at:</span> {{ formatDateTime(props.transaction.deletedAt ?? undefined) }}</p>
+          <p><span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.deletedBy') }}:</span> {{ deletedByLabel ?? t('transactions.detail.unknown') }}</p>
+          <p><span class="font-semibold text-slate-700 dark:text-slate-200">{{ t('transactions.item.deletedAt') }}:</span> {{ formatDateTime(props.transaction.deletedAt ?? undefined) }}</p>
         </template>
       </section>
 
@@ -240,7 +243,7 @@ const onDelete = () => {
             v-else-if="props.transaction.isDeleted"
             class="text-xs text-slate-500 dark:text-slate-400"
           >
-            Deleted transactions are read-only for audit traceability.
+            {{ t('transactions.item.deletedReadOnly') }}
           </p>
           <p v-else class="text-xs text-slate-500 dark:text-slate-400">{{ t('transactions.item.noFurtherAction') }}</p>
         </div>

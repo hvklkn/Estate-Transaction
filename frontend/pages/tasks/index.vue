@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import MetricCard from '~/components/dashboard/MetricCard.vue';
+import { useAppI18n } from '~/composables/useAppI18n';
 import { useAuthStore } from '~/stores/auth';
 import { useClientsStore } from '~/stores/clients';
 import { usePropertiesStore } from '~/stores/properties';
@@ -22,8 +23,9 @@ const tasksStore = useTasksStore();
 const transactionsStore = useTransactionsStore();
 const clientsStore = useClientsStore();
 const propertiesStore = usePropertiesStore();
+const { t, formatDateTime } = useAppI18n();
 
-useHead({ title: 'Tasks' });
+useHead(() => ({ title: t('tasksPage.meta.title') }));
 
 const selectedTaskId = ref<string | null>(null);
 const successMessage = ref('');
@@ -64,12 +66,7 @@ const canEditTask = (task: Task) =>
   canManage.value || (task.assignedToId !== null && task.assignedToId === currentUserId.value);
 
 const formatDate = (value?: string | null) =>
-  value
-    ? new Intl.DateTimeFormat('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }).format(new Date(value))
-    : 'No due date';
+  value ? formatDateTime(value) : t('tasksPage.list.noDueDate');
 
 const toDateInputValue = (value?: string | null) => {
   if (!value) {
@@ -85,10 +82,10 @@ const toDateInputValue = (value?: string | null) => {
 };
 
 const getStatusLabel = (status: TaskStatus) =>
-  TASK_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+  t(`tasks.statuses.${status}`);
 
 const getPriorityLabel = (priority: TaskPriority) =>
-  TASK_PRIORITY_OPTIONS.find((option) => option.value === priority)?.label ?? priority;
+  t(`tasks.priorities.${priority}`);
 
 const resetForm = () => {
   selectedTaskId.value = null;
@@ -136,10 +133,10 @@ const submitForm = async () => {
   try {
     if (selectedTask.value) {
       await tasksStore.updateTask(selectedTask.value.id, buildPayload());
-      successMessage.value = 'Task updated.';
+      successMessage.value = t('tasksPage.messages.updated');
     } else {
       await tasksStore.createTask(buildPayload());
-      successMessage.value = 'Task created.';
+      successMessage.value = t('tasksPage.messages.created');
     }
     resetForm();
   } catch {
@@ -152,14 +149,14 @@ const archiveTask = async (task: Task) => {
     return;
   }
 
-  const confirmed = window.confirm(`Archive "${task.title}"? This keeps task history.`);
+  const confirmed = window.confirm(t('tasksPage.messages.archiveConfirm', { title: task.title }));
   if (!confirmed) {
     return;
   }
 
   try {
     await tasksStore.deleteTask(task.id);
-    successMessage.value = 'Task archived.';
+    successMessage.value = t('tasksPage.messages.archived');
     if (selectedTaskId.value === task.id) {
       resetForm();
     }
@@ -211,28 +208,41 @@ onMounted(async () => {
     propertiesStore.fetchProperties({ force: true }).catch(() => undefined)
   ]);
 });
+
+const taskStatusOptions = computed(() =>
+  TASK_STATUS_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`tasks.statuses.${option.value}`)
+  }))
+);
+const taskPriorityOptions = computed(() =>
+  TASK_PRIORITY_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(`tasks.priorities.${option.value}`)
+  }))
+);
 </script>
 
 <template>
   <section class="space-y-6">
     <AppPageHeader
-      eyebrow="Operations"
-      title="Tasks"
-      description="Track follow-ups, assignments, and deal work across transactions, clients, and properties."
-      :meta="`${tasksStore.count} records in the current task view`"
+      :eyebrow="t('tasksPage.header.kicker')"
+      :title="t('tasksPage.header.title')"
+      :description="t('tasksPage.header.description')"
+      :meta="t('tasksPage.header.meta', { count: tasksStore.count })"
     >
       <template #actions>
         <button type="button" class="btn-secondary" :disabled="tasksStore.isLoading" @click="tasksStore.refreshTasks()">
-          {{ tasksStore.isLoading ? 'Loading...' : 'Refresh' }}
+          {{ tasksStore.isLoading ? t('common.loading') : t('common.refresh') }}
         </button>
       </template>
     </AppPageHeader>
 
     <div class="grid gap-4 md:grid-cols-4">
-      <MetricCard label="Pending Tasks" :value="String(tasksStore.summary.pending)" helper="Todo and in progress" />
-      <MetricCard label="Overdue" :value="String(tasksStore.summary.overdue)" helper="Open tasks before today" emphasis />
-      <MetricCard label="Due Today" :value="String(tasksStore.summary.dueToday)" helper="Open tasks due today" />
-      <MetricCard label="Due This Week" :value="String(tasksStore.summary.dueThisWeek)" helper="Next 7 days" />
+      <MetricCard :label="t('tasksPage.metrics.pendingTasks')" :value="String(tasksStore.summary.pending)" :helper="t('tasksPage.metrics.pendingHelper')" />
+      <MetricCard :label="t('tasksPage.metrics.overdue')" :value="String(tasksStore.summary.overdue)" :helper="t('tasksPage.metrics.overdueHelper')" emphasis />
+      <MetricCard :label="t('tasksPage.metrics.dueToday')" :value="String(tasksStore.summary.dueToday)" :helper="t('tasksPage.metrics.dueTodayHelper')" />
+      <MetricCard :label="t('tasksPage.metrics.dueThisWeek')" :value="String(tasksStore.summary.dueThisWeek)" :helper="t('tasksPage.metrics.dueThisWeekHelper')" />
     </div>
 
     <div v-if="tasksStore.error" class="alert-error">{{ tasksStore.error }}</div>
@@ -242,47 +252,47 @@ onMounted(async () => {
 
     <section class="panel">
       <div class="panel-body space-y-4">
-        <AppSectionHeader title="Task Controls" description="Filter by status, priority, assignee, and due window." />
+        <AppSectionHeader :title="t('tasksPage.controls.title')" :description="t('tasksPage.controls.description')" />
         <div class="grid gap-4 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-5">
         <label class="block">
-          <span class="field-label">Status</span>
+          <span class="field-label">{{ t('common.status') }}</span>
           <select v-model="statusFilter" class="input-base">
-            <option value="all">All statuses</option>
-            <option v-for="option in TASK_STATUS_OPTIONS" :key="option.value" :value="option.value">
+            <option value="all">{{ t('tasksPage.controls.allStatuses') }}</option>
+            <option v-for="option in taskStatusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
         </label>
         <label class="block">
-          <span class="field-label">Priority</span>
+          <span class="field-label">{{ t('tasksPage.form.priority') }}</span>
           <select v-model="priorityFilter" class="input-base">
-            <option value="all">All priorities</option>
-            <option v-for="option in TASK_PRIORITY_OPTIONS" :key="option.value" :value="option.value">
+            <option value="all">{{ t('tasksPage.controls.allPriorities') }}</option>
+            <option v-for="option in taskPriorityOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
         </label>
         <label class="block">
-          <span class="field-label">Assigned User</span>
+          <span class="field-label">{{ t('tasksPage.controls.assignedUser') }}</span>
           <select v-model="assignedToFilter" class="input-base">
-            <option value="">Anyone</option>
+            <option value="">{{ t('tasksPage.controls.anyone') }}</option>
             <option v-for="agent in authStore.activeUsers" :key="agent.id" :value="agent.id">
               {{ agent.name }}
             </option>
           </select>
         </label>
         <label class="block">
-          <span class="field-label">Due</span>
+          <span class="field-label">{{ t('tasksPage.controls.due') }}</span>
           <select v-model="dueFilter" class="input-base">
-            <option value="all">Any due date</option>
-            <option value="overdue">Overdue</option>
-            <option value="today">Due today</option>
-            <option value="week">Due this week</option>
+            <option value="all">{{ t('tasksPage.controls.anyDueDate') }}</option>
+            <option value="overdue">{{ t('tasks.dueFilters.overdue') }}</option>
+            <option value="today">{{ t('tasks.dueFilters.today') }}</option>
+            <option value="week">{{ t('tasks.dueFilters.week') }}</option>
           </select>
         </label>
         <div class="flex items-end">
           <button type="button" class="btn-secondary w-full" :disabled="tasksStore.isLoading" @click="clearFilters">
-            Clear
+            {{ t('common.clear') }}
           </button>
         </div>
         </div>
@@ -292,7 +302,7 @@ onMounted(async () => {
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <AppSectionHeader title="Task List" :description="`${tasksStore.count} records prioritized for the operations queue.`" />
+          <AppSectionHeader :title="t('tasksPage.list.title')" :description="t('tasksPage.list.description', { count: tasksStore.count })" />
 
           <div v-if="tasksStore.isLoading && tasksStore.items.length === 0" class="space-y-3">
             <div class="skeleton h-20 w-full"></div>
@@ -302,8 +312,8 @@ onMounted(async () => {
 
           <AppEmptyState
             v-else-if="tasksStore.items.length === 0"
-            :title="tasksStore.hasActiveFilters ? 'No tasks match filters' : 'No tasks yet'"
-            :description="tasksStore.hasActiveFilters ? 'Try clearing filters to widen the list.' : 'Create a task to start tracking follow-up work.'"
+            :title="tasksStore.hasActiveFilters ? t('tasksPage.list.emptyFilteredTitle') : t('tasksPage.list.emptyTitle')"
+            :description="tasksStore.hasActiveFilters ? t('tasksPage.list.emptyFilteredDescription') : t('tasksPage.list.emptyDescription')"
           />
 
           <ul v-else class="record-list mt-5">
@@ -316,23 +326,23 @@ onMounted(async () => {
                     <span class="status-chip">{{ getPriorityLabel(task.priority) }}</span>
                   </div>
                   <p class="text-sm text-slate-500">
-                    {{ formatDate(task.dueDate) }} · Assigned to {{ task.assignedTo?.name ?? 'Unassigned' }}
+                    {{ formatDate(task.dueDate) }} · {{ t('tasksPage.list.assignedTo') }} {{ task.assignedTo?.name ?? t('tasksPage.list.unassigned') }}
                   </p>
                   <p v-if="task.description" class="line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                     {{ task.description }}
                   </p>
                   <p v-if="task.relatedTransaction" class="text-xs text-slate-500">
-                    Transaction: {{ task.relatedTransaction.propertyTitle }}
+                    {{ t('tasksPage.list.transaction') }}: {{ task.relatedTransaction.propertyTitle }}
                   </p>
                   <p v-if="task.relatedClient || task.relatedProperty" class="text-xs text-slate-500">
-                    <span v-if="task.relatedClient">Client: {{ task.relatedClient.fullName }}</span>
+                    <span v-if="task.relatedClient">{{ t('tasksPage.list.client') }}: {{ task.relatedClient.fullName }}</span>
                     <span v-if="task.relatedClient && task.relatedProperty"> · </span>
-                    <span v-if="task.relatedProperty">Property: {{ task.relatedProperty.title }}</span>
+                    <span v-if="task.relatedProperty">{{ t('tasksPage.list.property') }}: {{ task.relatedProperty.title }}</span>
                   </p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                   <button v-if="canEditTask(task)" type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="editTask(task)">
-                    Edit
+                    {{ t('common.edit') }}
                   </button>
                   <button
                     v-if="canManage"
@@ -341,7 +351,7 @@ onMounted(async () => {
                     :disabled="tasksStore.deleteTaskId === task.id"
                     @click="archiveTask(task)"
                   >
-                    {{ tasksStore.deleteTaskId === task.id ? 'Archiving...' : 'Archive' }}
+                    {{ tasksStore.deleteTaskId === task.id ? t('common.archiving') : t('common.archive') }}
                   </button>
                 </div>
               </div>
@@ -353,33 +363,33 @@ onMounted(async () => {
       <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
           <AppSectionHeader
-            :title="isEditing ? 'Edit Task' : 'Create Task'"
-            description="Assign work, due dates, and related records without leaving the operations queue."
+            :title="isEditing ? t('tasksPage.form.editTitle') : t('tasksPage.form.createTitle')"
+            :description="t('tasksPage.form.description')"
           />
           <p v-if="!canCreate" class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Your role can view tasks, but cannot create or update them.
+            {{ t('tasksPage.form.cannotCreate') }}
           </p>
 
           <form class="mt-5 space-y-4" @submit.prevent="submitForm">
             <label class="block">
-              <span class="field-label">Title</span>
+              <span class="field-label">{{ t('tasksPage.form.title') }}</span>
               <input v-model="form.title" class="input-base" type="text" :disabled="!canCreate" />
             </label>
 
             <label class="block">
-              <span class="field-label">Description</span>
+              <span class="field-label">{{ t('tasksPage.form.descriptionLabel') }}</span>
               <textarea v-model="form.description" class="input-base min-h-24" :disabled="!canCreate"></textarea>
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="field-label">Due Date</span>
+                <span class="field-label">{{ t('tasksPage.form.dueDate') }}</span>
                 <input v-model="form.dueDate" class="input-base" type="datetime-local" :disabled="!canCreate" />
               </label>
               <label class="block">
-                <span class="field-label">Assigned To</span>
+                <span class="field-label">{{ t('tasksPage.form.assignedTo') }}</span>
                 <select v-model="form.assignedTo" class="input-base" :disabled="!canCreate || !canManage">
-                  <option value="">Unassigned</option>
+                  <option value="">{{ t('tasksPage.list.unassigned') }}</option>
                   <option v-for="agent in authStore.activeUsers" :key="agent.id" :value="agent.id">
                     {{ agent.name }}
                   </option>
@@ -389,17 +399,17 @@ onMounted(async () => {
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="field-label">Status</span>
+                <span class="field-label">{{ t('tasksPage.form.status') }}</span>
                 <select v-model="form.status" class="input-base" :disabled="!canCreate">
-                  <option v-for="option in TASK_STATUS_OPTIONS" :key="option.value" :value="option.value">
+                  <option v-for="option in taskStatusOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
                 </select>
               </label>
               <label class="block">
-                <span class="field-label">Priority</span>
+                <span class="field-label">{{ t('tasksPage.form.priority') }}</span>
                 <select v-model="form.priority" class="input-base" :disabled="!canCreate">
-                  <option v-for="option in TASK_PRIORITY_OPTIONS" :key="option.value" :value="option.value">
+                  <option v-for="option in taskPriorityOptions" :key="option.value" :value="option.value">
                     {{ option.label }}
                   </option>
                 </select>
@@ -407,9 +417,9 @@ onMounted(async () => {
             </div>
 
             <label class="block">
-              <span class="field-label">Transaction</span>
+              <span class="field-label">{{ t('tasksPage.form.transaction') }}</span>
               <select v-model="form.relatedTransactionId" class="input-base" :disabled="!canCreate">
-                <option value="">No transaction</option>
+                <option value="">{{ t('tasksPage.form.noTransaction') }}</option>
                 <option v-for="transaction in transactionsStore.items" :key="transaction.id" :value="transaction.id">
                   {{ transaction.propertyTitle }}
                 </option>
@@ -418,18 +428,18 @@ onMounted(async () => {
 
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">
-                <span class="field-label">Client</span>
+                <span class="field-label">{{ t('tasksPage.form.client') }}</span>
                 <select v-model="form.relatedClientId" class="input-base" :disabled="!canCreate">
-                  <option value="">No client</option>
+                  <option value="">{{ t('tasksPage.form.noClient') }}</option>
                   <option v-for="client in clientsStore.items" :key="client.id" :value="client.id">
                     {{ client.fullName }}
                   </option>
                 </select>
               </label>
               <label class="block">
-                <span class="field-label">Property</span>
+                <span class="field-label">{{ t('tasksPage.form.property') }}</span>
                 <select v-model="form.relatedPropertyId" class="input-base" :disabled="!canCreate">
-                  <option value="">No property</option>
+                  <option value="">{{ t('tasksPage.form.noProperty') }}</option>
                   <option v-for="property in propertiesStore.items" :key="property.id" :value="property.id">
                     {{ property.title }}
                   </option>
@@ -439,10 +449,10 @@ onMounted(async () => {
 
             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
               <button type="button" class="btn-secondary" :disabled="tasksStore.isCreating || Boolean(tasksStore.updateTaskId)" @click="resetForm">
-                Clear
+                {{ t('common.clear') }}
               </button>
               <button type="submit" class="btn-primary" :disabled="!canSubmit">
-                {{ tasksStore.isCreating || tasksStore.updateTaskId ? 'Saving...' : isEditing ? 'Save Task' : 'Create Task' }}
+                {{ tasksStore.isCreating || tasksStore.updateTaskId ? t('common.saving') : isEditing ? t('tasksPage.form.saveTask') : t('tasksPage.form.createTask') }}
               </button>
             </div>
           </form>

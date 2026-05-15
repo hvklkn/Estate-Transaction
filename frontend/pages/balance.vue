@@ -76,12 +76,12 @@ const hasLedgerFilters = computed(
   () => typeFilter.value !== 'all' || Boolean(dateFrom.value) || Boolean(dateTo.value)
 );
 const ledgerEmptyTitle = computed(() =>
-  hasLedgerFilters.value ? 'No ledger rows match your filters' : 'No balance movements yet'
+  hasLedgerFilters.value ? t('balance.empty.noLedgerRowsFiltered') : t('balance.empty.noBalanceMovements')
 );
 const ledgerEmptyDescription = computed(() =>
   hasLedgerFilters.value
-    ? 'Try clearing type/date filters to see a wider result set.'
-    : 'Your commission credits and adjustments will appear here once activity starts.'
+    ? t('balance.empty.ledgerFilteredDescription')
+    : t('balance.empty.noBalanceMovementsDescription')
 );
 
 const getLedgerTypeLabel = (type: BalanceLedgerType): string => {
@@ -173,7 +173,7 @@ onMounted(async () => {
       :eyebrow="t('balance.header.kicker')"
       :title="t('balance.header.title')"
       :description="t('balance.header.description')"
-      :meta="`Showing ${showingRange} of ${ledger.total} ledger entries`"
+      :meta="t('balance.sections.ledgerMeta', { range: showingRange, total: ledger.total })"
     >
       <template #actions>
         <button
@@ -221,13 +221,13 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <AppSectionHeader title="Sales Records" description="Transactions where you are assigned as the selling agent are listed here.">
+        <AppSectionHeader :title="t('balance.sections.salesRecords')" :description="t('balance.sections.salesRecordsDescription')">
           <template #actions>
             <div class="flex flex-wrap gap-2">
-              <span class="status-chip">Total Sales: {{ mySales.length }}</span>
-              <span class="status-chip">Completed: {{ completedSalesCount }}</span>
-              <span class="status-chip">Volume: {{ formatCurrency(totalSalesVolume) }}</span>
-              <span class="status-chip">Earnings: {{ formatCurrency(totalSalesEarnings) }}</span>
+              <span class="status-chip">{{ t('balance.sections.totalSales') }}: {{ mySales.length }}</span>
+              <span class="status-chip">{{ t('balance.sections.completed') }}: {{ completedSalesCount }}</span>
+              <span class="status-chip">{{ t('balance.sections.volume') }}: {{ formatCurrency(totalSalesVolume) }}</span>
+              <span class="status-chip">{{ t('balance.sections.earnings') }}: {{ formatCurrency(totalSalesEarnings) }}</span>
             </div>
           </template>
         </AppSectionHeader>
@@ -243,8 +243,8 @@ onMounted(async () => {
 
         <AppEmptyState
           v-else-if="mySales.length === 0"
-          title="No sales found"
-          description="Your assigned sales transactions will appear here."
+          :title="t('balance.empty.noSales')"
+          :description="t('balance.empty.noSalesDescription')"
         />
 
         <div v-else class="record-list">
@@ -257,7 +257,7 @@ onMounted(async () => {
               <div>
                 <h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{{ transaction.propertyTitle }}</h3>
                 <p class="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                  Transaction ID: {{ transaction.id }}
+                  {{ t('balance.sections.transactionId') }}: {{ transaction.id }}
                 </p>
               </div>
               <TransactionStageBadge :stage="transaction.stage" />
@@ -265,12 +265,12 @@ onMounted(async () => {
 
             <div class="mt-3 grid gap-3 sm:grid-cols-3">
               <div class="surface-muted px-3 py-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Service Fee</p>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.sections.serviceFee') }}</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatCurrency(transaction.totalServiceFee) }}</p>
               </div>
 
               <div class="surface-muted px-3 py-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Your Earning</p>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.sections.yourEarning') }}</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {{
                     formatCurrency(
@@ -283,7 +283,7 @@ onMounted(async () => {
               </div>
 
               <div class="surface-muted px-3 py-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Created At</p>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.sections.createdAt') }}</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{{ formatDateTime(transaction.createdAt) }}</p>
               </div>
             </div>
@@ -294,25 +294,25 @@ onMounted(async () => {
 
     <div v-if="balanceStore.summaryError" class="alert-error flex items-center justify-between gap-3">
       <div>
-        <p class="font-medium">Could not load balance summary</p>
+        <p class="font-medium">{{ t('balance.sections.summaryError') }}</p>
         <p class="mt-0.5 text-xs text-rose-700/90 dark:text-rose-300">{{ balanceStore.summaryError }}</p>
       </div>
       <button type="button" class="btn-secondary" @click="balanceStore.fetchSummary().catch(() => undefined)">
-        Retry
+        {{ t('common.retry') }}
       </button>
     </div>
 
     <section class="panel">
       <div class="panel-body space-y-4">
-        <AppSectionHeader title="Ledger History" :description="`Showing ${showingRange} of ${ledger.total} entries`">
+        <AppSectionHeader :title="t('balance.sections.ledgerHistory')" :description="t('balance.sections.ledgerMeta', { range: showingRange, total: ledger.total })">
           <template #actions>
-            <NuxtLink to="/transactions" class="btn-secondary">Back to Transactions</NuxtLink>
+            <NuxtLink to="/transactions" class="btn-secondary">{{ t('balance.sections.backToTransactions') }}</NuxtLink>
           </template>
         </AppSectionHeader>
 
         <form class="grid gap-3 rounded-[1.25rem] border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/40 lg:grid-cols-5" @submit.prevent="applyFilters(1)">
           <label class="block">
-            <span class="field-label">Type</span>
+            <span class="field-label">{{ t('balance.filters.type') }}</span>
             <select v-model="typeFilter" class="input-base text-sm">
               <option value="all">{{ t('common.all') }}</option>
               <option value="commission_credit">{{ t('balance.ledgerTypes.commission_credit') }}</option>
@@ -322,12 +322,12 @@ onMounted(async () => {
           </label>
 
           <label class="block">
-            <span class="field-label">Date From</span>
+            <span class="field-label">{{ t('balance.filters.dateFrom') }}</span>
             <input v-model="dateFrom" type="date" class="input-base text-sm" />
           </label>
 
           <label class="block">
-            <span class="field-label">Date To</span>
+            <span class="field-label">{{ t('balance.filters.dateTo') }}</span>
             <input v-model="dateTo" type="date" class="input-base text-sm" />
           </label>
 
@@ -341,7 +341,7 @@ onMounted(async () => {
 
         <div v-if="balanceStore.ledgerError" class="alert-error flex items-center justify-between gap-3">
           <div>
-            <p class="font-medium">Could not load ledger entries</p>
+            <p class="font-medium">{{ t('balance.sections.ledgerError') }}</p>
             <p class="mt-0.5 text-xs text-rose-700/90 dark:text-rose-300">{{ balanceStore.ledgerError }}</p>
           </div>
           <button type="button" class="btn-secondary" @click="applyFilters(currentPage).catch(() => undefined)">
@@ -361,12 +361,12 @@ onMounted(async () => {
           <table class="data-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>New Balance</th>
-                <th>Related Transaction</th>
-                <th>Description</th>
+                <th>{{ t('balance.table.date') }}</th>
+                <th>{{ t('balance.table.type') }}</th>
+                <th>{{ t('balance.table.amount') }}</th>
+                <th>{{ t('balance.table.newBalance') }}</th>
+                <th>{{ t('balance.table.relatedTransaction') }}</th>
+                <th>{{ t('balance.table.description') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -401,7 +401,7 @@ onMounted(async () => {
 
         <footer class="flex flex-wrap items-center justify-between gap-3 pt-1">
           <p class="text-xs text-slate-500 dark:text-slate-400">
-            Page {{ currentPage }} of {{ Math.max(1, totalPages) }}
+            {{ t('common.pageOf', { page: currentPage, total: Math.max(1, totalPages) }) }}
           </p>
           <div class="flex items-center gap-2">
             <button type="button" class="btn-secondary" :disabled="currentPage <= 1 || balanceStore.isLoadingLedger" @click="goToPreviousPage">

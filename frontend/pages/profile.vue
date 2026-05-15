@@ -10,10 +10,10 @@ type TwoFactorMethod = 'sms' | 'authenticator';
 
 const authStore = useAuthStore();
 const agentsApi = useAgentsApi();
-const { formatDateTime } = useAppI18n();
+const { t, formatDateTime } = useAppI18n();
 
 useHead(() => ({
-  title: 'Profile'
+  title: t('profilePage.meta.title')
 }));
 
 const profileForm = reactive({
@@ -68,13 +68,15 @@ const currentUserName = computed(() => authStore.currentUser?.name ?? '');
 const currentUserEmail = computed(() => authStore.currentUser?.email ?? '');
 const profileHeaderMeta = computed(() =>
   currentUserName.value
-    ? `Signed in as ${currentUserName.value}${currentUserEmail.value ? ` (${currentUserEmail.value})` : ''}`
+    ? currentUserEmail.value
+      ? t('profilePage.header.signedInAsWithEmail', { name: currentUserName.value, email: currentUserEmail.value })
+      : t('profilePage.header.signedInAs', { name: currentUserName.value })
     : undefined
 );
 const currentOrganizationName = computed(
-  () => authStore.currentUser?.organization?.name ?? 'No organization assigned'
+  () => authStore.currentUser?.organization?.name ?? t('profilePage.organization.noOrganization')
 );
-const currentOrganizationSlug = computed(() => authStore.currentUser?.organization?.slug ?? 'Not available');
+const currentOrganizationSlug = computed(() => authStore.currentUser?.organization?.slug ?? t('profilePage.organization.notAvailable'));
 const currentRoleLabel = computed(() => formatRoleLabel(authStore.currentUser?.role ?? null));
 const hasSession = computed(() => Boolean(authStore.sessionToken));
 const twoFactorEnabled = computed(() => Boolean(authStore.currentUser?.twoFactorEnabled));
@@ -82,13 +84,10 @@ const twoFactorVerifiedAt = computed(() => authStore.currentUser?.twoFactorVerif
 
 const formatRoleLabel = (role: string | null): string => {
   if (!role) {
-    return 'No role';
+    return t('profilePage.organization.noRole');
   }
 
-  return role
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  return t(`roles.${role}`);
 };
 
 const clearMessages = () => {
@@ -105,7 +104,7 @@ const clearMessages = () => {
 const requireSessionToken = (): string => {
   const token = authStore.sessionToken?.trim() ?? '';
   if (!token) {
-    throw new Error('Session token not found. Please sign in again.');
+    throw new Error(t('profilePage.messages.sessionMissing'));
   }
   return token;
 };
@@ -155,7 +154,7 @@ const saveProfile = async () => {
     });
 
     authStore.currentUser = user;
-    profileSuccess.value = 'Profile updated successfully.';
+    profileSuccess.value = t('profilePage.messages.profileUpdated');
   } catch (error: unknown) {
     profileError.value = toApiErrorMessage(error);
   } finally {
@@ -178,7 +177,7 @@ const changePassword = async () => {
     passwordForm.currentPassword = '';
     passwordForm.newPassword = '';
     passwordForm.confirmNewPassword = '';
-    passwordSuccess.value = 'Password changed successfully.';
+    passwordSuccess.value = t('profilePage.messages.passwordChanged');
   } catch (error: unknown) {
     passwordError.value = toApiErrorMessage(error);
   } finally {
@@ -199,8 +198,7 @@ const setupTwoFactor = async () => {
     twoFactorSecret.value = result.secret;
     twoFactorOtpAuthUrl.value = result.otpauthUrl;
     twoFactorCode.value = '';
-    twoFactorSuccess.value =
-      '2FA secret generated. Scan this key in your authenticator app and verify with a 6-digit code.';
+    twoFactorSuccess.value = t('profilePage.messages.twoFactorSecretGenerated');
   } catch (error: unknown) {
     twoFactorError.value = toApiErrorMessage(error);
   } finally {
@@ -222,7 +220,7 @@ const verifyTwoFactor = async () => {
     twoFactorCode.value = '';
     twoFactorSecret.value = null;
     twoFactorOtpAuthUrl.value = null;
-    twoFactorSuccess.value = `2FA enabled at ${formatDateTime(result.verifiedAt)}.`;
+    twoFactorSuccess.value = t('profilePage.messages.twoFactorEnabled', { date: formatDateTime(result.verifiedAt) });
     await loadProfile();
   } catch (error: unknown) {
     twoFactorError.value = toApiErrorMessage(error);
@@ -242,7 +240,7 @@ const disableTwoFactor = async () => {
     twoFactorCode.value = '';
     twoFactorSecret.value = null;
     twoFactorOtpAuthUrl.value = null;
-    twoFactorSuccess.value = '2FA disabled successfully.';
+    twoFactorSuccess.value = t('profilePage.messages.twoFactorDisabled');
     await loadProfile();
   } catch (error: unknown) {
     twoFactorError.value = toApiErrorMessage(error);
@@ -274,7 +272,7 @@ const revokeSession = async (sessionId: string) => {
   try {
     const sessionToken = requireSessionToken();
     await agentsApi.revokeMySession(sessionToken, sessionId);
-    sessionsSuccess.value = 'Session revoked successfully.';
+    sessionsSuccess.value = t('profilePage.messages.sessionRevoked');
     await loadSessions();
   } catch (error: unknown) {
     sessionsError.value = toApiErrorMessage(error);
@@ -288,7 +286,7 @@ const revokeOtherSessions = async () => {
   try {
     const sessionToken = requireSessionToken();
     await agentsApi.revokeMyOtherSessions(sessionToken);
-    sessionsSuccess.value = 'All other sessions were revoked.';
+    sessionsSuccess.value = t('profilePage.messages.otherSessionsRevoked');
     await loadSessions();
   } catch (error: unknown) {
     sessionsError.value = toApiErrorMessage(error);
@@ -300,7 +298,7 @@ onMounted(async () => {
   clearMessages();
 
   if (!hasSession.value) {
-    profileError.value = 'You need to sign in again to manage profile and security settings.';
+    profileError.value = t('profilePage.messages.signInRequired');
     return;
   }
 
@@ -311,20 +309,20 @@ onMounted(async () => {
 <template>
   <section class="space-y-6">
     <AppPageHeader
-      eyebrow="User Profile"
-      title="Profile"
-      description="Manage your account details, security settings, and active sessions."
+      :eyebrow="t('profilePage.header.eyebrow')"
+      :title="t('profilePage.header.title')"
+      :description="t('profilePage.header.description')"
       :meta="profileHeaderMeta"
     />
 
     <article class="panel">
       <div class="panel-body space-y-4">
-        <AppSectionHeader title="Organization" description="Your current workspace and access level for this session." />
+        <AppSectionHeader :title="t('profilePage.organization.title')" :description="t('profilePage.organization.description')" />
 
         <div class="grid gap-3 md:grid-cols-3">
           <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-              Organization
+              {{ t('profilePage.organization.organization') }}
             </p>
             <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
               {{ currentOrganizationName }}
@@ -332,7 +330,7 @@ onMounted(async () => {
           </div>
           <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-              Slug
+              {{ t('profilePage.organization.slug') }}
             </p>
             <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
               {{ currentOrganizationSlug }}
@@ -340,7 +338,7 @@ onMounted(async () => {
           </div>
           <div class="surface-muted px-3 py-3">
             <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-              Role
+              {{ t('common.role') }}
             </p>
             <p class="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
               {{ currentRoleLabel }}
@@ -352,10 +350,10 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <AppSectionHeader title="Profile Information" description="Update your account details, email address, phone number, and IBAN.">
+        <AppSectionHeader :title="t('profilePage.profile.title')" :description="t('profilePage.profile.description')">
           <template #actions>
             <button type="button" class="btn-primary" :disabled="isSavingProfile || isLoadingProfile" @click="saveProfile">
-              Save Profile
+              {{ t('profilePage.actions.saveProfile') }}
             </button>
           </template>
         </AppSectionHeader>
@@ -370,19 +368,19 @@ onMounted(async () => {
 
         <div class="grid gap-4 md:grid-cols-2">
           <label class="block">
-            <span class="field-label">Full Name</span>
+            <span class="field-label">{{ t('profilePage.profile.fields.fullName') }}</span>
             <input v-model="profileForm.name" type="text" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">Email</span>
+            <span class="field-label">{{ t('profilePage.profile.fields.email') }}</span>
             <input v-model="profileForm.email" type="email" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">Phone Number</span>
+            <span class="field-label">{{ t('profilePage.profile.fields.phone') }}</span>
             <input v-model="profileForm.phone" type="tel" class="input-base" />
           </label>
           <label class="block">
-            <span class="field-label">IBAN</span>
+            <span class="field-label">{{ t('profilePage.profile.fields.iban') }}</span>
             <input v-model="profileForm.iban" type="text" class="input-base" />
           </label>
         </div>
@@ -393,21 +391,21 @@ onMounted(async () => {
       <article class="panel">
         <div class="panel-body space-y-5">
           <AppSectionHeader
-            title="Change Password"
-            description="Update your password by entering your current password and confirming the new one."
+            :title="t('profilePage.password.title')"
+            :description="t('profilePage.password.description')"
           />
 
           <div class="space-y-3">
             <label class="block">
-              <span class="field-label">Current Password</span>
+              <span class="field-label">{{ t('profilePage.password.currentPassword') }}</span>
               <input v-model="passwordForm.currentPassword" type="password" class="input-base" />
             </label>
             <label class="block">
-              <span class="field-label">New Password</span>
+              <span class="field-label">{{ t('profilePage.password.newPassword') }}</span>
               <input v-model="passwordForm.newPassword" type="password" class="input-base" />
             </label>
             <label class="block">
-              <span class="field-label">Confirm New Password</span>
+              <span class="field-label">{{ t('profilePage.password.confirmNewPassword') }}</span>
               <input v-model="passwordForm.confirmNewPassword" type="password" class="input-base" />
             </label>
           </div>
@@ -421,7 +419,7 @@ onMounted(async () => {
           </div>
 
           <button type="button" class="btn-primary" :disabled="isChangingPassword" @click="changePassword">
-            {{ isChangingPassword ? 'Updating...' : 'Update Password' }}
+            {{ isChangingPassword ? t('profilePage.password.updating') : t('profilePage.password.updatePassword') }}
           </button>
         </div>
       </article>
@@ -429,27 +427,27 @@ onMounted(async () => {
       <article class="panel">
         <div class="panel-body space-y-5">
           <AppSectionHeader
-            title="Two-Factor Authentication (2FA)"
-            description="Add an extra security layer to sign-in with authenticator-based 2FA."
+            :title="t('profilePage.twoFactor.title')"
+            :description="t('profilePage.twoFactor.description')"
           />
 
           <div class="flex flex-wrap items-center gap-2">
-            <span class="status-chip">2FA: {{ twoFactorEnabled ? 'Enabled' : 'Disabled' }}</span>
+            <span class="status-chip">2FA: {{ twoFactorEnabled ? t('profilePage.twoFactor.enabled') : t('profilePage.twoFactor.disabled') }}</span>
             <span v-if="twoFactorVerifiedAt" class="status-chip">
-              Verified: {{ formatDateTime(twoFactorVerifiedAt) }}
+              {{ t('profilePage.twoFactor.verifiedAt', { date: formatDateTime(twoFactorVerifiedAt) }) }}
             </span>
           </div>
 
           <label class="block">
-            <span class="field-label">2FA Method</span>
+            <span class="field-label">{{ t('profilePage.twoFactor.method') }}</span>
             <select v-model="twoFactorMethod" class="input-base" :disabled="twoFactorEnabled">
-              <option value="authenticator">Authenticator App</option>
-              <option value="sms">SMS (requires provider)</option>
+              <option value="authenticator">{{ t('profilePage.twoFactor.authenticatorApp') }}</option>
+              <option value="sms">{{ t('profilePage.twoFactor.smsProvider') }}</option>
             </select>
           </label>
 
           <div v-if="twoFactorSecret" class="surface-muted p-3 text-xs">
-            <p class="font-semibold text-slate-700 dark:text-slate-200">Authenticator Secret</p>
+            <p class="font-semibold text-slate-700 dark:text-slate-200">{{ t('profilePage.twoFactor.authenticatorSecret') }}</p>
             <p class="mt-1 font-mono text-slate-600 dark:text-slate-300">{{ twoFactorSecret }}</p>
             <p v-if="twoFactorOtpAuthUrl" class="mt-2 break-all text-slate-500 dark:text-slate-400">
               {{ twoFactorOtpAuthUrl }}
@@ -457,14 +455,14 @@ onMounted(async () => {
           </div>
 
           <label class="block">
-            <span class="field-label">2FA Verification Code</span>
+            <span class="field-label">{{ t('profilePage.twoFactor.verificationCode') }}</span>
             <input
               v-model="twoFactorCode"
               type="text"
               inputmode="numeric"
               maxlength="6"
               class="input-base"
-              placeholder="6-digit code"
+              :placeholder="t('profilePage.twoFactor.codePlaceholder')"
             />
           </label>
 
@@ -478,7 +476,7 @@ onMounted(async () => {
 
           <div class="flex flex-wrap gap-2">
             <button type="button" class="btn-secondary" :disabled="isSettingUpTwoFactor" @click="setupTwoFactor">
-              {{ isSettingUpTwoFactor ? 'Preparing...' : 'Start 2FA Setup' }}
+              {{ isSettingUpTwoFactor ? t('profilePage.twoFactor.preparing') : t('profilePage.twoFactor.startSetup') }}
             </button>
             <button
               type="button"
@@ -486,7 +484,7 @@ onMounted(async () => {
               :disabled="isVerifyingTwoFactor || twoFactorCode.trim().length !== 6"
               @click="verifyTwoFactor"
             >
-              {{ isVerifyingTwoFactor ? 'Verifying...' : 'Verify 2FA' }}
+              {{ isVerifyingTwoFactor ? t('profilePage.twoFactor.verifying') : t('profilePage.twoFactor.verify') }}
             </button>
             <button
               v-if="twoFactorEnabled"
@@ -495,7 +493,7 @@ onMounted(async () => {
               :disabled="isDisablingTwoFactor"
               @click="disableTwoFactor"
             >
-              {{ isDisablingTwoFactor ? 'Disabling...' : 'Disable 2FA' }}
+              {{ isDisablingTwoFactor ? t('profilePage.twoFactor.disabling') : t('profilePage.twoFactor.disable') }}
             </button>
           </div>
         </div>
@@ -504,10 +502,10 @@ onMounted(async () => {
 
     <article class="panel">
       <div class="panel-body space-y-5">
-        <AppSectionHeader title="Session Management" description="View active sessions and sign out from other devices.">
+        <AppSectionHeader :title="t('profilePage.sessions.title')" :description="t('profilePage.sessions.description')">
           <template #actions>
             <button type="button" class="btn-secondary" :disabled="isLoadingSessions" @click="revokeOtherSessions">
-              Sign Out Other Devices
+              {{ t('profilePage.sessions.signOutOtherDevices') }}
             </button>
           </template>
         </AppSectionHeader>
@@ -522,8 +520,8 @@ onMounted(async () => {
 
         <AppEmptyState
           v-if="sessions.length === 0"
-          title="No active sessions"
-          description="Signed-in sessions will appear here after profile data loads."
+          :title="t('profilePage.sessions.emptyTitle')"
+          :description="t('profilePage.sessions.emptyDescription')"
         />
 
         <div v-else class="record-list">
@@ -538,18 +536,18 @@ onMounted(async () => {
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ session.location }}</p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ session.userAgent }}</p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Last active: {{ formatDateTime(session.lastActiveAt) }}
+                  {{ t('profilePage.sessions.lastActive', { date: formatDateTime(session.lastActiveAt) }) }}
                 </p>
               </div>
               <div class="flex items-center gap-2">
-                <span class="status-chip">{{ session.current ? 'Current Session' : 'Active' }}</span>
+                <span class="status-chip">{{ session.current ? t('profilePage.sessions.currentSession') : t('profilePage.sessions.active') }}</span>
                 <button
                   v-if="!session.current"
                   type="button"
                   class="btn-secondary"
                   @click="revokeSession(session.id)"
                 >
-                  Revoke Session
+                  {{ t('profilePage.sessions.revokeSession') }}
                 </button>
               </div>
             </div>
@@ -557,7 +555,7 @@ onMounted(async () => {
         </div>
 
         <p v-if="currentSessionId" class="text-xs text-slate-500 dark:text-slate-400">
-          Current session ID: <span class="font-mono">{{ currentSessionId }}</span>
+          {{ t('profilePage.sessions.currentSessionId') }}: <span class="font-mono">{{ currentSessionId }}</span>
         </p>
       </div>
     </article>

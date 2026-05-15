@@ -50,74 +50,74 @@ const isForgotSubmitting = ref(false);
 
 const isSubmitting = computed(() => authStore.isLoggingIn || authStore.isRegistering || isForgotSubmitting.value);
 const registrationEnabled = computed(() => String(config.public.registrationEnabled ?? 'true').toLowerCase() !== 'false');
-const valueBullets = [
-  'Stage traceability from intake to close',
-  'CRM clients and inventory in the same workspace',
-  'Commission and balance visibility without spreadsheet drift'
-];
-const heroStats = [
+const valueBullets = computed(() => [
+  t('auth.marketing.valueBullets.stageTraceability'),
+  t('auth.marketing.valueBullets.crmInventory'),
+  t('auth.marketing.valueBullets.commissionVisibility')
+]);
+const heroStats = computed(() => [
   {
     value: '360',
-    label: 'Lifecycle visibility'
+    label: t('auth.marketing.stats.lifecycleVisibility')
   },
   {
     value: '1',
-    label: 'Operational source of truth'
+    label: t('auth.marketing.stats.sourceOfTruth')
   },
   {
-    value: 'Live',
-    label: 'Balance tracking'
+    value: t('auth.marketing.live'),
+    label: t('auth.marketing.stats.balanceTracking')
   }
-];
-const productFeatures = [
+]);
+const productFeatures = computed(() => [
   {
-    eyebrow: 'Lifecycle',
-    title: 'Transaction Lifecycle',
-    description: 'Track every deal through centralized stages, participant assignments, notes, and operational status.',
-    metric: 'Pipeline, closings, and completed deals stay visible.'
+    eyebrow: t('auth.features.lifecycle.eyebrow'),
+    title: t('auth.features.lifecycle.title'),
+    description: t('auth.features.lifecycle.description'),
+    metric: t('auth.features.lifecycle.metric')
   },
   {
-    eyebrow: 'CRM',
-    title: 'CRM Clients',
-    description: 'Keep buyer, seller, tenant, and landlord records connected to transactions and property workflows.',
-    metric: 'Client context follows the deal.'
+    eyebrow: t('auth.features.crm.eyebrow'),
+    title: t('auth.features.crm.title'),
+    description: t('auth.features.crm.description'),
+    metric: t('auth.features.crm.metric')
   },
   {
-    eyebrow: 'Inventory',
-    title: 'Property Inventory',
-    description: 'Manage listings, owner links, pricing, and availability from the same workspace as transactions.',
-    metric: 'Properties become reusable operational assets.'
+    eyebrow: t('auth.features.inventory.eyebrow'),
+    title: t('auth.features.inventory.title'),
+    description: t('auth.features.inventory.description'),
+    metric: t('auth.features.inventory.metric')
   },
   {
-    eyebrow: 'Finance',
-    title: 'Commission & Balance Visibility',
-    description: 'Make agency and advisor earnings easier to review with clear balance and ledger-style visibility.',
-    metric: 'Less reconciliation work at closing.'
+    eyebrow: t('auth.features.finance.eyebrow'),
+    title: t('auth.features.finance.title'),
+    description: t('auth.features.finance.description'),
+    metric: t('auth.features.finance.metric')
   },
   {
-    eyebrow: 'Operations',
-    title: 'Reports & Tasks',
-    description: 'Monitor workload, overdue tasks, stage distribution, and performance signals with focused dashboards.',
-    metric: 'Daily operations become easier to scan.'
+    eyebrow: t('auth.features.operations.eyebrow'),
+    title: t('auth.features.operations.title'),
+    description: t('auth.features.operations.description'),
+    metric: t('auth.features.operations.metric')
   }
-];
-const workflowSteps = [
+]);
+const workflowSteps = computed(() => [
   {
     step: '01',
-    title: 'Create a workspace or sign in',
-    description: 'The first account creates the office workspace. Team members are added later from the authenticated Team area.'
+    title: t('auth.workflowSteps.createWorkspace.title'),
+    description: t('auth.workflowSteps.createWorkspace.description')
   },
   {
     step: '02',
-    title: 'Build your operating base',
-    description: 'Add clients, properties, agents, and transaction records with organization-aware permissions.'
+    title: t('auth.workflowSteps.operatingBase.title'),
+    description: t('auth.workflowSteps.operatingBase.description')
   },
   {
     step: '03',
-    title: 'Run the transaction flow',
-    description: 'Move deals through stages, assign tasks, and keep balance visibility aligned with the operational record.'
+    title: t('auth.workflowSteps.transactionFlow.title'),
+    description: t('auth.workflowSteps.transactionFlow.description')
   }
-];
+]);
 
 const switchMode = (nextMode: 'login' | 'register') => {
   if (nextMode === 'register' && !registrationEnabled.value) {
@@ -147,7 +147,10 @@ const onLogin = async () => {
   if (loginResult && 'requiresTwoFactor' in loginResult) {
     loginTwoFactorRequired.value = true;
     loginTwoFactorMethod.value = loginResult.twoFactorMethod;
-    authHint.value = loginTwoFactorMethod.value === 'authenticator' ? 'Enter the 6-digit code from your authenticator app.' : 'Enter the 6-digit SMS verification code.';
+    authHint.value =
+      loginTwoFactorMethod.value === 'authenticator'
+        ? t('auth.validation.twoFactorAuthenticatorHint')
+        : t('auth.validation.twoFactorSmsHint');
     return;
   }
 
@@ -160,12 +163,12 @@ const onRegister = async () => {
   authHint.value = null;
 
   if (registerForm.password.length < 8) {
-    authStore.setError('Password must be at least 8 characters.');
+    authStore.setError(t('auth.validation.passwordMinLength'));
     return;
   }
 
   if (registerForm.password !== registerForm.confirmPassword) {
-    authStore.setError('Password confirmation does not match.');
+    authStore.setError(t('auth.validation.passwordMismatch'));
     return;
   }
 
@@ -210,10 +213,10 @@ const onRequestResetCode = async () => {
     forgotForm.email = email;
     forgotStep.value = 'confirm';
     if (response.developmentCode) {
-      forgotSuccess.value = `Development code: ${response.developmentCode}`;
+      forgotSuccess.value = t('auth.recovery.developmentCode', { code: response.developmentCode });
       forgotForm.code = response.developmentCode;
     } else {
-      forgotSuccess.value = 'Verification code has been sent to your e-mail address.';
+      forgotSuccess.value = t('auth.recovery.emailSent');
     }
   } catch (unknownError) {
     forgotError.value = toApiErrorMessage(unknownError);
@@ -229,13 +232,13 @@ const onResetPasswordWithCode = async () => {
   authStore.setError(null);
 
   if (forgotForm.newPassword.length < 8) {
-    forgotError.value = 'Password must be at least 8 characters.';
+    forgotError.value = t('auth.validation.passwordMinLength');
     isForgotSubmitting.value = false;
     return;
   }
 
   if (forgotForm.newPassword !== forgotForm.confirmNewPassword) {
-    forgotError.value = 'Password confirmation does not match.';
+    forgotError.value = t('auth.validation.passwordMismatch');
     isForgotSubmitting.value = false;
     return;
   }
@@ -247,7 +250,7 @@ const onResetPasswordWithCode = async () => {
       newPassword: forgotForm.newPassword,
       confirmNewPassword: forgotForm.confirmNewPassword
     });
-    forgotSuccess.value = 'Password updated. You can now sign in with your new password.';
+    forgotSuccess.value = t('auth.recovery.passwordUpdated');
     forgotStep.value = 'request';
     forgotForm.code = '';
     forgotForm.newPassword = '';
@@ -271,13 +274,13 @@ const onResetPasswordWithCode = async () => {
         <div class="space-y-8">
           <div class="max-w-3xl">
             <p class="inline-flex rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 shadow-sm dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-              Estate operations platform
+              {{ t('auth.marketing.heroKicker') }}
             </p>
             <h1 class="mt-5 max-w-3xl text-4xl font-semibold leading-tight text-slate-950 dark:text-white sm:text-5xl lg:text-6xl">
-              Run every property deal from one calm operating system.
+              {{ t('auth.marketing.heroTitle') }}
             </h1>
             <p class="mt-5 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
-              Estate Transaction brings lifecycle stages, CRM clients, property inventory, tasks, and commission visibility into a single workspace built for modern real estate teams.
+              {{ t('auth.marketing.heroDescription') }}
             </p>
           </div>
 
@@ -300,16 +303,16 @@ const onResetPasswordWithCode = async () => {
           <div class="rounded-[1.75rem] border border-white/80 bg-white/75 p-4 shadow-2xl shadow-blue-950/10 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
             <div class="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
               <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Live workspace preview</p>
-                <p class="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Transaction Command Center</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ t('auth.marketing.previewTitle') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{{ t('auth.marketing.previewSubtitle') }}</p>
               </div>
-              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">Operational</span>
+              <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{{ t('auth.marketing.operational') }}</span>
             </div>
             <div class="mt-4 grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
               <div class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/70">
                 <div class="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  <span>Pipeline stage</span>
-                  <span>5 active deals</span>
+                  <span>{{ t('auth.marketing.pipelineStage') }}</span>
+                  <span>{{ t('auth.marketing.activeDeals', { count: 5 }) }}</span>
                 </div>
                 <div class="grid gap-2">
                   <div class="h-2 rounded-full bg-blue-600"></div>
@@ -317,18 +320,18 @@ const onResetPasswordWithCode = async () => {
                   <div class="h-2 rounded-full bg-slate-300 dark:bg-slate-700"></div>
                 </div>
                 <div class="grid grid-cols-3 gap-2 pt-1 text-xs">
-                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">Offer</span>
-                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">Contract</span>
-                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">Closing</span>
+                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ t('auth.marketing.offer') }}</span>
+                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ t('auth.marketing.contract') }}</span>
+                  <span class="rounded-xl bg-white px-3 py-2 font-medium text-slate-600 dark:bg-slate-900 dark:text-slate-300">{{ t('auth.marketing.closing') }}</span>
                 </div>
               </div>
               <div class="grid gap-3">
                 <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Commission pipeline</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t('auth.marketing.commissionPipeline') }}</p>
                   <p class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{{ formatCurrency(128000, { maximumFractionDigits: 0 }) }}</p>
                 </div>
                 <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
-                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue tasks</p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ t('auth.marketing.overdueTasks') }}</p>
                   <p class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">3</p>
                 </div>
               </div>
@@ -339,12 +342,12 @@ const onResetPasswordWithCode = async () => {
         <article class="rounded-[2rem] border border-white/80 bg-white/95 p-5 shadow-2xl shadow-blue-950/15 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:p-6">
           <div v-if="!showForgotPassword" class="space-y-5">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Secure access</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{{ t('auth.marketing.secureAccess') }}</p>
               <h2 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">
-                {{ mode === 'login' ? 'Welcome back' : 'Create your workspace' }}
+                {{ mode === 'login' ? t('auth.marketing.welcomeBack') : t('auth.marketing.createWorkspace') }}
               </h2>
               <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                {{ mode === 'login' ? 'Sign in to continue managing transactions, tasks, inventory, and balances.' : 'Public registration is for the first workspace owner. Team members are created inside the app.' }}
+                {{ mode === 'login' ? t('auth.marketing.loginDescription') : t('auth.marketing.registerDescription') }}
               </p>
             </div>
 
@@ -366,7 +369,7 @@ const onResetPasswordWithCode = async () => {
               {{ authHint }}
             </div>
             <div v-else-if="mode === 'register'" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
-              Public registration creates the initial office owner workspace. Existing teams are managed from Team after sign-in.
+              {{ t('auth.marketing.registrationNotice') }}
             </div>
 
             <form v-if="mode === 'login'" class="space-y-4" @submit.prevent="onLogin">
@@ -376,22 +379,22 @@ const onResetPasswordWithCode = async () => {
               </label>
 
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Password</span>
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.password') }}</span>
                 <input v-model="loginForm.password" type="password" class="input-base shadow-sm" :disabled="isSubmitting" autocomplete="current-password" required />
               </label>
 
               <label v-if="loginTwoFactorRequired" class="block">
                 <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {{ loginTwoFactorMethod === 'authenticator' ? 'Authenticator Code' : 'SMS Code' }}
+                  {{ loginTwoFactorMethod === 'authenticator' ? t('auth.fields.authenticatorCode') : t('auth.fields.smsCode') }}
                 </span>
-                <input v-model="loginForm.twoFactorCode" type="text" inputmode="numeric" maxlength="6" class="input-base shadow-sm" :disabled="isSubmitting" placeholder="6-digit code" required />
+                <input v-model="loginForm.twoFactorCode" type="text" inputmode="numeric" maxlength="6" class="input-base shadow-sm" :disabled="isSubmitting" :placeholder="t('auth.placeholders.sixDigitCode')" required />
               </label>
 
               <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">
                 {{ authStore.isLoggingIn ? t('auth.actions.loggingIn') : t('auth.actions.login') }}
               </button>
 
-              <button type="button" class="w-full rounded-xl px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 hover:text-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40" :disabled="isSubmitting" @click="openForgotPassword">Forgot password?</button>
+              <button type="button" class="w-full rounded-xl px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 hover:text-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40" :disabled="isSubmitting" @click="openForgotPassword">{{ t('auth.actions.forgotPassword') }}</button>
             </form>
 
             <form v-else-if="registrationEnabled" class="space-y-4" @submit.prevent="onRegister">
@@ -408,29 +411,29 @@ const onResetPasswordWithCode = async () => {
               </div>
 
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Organization Name</span>
-                <input v-model="registerForm.organizationName" type="text" class="input-base shadow-sm" placeholder="Kalkan Estate" :disabled="isSubmitting" required />
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.organizationName') }}</span>
+                <input v-model="registerForm.organizationName" type="text" class="input-base shadow-sm" :placeholder="t('auth.placeholders.organizationName')" :disabled="isSubmitting" required />
               </label>
 
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Organization Slug</span>
-                <input v-model="registerForm.organizationSlug" type="text" class="input-base shadow-sm" placeholder="kalkan-estate-veli-2026" :disabled="isSubmitting" required />
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.organizationSlug') }}</span>
+                <input v-model="registerForm.organizationSlug" type="text" class="input-base shadow-sm" :placeholder="t('auth.placeholders.organizationSlug')" :disabled="isSubmitting" required />
               </label>
 
               <div class="grid gap-4 sm:grid-cols-2">
                 <label class="block">
-                  <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Password</span>
+                  <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.password') }}</span>
                   <input v-model="registerForm.password" type="password" class="input-base shadow-sm" :disabled="isSubmitting" autocomplete="new-password" required />
                 </label>
 
                 <label class="block">
-                  <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Confirm Password</span>
+                  <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.confirmPassword') }}</span>
                   <input v-model="registerForm.confirmPassword" type="password" class="input-base shadow-sm" :disabled="isSubmitting" autocomplete="new-password" required />
                 </label>
               </div>
 
               <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">
-                {{ authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.register') }}
+                {{ authStore.isRegistering ? t('auth.actions.registering') : t('auth.actions.createWorkspace') }}
               </button>
             </form>
           </div>
@@ -438,11 +441,11 @@ const onResetPasswordWithCode = async () => {
           <div v-else class="space-y-5">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Account recovery</p>
-                <h2 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">Reset password</h2>
-                <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">Use a verification code to securely regain access to your workspace.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{{ t('auth.recovery.kicker') }}</p>
+                <h2 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{{ t('auth.recovery.title') }}</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{{ t('auth.recovery.description') }}</p>
               </div>
-              <button type="button" class="rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" :disabled="isSubmitting" @click="closeForgotPassword">Back</button>
+              <button type="button" class="rounded-full px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" :disabled="isSubmitting" @click="closeForgotPassword">{{ t('auth.actions.back') }}</button>
             </div>
 
             <div v-if="forgotError" class="alert-error">
@@ -454,29 +457,29 @@ const onResetPasswordWithCode = async () => {
 
             <form v-if="forgotStep === 'request'" class="space-y-4" @submit.prevent="onRequestResetCode">
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">E-mail</span>
-                <input v-model="forgotForm.email" type="email" class="input-base shadow-sm" placeholder="you@example.com" :disabled="isSubmitting" required />
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.email') }}</span>
+                <input v-model="forgotForm.email" type="email" class="input-base shadow-sm" :placeholder="t('auth.placeholders.recoveryEmail')" :disabled="isSubmitting" required />
               </label>
-              <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">Send verification code</button>
+              <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">{{ t('auth.actions.sendVerificationCode') }}</button>
             </form>
 
             <form v-else class="space-y-4" @submit.prevent="onResetPasswordWithCode">
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Verification Code</span>
-                <input v-model="forgotForm.code" type="text" inputmode="numeric" maxlength="6" class="input-base shadow-sm" placeholder="6-digit code" :disabled="isSubmitting" required />
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.verificationCode') }}</span>
+                <input v-model="forgotForm.code" type="text" inputmode="numeric" maxlength="6" class="input-base shadow-sm" :placeholder="t('auth.placeholders.sixDigitCode')" :disabled="isSubmitting" required />
               </label>
 
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">New Password</span>
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.newPassword') }}</span>
                 <input v-model="forgotForm.newPassword" type="password" class="input-base shadow-sm" autocomplete="new-password" :disabled="isSubmitting" required />
               </label>
 
               <label class="block">
-                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">Confirm New Password</span>
+                <span class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{{ t('auth.fields.confirmNewPassword') }}</span>
                 <input v-model="forgotForm.confirmNewPassword" type="password" class="input-base shadow-sm" autocomplete="new-password" :disabled="isSubmitting" required />
               </label>
 
-              <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">Reset password</button>
+              <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-300" :disabled="isSubmitting">{{ t('auth.actions.resetPassword') }}</button>
             </form>
           </div>
         </article>
@@ -485,9 +488,9 @@ const onResetPasswordWithCode = async () => {
 
     <section class="space-y-8">
       <div class="max-w-3xl">
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Platform value</p>
-        <h2 class="mt-3 text-3xl font-semibold text-slate-950 dark:text-white sm:text-4xl">Built for the real estate transaction office.</h2>
-        <p class="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">A focused operating layer for teams that need cleaner stage control, client context, property visibility, and financial clarity.</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{{ t('auth.marketing.platformValue') }}</p>
+        <h2 class="mt-3 text-3xl font-semibold text-slate-950 dark:text-white sm:text-4xl">{{ t('auth.marketing.platformTitle') }}</h2>
+        <p class="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">{{ t('auth.marketing.platformDescription') }}</p>
       </div>
 
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -498,9 +501,9 @@ const onResetPasswordWithCode = async () => {
     <section class="rounded-[2rem] border border-slate-200 bg-white/80 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 sm:p-8">
       <div class="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
         <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">Workflow</p>
-          <h2 class="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">From workspace setup to operational control.</h2>
-          <p class="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">The public page starts the workspace. The authenticated app handles team creation, permissions, transaction activity, and reporting.</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{{ t('auth.marketing.workflowKicker') }}</p>
+          <h2 class="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">{{ t('auth.marketing.workflowTitle') }}</h2>
+          <p class="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{{ t('auth.marketing.workflowDescription') }}</p>
         </div>
 
         <div class="grid gap-4">

@@ -1,23 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
+import { useAppI18n } from '~/composables/useAppI18n';
 import { toApiErrorMessage } from '~/services/api.errors';
 import { useAuthStore } from '~/stores/auth';
 import type { AgentRole, AgentUser } from '~/types/agent';
 
 const authStore = useAuthStore();
+const { t } = useAppI18n();
 
-useHead({ title: 'Team' });
+useHead(() => ({ title: t('team.meta.title') }));
 
-const roleLabels: Record<AgentRole, string> = {
-  super_admin: 'Super Admin',
-  office_owner: 'Office Owner',
-  admin: 'Admin',
-  manager: 'Manager',
-  agent: 'Agent',
-  assistant: 'Assistant',
-  finance: 'Finance'
-};
 const SUPER_ADMIN_ASSIGNABLE_ROLES: AgentRole[] = [
   'super_admin',
   'office_owner',
@@ -49,7 +42,7 @@ const successMessage = ref('');
 const pageError = ref<string | null>(null);
 
 const currentOrganizationName = computed(
-  () => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? 'Current organization'
+  () => authStore.currentOrganization?.name ?? authStore.currentUser?.organizationId ?? t('team.users.currentOrganization')
 );
 const currentRole = computed(() => authStore.currentUser?.role ?? null);
 const canCreateTeamMembers = computed(() => authStore.canManageTeam);
@@ -57,21 +50,21 @@ const assignableRoleOptions = computed<Array<{ value: AgentRole; label: string }
   if (currentRole.value === 'super_admin') {
     return SUPER_ADMIN_ASSIGNABLE_ROLES.map((role) => ({
       value: role,
-      label: roleLabels[role]
+      label: t(`roles.${role}`)
     }));
   }
 
   if (currentRole.value === 'office_owner' || currentRole.value === 'admin') {
     return TENANT_ADMIN_ASSIGNABLE_ROLES.map((role) => ({
       value: role,
-      label: roleLabels[role]
+      label: t(`roles.${role}`)
     }));
   }
 
   if (currentRole.value === 'manager') {
     return MANAGER_ASSIGNABLE_ROLES.map((role) => ({
       value: role,
-      label: roleLabels[role]
+      label: t(`roles.${role}`)
     }));
   }
 
@@ -96,9 +89,9 @@ const canSubmit = computed(
     !authStore.isCreatingUser
 );
 
-const formatRoleLabel = (role: AgentRole) => roleLabels[role] ?? role;
+const formatRoleLabel = (role: AgentRole) => t(`roles.${role}`);
 
-const organizationLabel = (user: AgentUser) => user.organization?.name ?? user.organizationId ?? 'No organization';
+const organizationLabel = (user: AgentUser) => user.organization?.name ?? user.organizationId ?? t('team.users.noOrganization');
 
 const resetForm = () => {
   form.name = '';
@@ -114,7 +107,7 @@ const submitForm = async () => {
   authStore.setError(null);
 
   if (!canSubmit.value) {
-    pageError.value = 'Enter a valid name, email, password, and allowed role.';
+    pageError.value = t('team.messages.invalid');
     return;
   }
 
@@ -126,7 +119,10 @@ const submitForm = async () => {
       role: form.role,
       isActive: form.isActive
     });
-    successMessage.value = `${user.name} was added to ${currentOrganizationName.value}.`;
+    successMessage.value = t('team.messages.added', {
+      name: user.name,
+      organization: currentOrganizationName.value
+    });
     resetForm();
   } catch (unknownError) {
     pageError.value = toApiErrorMessage(unknownError);
@@ -162,10 +158,10 @@ onMounted(async () => {
 <template>
   <section class="space-y-6">
     <AppPageHeader
-      eyebrow="Access"
-      title="Team"
-      :description="`Create and review users for ${currentOrganizationName}.`"
-      meta="Public registration starts a workspace. Existing teams add members here after sign-in."
+      :eyebrow="t('team.header.kicker')"
+      :title="t('team.header.title')"
+      :description="t('team.header.description', { organization: currentOrganizationName })"
+      :meta="t('team.header.meta')"
     >
       <template #actions>
         <button
@@ -174,7 +170,7 @@ onMounted(async () => {
           :disabled="authStore.isLoadingUsers"
           @click="authStore.fetchUsers()"
         >
-          {{ authStore.isLoadingUsers ? 'Loading...' : 'Refresh' }}
+          {{ authStore.isLoadingUsers ? t('common.loading') : t('common.refresh') }}
         </button>
       </template>
     </AppPageHeader>
@@ -192,13 +188,16 @@ onMounted(async () => {
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section class="panel">
         <div class="panel-body">
-          <AppSectionHeader title="Users" :description="`${teamMembers.length} team members in this workspace.`" />
+          <AppSectionHeader
+            :title="t('team.users.title')"
+            :description="t('team.users.description', { count: teamMembers.length })"
+          />
 
           <div
             v-if="!canCreateTeamMembers"
             class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
           >
-            Your role can view your own profile, but cannot create or list team members.
+            {{ t('team.users.cannotManage') }}
           </div>
 
           <div v-else-if="authStore.isLoadingUsers && teamMembers.length === 0" class="space-y-3">
@@ -207,7 +206,11 @@ onMounted(async () => {
             <div class="skeleton h-16 w-full"></div>
           </div>
 
-          <AppEmptyState v-else-if="teamMembers.length === 0" title="No team members found" description="Create the first user for this workspace." />
+          <AppEmptyState
+            v-else-if="teamMembers.length === 0"
+            :title="t('team.users.emptyTitle')"
+            :description="t('team.users.emptyDescription')"
+          />
 
           <ul v-else class="record-list mt-5">
             <li v-for="user in teamMembers" :key="user.id" class="record-row px-1">
@@ -226,7 +229,7 @@ onMounted(async () => {
                           : 'border-slate-200 bg-slate-100 text-slate-500'
                       "
                     >
-                      {{ user.isActive ? 'Active' : 'Inactive' }}
+                      {{ user.isActive ? t('userStatuses.active') : t('userStatuses.inactive') }}
                     </span>
                   </div>
                   <p class="mt-1 text-sm text-slate-500">{{ user.email }}</p>
@@ -242,11 +245,14 @@ onMounted(async () => {
 
       <aside class="panel xl:sticky xl:top-24 xl:self-start">
         <div class="panel-body">
-          <AppSectionHeader title="Create User" :description="`New users are added to ${currentOrganizationName}.`" />
+          <AppSectionHeader
+            :title="t('team.form.title')"
+            :description="t('team.form.description', { organization: currentOrganizationName })"
+          />
 
           <form class="mt-5 space-y-4" @submit.prevent="submitForm">
             <label class="block">
-              <span class="field-label">Name</span>
+              <span class="field-label">{{ t('team.form.name') }}</span>
               <input
                 v-model="form.name"
                 class="input-base"
@@ -256,7 +262,7 @@ onMounted(async () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Email</span>
+              <span class="field-label">{{ t('team.form.email') }}</span>
               <input
                 v-model="form.email"
                 class="input-base"
@@ -266,7 +272,7 @@ onMounted(async () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Temporary Password</span>
+              <span class="field-label">{{ t('team.form.temporaryPassword') }}</span>
               <input
                 v-model="form.password"
                 class="input-base"
@@ -277,7 +283,7 @@ onMounted(async () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Role</span>
+              <span class="field-label">{{ t('team.form.role') }}</span>
               <select
                 v-model="form.role"
                 class="input-base"
@@ -293,8 +299,8 @@ onMounted(async () => {
               class="flex items-start justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-900"
             >
               <span>
-                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">Active</span>
-                <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">Allow sign-in immediately.</span>
+                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">{{ t('team.form.active') }}</span>
+                <span class="mt-1 block text-xs text-slate-500 dark:text-slate-400">{{ t('team.form.activeHint') }}</span>
               </span>
               <input
                 v-model="form.isActive"
@@ -306,7 +312,7 @@ onMounted(async () => {
 
             <div class="flex justify-end border-t border-slate-100 pt-4 dark:border-slate-800">
               <button type="submit" class="btn-primary" :disabled="!canSubmit">
-                {{ authStore.isCreatingUser ? 'Creating...' : 'Create User' }}
+                {{ authStore.isCreatingUser ? t('team.form.creating') : t('team.form.createUser') }}
               </button>
             </div>
           </form>

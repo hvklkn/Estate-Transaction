@@ -30,14 +30,14 @@ const agentPoolPercent = computed(() => {
 
 const resolveAgentName = (role: FinancialBreakdown['agents'][number]['role']): string => {
   if (role === 'listing') {
-    return props.listingAgentName?.trim() || 'Unknown Agent';
+    return props.listingAgentName?.trim() || t('transactions.detail.unknownAgent');
   }
 
   if (role === 'selling') {
-    return props.sellingAgentName?.trim() || 'Unknown Agent';
+    return props.sellingAgentName?.trim() || t('transactions.detail.unknownAgent');
   }
 
-  return props.listingAgentName?.trim() || props.sellingAgentName?.trim() || 'Unknown Agent';
+  return props.listingAgentName?.trim() || props.sellingAgentName?.trim() || t('transactions.detail.unknownAgent');
 };
 </script>
 
