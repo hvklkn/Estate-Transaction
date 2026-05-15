@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
 
+import { useAppI18n } from '~/composables/useAppI18n';
 import type { AgentUser } from '~/types/agent';
 import type { ClientSummary } from '~/types/client';
 import type { PropertySummary } from '~/types/property';
@@ -25,6 +26,8 @@ const emit = defineEmits<{
   close: [];
   submit: [payload: { id: string; data: UpdateTransactionPayload }];
 }>();
+
+const { t, selectedCurrency } = useAppI18n();
 
 const form = reactive({
   propertyTitle: '',
@@ -85,6 +88,9 @@ const selectableProperties = computed(() =>
     return property.status === 'reserved' && currentTransactionOwnsProperty;
   })
 );
+const totalServiceFeeLabel = computed(
+  () => `${t('transactions.form.fields.totalServiceFee')} (${selectedCurrency.value})`
+);
 
 const clearErrors = () => {
   fieldErrors.propertyTitle = '';
@@ -132,26 +138,26 @@ const validate = () => {
   const totalServiceFee = Number(form.totalServiceFee);
 
   if (!trimmedPropertyTitle) {
-    fieldErrors.propertyTitle = 'Property title is required.';
+    fieldErrors.propertyTitle = t('transactions.form.validation.propertyTitleRequired');
   } else if (trimmedPropertyTitle.length < 3) {
-    fieldErrors.propertyTitle = 'Property title must be at least 3 characters.';
+    fieldErrors.propertyTitle = t('transactions.form.validation.propertyTitleMinLength');
   }
 
   if (canEditWorkflowFields.value) {
     if (!Number.isFinite(totalServiceFee) || totalServiceFee <= 0) {
-      fieldErrors.totalServiceFee = 'Total service fee must be greater than 0.';
+      fieldErrors.totalServiceFee = t('transactions.form.validation.totalServiceFeePositive');
     }
 
     if (!form.listingAgentId.trim()) {
-      fieldErrors.listingAgentId = 'Listing agent is required.';
+      fieldErrors.listingAgentId = t('transactions.form.validation.listingAgentIdRequired');
     }
 
     if (!form.sellingAgentId.trim()) {
-      fieldErrors.sellingAgentId = 'Selling agent is required.';
+      fieldErrors.sellingAgentId = t('transactions.form.validation.sellingAgentIdRequired');
     }
 
     if (form.transactionType !== TransactionType.SOLD && form.transactionType !== TransactionType.RENTED) {
-      fieldErrors.transactionType = 'Transaction type is required.';
+      fieldErrors.transactionType = t('transactions.form.validation.transactionTypeRequired');
     }
   }
 
@@ -204,7 +210,7 @@ const onSubmit = () => {
   }
 
   if (Object.keys(payload).length === 0) {
-    fieldErrors.form = 'No changes detected.';
+    fieldErrors.form = t('transactions.form.validation.noChangesDetected');
     return;
   }
 
@@ -238,13 +244,13 @@ const handlePropertySelect = () => {
       <div class="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div class="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Edit Transaction</h3>
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">{{ t('transactions.edit.title') }}</h3>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Update core details. After agreement stage, workflow-critical fields are locked.
+              {{ t('transactions.edit.description') }}
             </p>
           </div>
           <button type="button" class="btn-secondary px-3 py-1.5 text-xs" :disabled="props.isSubmitting" @click="onClose">
-            Close
+            {{ t('common.cancel') }}
           </button>
         </div>
 
@@ -253,7 +259,7 @@ const handlePropertySelect = () => {
             v-if="!canEditWorkflowFields"
             class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
           >
-            This transaction is beyond agreement stage. Only property title and optional resource links can be edited.
+            {{ t('transactions.edit.lockedNotice') }}
           </div>
 
           <div v-if="fieldErrors.form" class="alert-error">
@@ -261,7 +267,7 @@ const handlePropertySelect = () => {
           </div>
 
           <label class="block">
-            <span class="field-label">Property Title</span>
+            <span class="field-label">{{ t('transactions.form.fields.propertyTitle') }}</span>
             <input
               v-model="form.propertyTitle"
               type="text"
@@ -273,7 +279,7 @@ const handlePropertySelect = () => {
           </label>
 
           <label class="block">
-            <span class="field-label">Linked Property</span>
+            <span class="field-label">{{ t('transactions.form.fields.linkedProperty') }}</span>
             <select
               v-model="form.propertyId"
               class="input-base"
@@ -281,18 +287,18 @@ const handlePropertySelect = () => {
               :disabled="props.isSubmitting"
               @change="handlePropertySelect"
             >
-              <option value="">No linked property</option>
+              <option value="">{{ t('transactions.form.placeholders.noLinkedProperty') }}</option>
               <option v-for="property in selectableProperties" :key="property.id" :value="property.id">
-                {{ property.title }} · {{ property.city || 'No city' }} · {{ property.status }}
+                {{ property.title }} · {{ property.city || t('transactions.form.hints.noCity') }} · {{ property.status }}
               </option>
             </select>
-            <p class="field-hint">Optional. This does not replace the legacy property title field.</p>
+            <p class="field-hint">{{ t('transactions.form.hints.linkedPropertyEdit') }}</p>
             <p v-if="fieldErrors.propertyId" class="field-error">{{ fieldErrors.propertyId }}</p>
           </label>
 
           <div class="grid gap-4 md:grid-cols-2">
             <label class="block">
-              <span class="field-label">Total Service Fee (USD)</span>
+              <span class="field-label">{{ totalServiceFeeLabel }}</span>
               <input
                 v-model="form.totalServiceFee"
                 type="number"
@@ -306,15 +312,15 @@ const handlePropertySelect = () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Transaction Type</span>
+              <span class="field-label">{{ t('transactions.form.fields.transactionType') }}</span>
               <select
                 v-model="form.transactionType"
                 class="input-base"
                 :class="{ 'input-invalid': fieldErrors.transactionType }"
                 :disabled="props.isSubmitting || !canEditWorkflowFields"
               >
-                <option :value="TransactionType.SOLD">Sold</option>
-                <option :value="TransactionType.RENTED">Rented</option>
+                <option :value="TransactionType.SOLD">{{ t('transactionTypes.sold') }}</option>
+                <option :value="TransactionType.RENTED">{{ t('transactionTypes.rented') }}</option>
               </select>
               <p v-if="fieldErrors.transactionType" class="field-error">{{ fieldErrors.transactionType }}</p>
             </label>
@@ -322,14 +328,14 @@ const handlePropertySelect = () => {
 
           <div class="grid gap-4 md:grid-cols-2">
             <label class="block">
-              <span class="field-label">Listing Agent</span>
+              <span class="field-label">{{ t('transactions.form.fields.listingAgentId') }}</span>
               <select
                 v-model="form.listingAgentId"
                 class="input-base"
                 :class="{ 'input-invalid': fieldErrors.listingAgentId }"
                 :disabled="props.isSubmitting || !canEditWorkflowFields"
               >
-                <option value="">Select agent</option>
+                <option value="">{{ t('transactions.form.placeholders.selectAgent') }}</option>
                 <option v-for="agent in props.agents" :key="agent.id" :value="agent.id">
                   {{ agent.name }} ({{ agent.email }})
                 </option>
@@ -338,14 +344,14 @@ const handlePropertySelect = () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Selling Agent</span>
+              <span class="field-label">{{ t('transactions.form.fields.sellingAgentId') }}</span>
               <select
                 v-model="form.sellingAgentId"
                 class="input-base"
                 :class="{ 'input-invalid': fieldErrors.sellingAgentId }"
                 :disabled="props.isSubmitting || !canEditWorkflowFields"
               >
-                <option value="">Select agent</option>
+                <option value="">{{ t('transactions.form.placeholders.selectAgent') }}</option>
                 <option v-for="agent in props.agents" :key="agent.id" :value="agent.id">
                   {{ agent.name }} ({{ agent.email }})
                 </option>
@@ -355,7 +361,7 @@ const handlePropertySelect = () => {
           </div>
 
           <label class="block">
-            <span class="field-label">Clients</span>
+            <span class="field-label">{{ t('transactions.form.fields.clients') }}</span>
             <select
               v-model="form.clientIds"
               multiple
@@ -367,16 +373,16 @@ const handlePropertySelect = () => {
                 {{ client.fullName }} · {{ client.type }}{{ client.email ? ` · ${client.email}` : '' }}
               </option>
             </select>
-            <p class="field-hint">Optional. Hold Command or Ctrl to select multiple clients.</p>
+            <p class="field-hint">{{ t('transactions.form.hints.clients') }}</p>
             <p v-if="fieldErrors.clientIds" class="field-error">{{ fieldErrors.clientIds }}</p>
           </label>
 
           <div class="flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
             <button type="button" class="btn-secondary" :disabled="props.isSubmitting" @click="onClose">
-              Cancel
+              {{ t('common.cancel') }}
             </button>
             <button type="button" class="btn-primary" :disabled="props.isSubmitting" @click="onSubmit">
-              {{ props.isSubmitting ? 'Saving...' : 'Save Changes' }}
+              {{ props.isSubmitting ? t('common.loading') : t('transactions.edit.saveChanges') }}
             </button>
           </div>
         </div>

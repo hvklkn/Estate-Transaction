@@ -21,6 +21,8 @@ This platform brings those workflows into one structured application so teams ca
 - CRM client management
 - Property inventory management
 - Commission calculation and financial summaries
+- English and Turkish UI language support
+- USD, EUR, GBP, and TRY currency display preferences
 - Task management
 - Transaction notes and activity tracking
 - Reporting and CSV export module
@@ -173,6 +175,12 @@ NUXT_PUBLIC_REGISTRATION_ENABLED=true
 ```
 
 Only commit `.env.example` files. Keep real `.env` files local or configure them through your hosting provider.
+
+## Localization And Currency
+
+The frontend includes a lightweight localization layer with English and Turkish support. Users can change the interface language and preferred display currency from the settings page.
+
+Currency display is centralized through the shared formatter and supports `USD`, `EUR`, `GBP`, and `TRY`. Turkish locale uses `tr-TR` number formatting, including Turkish Lira display.
 
 ## API Overview
 

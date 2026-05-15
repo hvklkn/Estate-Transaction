@@ -1,7 +1,8 @@
-export type AppLocale = 'en';
+export type AppLocale = 'en' | 'tr';
 
 export const SUPPORTED_LOCALES: Array<{ code: AppLocale; label: string }> = [
-  { code: 'en', label: 'English' }
+  { code: 'en', label: 'English' },
+  { code: 'tr', label: 'Türkçe' }
 ];
 
 export const DEFAULT_LOCALE: AppLocale = 'en';
@@ -11,10 +12,30 @@ export const MESSAGES = {
     layout: {
       subtitle: 'Internal Transaction Operations',
       navigation: {
+        dashboard: 'Dashboard',
         transactions: 'Transactions',
-        settings: 'Settings'
+        clients: 'Clients',
+        properties: 'Properties',
+        tasks: 'Tasks',
+        reports: 'Reports',
+        balance: 'Balance',
+        team: 'Agents',
+        profile: 'Profile',
+        settings: 'Settings',
+        auth: 'User Access'
       },
       language: 'Language',
+      workspace: 'Workspace',
+      signIn: 'Sign in',
+      noOrganization: 'No organization',
+      noRole: 'No role',
+      product: 'Product',
+      support: 'Support',
+      footerDescription:
+        'A focused operating layer for transaction lifecycle tracking, client context, property inventory, tasks, and commission visibility.',
+      privacyPolicy: 'Privacy Policy',
+      termsOfService: 'Terms of Service',
+      cookiePolicy: 'Cookie Policy',
       menu: {
         open: 'Open menu',
         close: 'Close menu'
@@ -130,14 +151,22 @@ export const MESSAGES = {
       },
       filters: {
         title: 'List Controls',
+        description: 'Search, stage, type, and sort controls for the transaction workspace.',
         searchLabel: 'Search',
         searchPlaceholder: 'Search by property or advisor name',
         stageLabel: 'Stage',
         allStages: 'All stages',
+        transactionTypeLabel: 'Transaction Type',
+        allTypes: 'All types',
         sortLabel: 'Sort by',
         sortNewest: 'Newest',
         sortOldest: 'Oldest',
-        sortHighestCommission: 'Highest commission'
+        sortRecentlyUpdated: 'Recently updated',
+        sortHighestCommission: 'Highest commission',
+        sortLowestCommission: 'Lowest commission',
+        sortPropertyAZ: 'Property A-Z',
+        clearFilters: 'Clear filters',
+        includeDeleted: 'Include deleted'
       },
       errors: {
         syncTitle: 'Unable to sync transaction data'
@@ -160,6 +189,8 @@ export const MESSAGES = {
         nextAllowedStage: 'Next allowed stage: {stage}',
         noFurtherAction: 'No further action. Transaction is completed.',
         updating: 'Updating...',
+        editing: 'Editing...',
+        deleting: 'Deleting...',
         viewDetails: 'View details',
         hideDetails: 'Hide details',
         advanceTo: 'Advance to {stage}',
@@ -169,7 +200,38 @@ export const MESSAGES = {
         currentStage: 'Current Stage',
         totalServiceFee: 'Total Service Fee',
         listingAgent: 'Listing Agent',
-        sellingAgent: 'Selling Agent'
+        sellingAgent: 'Selling Agent',
+        listingRole: 'Listing role',
+        sellingRole: 'Selling role',
+        createdBy: 'Created By',
+        lastEditedBy: 'Last Edited By',
+        lastEditedAt: 'Last Edited At',
+        transactionType: 'Transaction Type',
+        deletedBy: 'Deleted By',
+        deletedAt: 'Deleted At',
+        unknownAgent: 'Unknown Agent',
+        unknown: 'Unknown',
+        notAvailable: 'Not available',
+        balanceDistribution: 'Balance Distribution',
+        commissionCredited: 'Commission credited to agent balances',
+        creditedBy: 'Credited by',
+        pendingBalanceDistribution: 'Transaction is completed but balance distribution is pending.',
+        notesActivity: 'Notes & Activity',
+        notesCount: '{count} notes',
+        addNotePlaceholder: 'Add a deal note...',
+        addingNote: 'Adding...',
+        addNote: 'Add Note',
+        unknownAuthor: 'Unknown author',
+        noNotes: 'No notes yet.',
+        relatedTasks: 'Related Tasks',
+        noRelatedTasks: 'No tasks are linked to this transaction.'
+      },
+      edit: {
+        title: 'Edit Transaction',
+        description: 'Update core details. After agreement stage, workflow-critical fields are locked.',
+        lockedNotice:
+          'This transaction is beyond agreement stage. Only property title and optional resource links can be edited.',
+        saveChanges: 'Save Changes'
       },
       history: {
         title: 'Stage History',
@@ -185,31 +247,45 @@ export const MESSAGES = {
           'Please review highlighted fields and correct validation issues before submitting.',
         sections: {
           dealDetails: 'Deal Details',
-          agentAssignment: 'Agent Assignment'
+          agentAssignment: 'Agent Assignment',
+          clientLinks: 'Client Links'
         },
         fields: {
           propertyTitle: 'Property Title',
-          totalServiceFee: 'Total Service Fee (USD)',
+          linkedProperty: 'Linked Property',
+          totalServiceFee: 'Total Service Fee',
           initialStage: 'Initial Stage',
+          transactionType: 'Transaction Type',
           listingAgentId: 'Listing Advisor',
-          sellingAgentId: 'Selling Advisor'
+          sellingAgentId: 'Selling Advisor',
+          clients: 'Clients'
         },
         placeholders: {
           propertyTitle: 'Sunset Villas #12',
           totalServiceFee: '100000',
+          noLinkedProperty: 'No linked property',
+          selectType: 'Select Type',
           selectAgent: 'Select a registered advisor'
         },
         hints: {
           initialStage: 'All new transactions start at agreement and move forward only.',
+          linkedProperty: 'Optional. The text title remains available for legacy transactions.',
+          linkedPropertyEdit: 'Optional. This does not replace the legacy property title field.',
+          clients: 'Optional. Hold Command or Ctrl to select multiple clients.',
           listingAgentId: 'Choose the listing advisor by name. ObjectId mapping is handled automatically.',
           sellingAgentId: 'Choose the selling advisor by name. ObjectId mapping is handled automatically.',
-          noAgentsAvailable: 'No registered advisors found yet. Create a user account first.'
+          noAgentsAvailable: 'No registered advisors found yet. Create a user account first.',
+          noCity: 'No city',
+          registerAgentFirst: 'Register at least one active agent before creating a transaction.'
         },
         validation: {
           propertyTitleRequired: 'Property title is required.',
+          propertyTitleMinLength: 'Property title must be at least 3 characters.',
           totalServiceFeePositive: 'Total service fee must be greater than 0.',
           listingAgentIdRequired: 'Listing advisor selection is required.',
-          sellingAgentIdRequired: 'Selling advisor selection is required.'
+          sellingAgentIdRequired: 'Selling advisor selection is required.',
+          transactionTypeRequired: 'Please select a transaction type.',
+          noChangesDetected: 'No changes detected.'
         }
       },
       financial: {
@@ -234,7 +310,8 @@ export const MESSAGES = {
       header: {
         kicker: 'Workspace Preferences',
         title: 'Settings',
-        description: 'Manage dashboard behavior and visual theme preferences for daily operations.'
+        description: 'Manage dashboard behavior and visual theme preferences for daily operations.',
+        meta: 'Workspace display preferences are stored locally for this browser session.'
       },
       profile: {
         title: 'Profile',
@@ -270,6 +347,7 @@ export const MESSAGES = {
       },
       preferences: {
         title: 'Workflow Preferences',
+        description: 'Tune how dense the workspace feels and which operational updates should reach you.',
         compactCardsLabel: 'Use compact transaction cards',
         compactCardsHint: 'Shows denser cards on the dashboard to fit more items on smaller screens.',
         pushNotificationsLabel: 'Enable mobile push notifications',
@@ -282,8 +360,50 @@ export const MESSAGES = {
         description: 'Choose a visual mode for your workspace.',
         themeLabel: 'Theme',
         languageLabel: 'Language',
+        currencyLabel: 'Currency',
+        currencyHint: 'Used for transaction, commission, report, and balance displays.',
         light: 'Light',
         dark: 'Dark'
+      }
+    },
+    balance: {
+      meta: {
+        title: 'My Balance'
+      },
+      header: {
+        kicker: 'Balance Center',
+        title: 'My Balance',
+        description: 'Track your commission credits, audit trail entries, and balance timeline.'
+      },
+      metrics: {
+        currentBalance: 'Current Balance',
+        currentBalanceHelper: 'Available commission balance',
+        totalEarned: 'Total Earned',
+        totalEarnedHelper: 'Commission credit total',
+        recentMovements: 'Recent Movements',
+        recentMovementsHelper: 'Last 8 rows from ledger'
+      },
+      ledgerTypes: {
+        commission_credit: 'Commission Credit',
+        manual_adjustment: 'Manual Adjustment',
+        reversal: 'Reversal'
+      }
+    },
+    reports: {
+      meta: {
+        title: 'Reports'
+      },
+      header: {
+        kicker: 'Office Analytics',
+        title: 'Reports',
+        description: 'Review organization-scoped production, commission, task, and activity trends.',
+        meta: 'Executive reporting for transactions, properties, tasks, and commission movement.'
+      },
+      metrics: {
+        monthlyServiceFee: 'Monthly Service Fee',
+        agencyTotal: 'Agency Total',
+        agentEarnings: 'Agent Earnings',
+        overdueTasks: 'Overdue Tasks'
       }
     },
     stages: {
@@ -292,18 +412,88 @@ export const MESSAGES = {
       title_deed: 'Title Deed',
       completed: 'Completed'
     },
+    transactionTypes: {
+      sold: 'Sold',
+      rented: 'Rented'
+    },
+    property: {
+      listingTypes: {
+        sale: 'Sale',
+        rent: 'Rent'
+      },
+      statuses: {
+        draft: 'Draft',
+        active: 'Active',
+        reserved: 'Reserved',
+        sold: 'Sold',
+        rented: 'Rented',
+        archived: 'Archived'
+      }
+    },
+    tasks: {
+      statuses: {
+        todo: 'To Do',
+        in_progress: 'In Progress',
+        done: 'Done',
+        cancelled: 'Cancelled'
+      }
+    },
     common: {
-      notAvailable: '-'
+      notAvailable: '-',
+      language: 'Language',
+      currency: 'Currency',
+      create: 'Create',
+      edit: 'Edit',
+      delete: 'Delete',
+      save: 'Save',
+      cancel: 'Cancel',
+      search: 'Search',
+      exportCsv: 'Export CSV',
+      status: 'Status',
+      stage: 'Stage',
+      totalAmount: 'Total Amount',
+      completed: 'Completed',
+      pending: 'Pending',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing...',
+      loading: 'Loading...',
+      clear: 'Clear',
+      apply: 'Apply',
+      retry: 'Retry',
+      previous: 'Previous',
+      next: 'Next',
+      dismiss: 'Dismiss',
+      all: 'All'
     }
   },
   tr: {
     layout: {
       subtitle: 'Dahili İşlem Operasyonları',
       navigation: {
+        dashboard: 'Panel',
         transactions: 'İşlemler',
-        settings: 'Ayarlar'
+        clients: 'Müşteriler',
+        properties: 'Gayrimenkuller',
+        tasks: 'Görevler',
+        reports: 'Raporlar',
+        balance: 'Bakiye',
+        team: 'Temsilciler',
+        profile: 'Profil',
+        settings: 'Ayarlar',
+        auth: 'Kullanıcı Erişimi'
       },
       language: 'Dil',
+      workspace: 'Çalışma Alanı',
+      signIn: 'Giriş yap',
+      noOrganization: 'Organizasyon yok',
+      noRole: 'Rol yok',
+      product: 'Ürün',
+      support: 'Destek',
+      footerDescription:
+        'İşlem yaşam döngüsü, müşteri bilgileri, gayrimenkul envanteri, görevler ve komisyon görünürlüğü için odaklı bir operasyon katmanı.',
+      privacyPolicy: 'Gizlilik Politikası',
+      termsOfService: 'Kullanım Şartları',
+      cookiePolicy: 'Çerez Politikası',
       menu: {
         open: 'Menüyü aç',
         close: 'Menüyü kapat'
@@ -384,9 +574,29 @@ export const MESSAGES = {
         stageChangedBody: '{propertyTitle}, {stage} aşamasına geçti.'
       },
       metrics: {
+        totalTransactions: {
+          label: 'Toplam İşlem',
+          helper: 'Sistemde takip edilen tüm işlemler'
+        },
+        completedTransactions: {
+          label: 'Tamamlanan İşlemler',
+          helper: 'Tamamlandı aşamasına ulaşan işlemler'
+        },
         openTransactions: {
           label: 'Açık İşlemler',
           helper: 'Henüz tamamlanmamış aktif işlemler'
+        },
+        totalCommissionVolume: {
+          label: 'Toplam Komisyon Hacmi',
+          helper: 'Tüm işlemler genelindeki toplam hizmet bedeli'
+        },
+        completedAgencyEarnings: {
+          label: 'Tamamlanan Ajans Kazancı',
+          helper: 'Tamamlanan işlemlerde ajans payı'
+        },
+        completedAgentEarnings: {
+          label: 'Tamamlanan Temsilci Kazancı',
+          helper: 'Tamamlanan işlemlerde temsilci payı'
         },
         pendingClosings: {
           label: 'Kapanış Bekleyenler',
@@ -396,6 +606,25 @@ export const MESSAGES = {
           label: 'Komisyon Hattı',
           helper: 'Takip edilen işlemlerdeki toplam hizmet bedeli'
         }
+      },
+      filters: {
+        title: 'Liste Kontrolleri',
+        description: 'İşlem çalışma alanı için arama, aşama, tür ve sıralama kontrolleri.',
+        searchLabel: 'Ara',
+        searchPlaceholder: 'Gayrimenkul veya temsilci adına göre ara',
+        stageLabel: 'Aşama',
+        allStages: 'Tüm aşamalar',
+        transactionTypeLabel: 'İşlem Türü',
+        allTypes: 'Tüm türler',
+        sortLabel: 'Sıralama',
+        sortNewest: 'En Yeni',
+        sortOldest: 'En Eski',
+        sortRecentlyUpdated: 'Son Güncellenen',
+        sortHighestCommission: 'En Yüksek Komisyon',
+        sortLowestCommission: 'En Düşük Komisyon',
+        sortPropertyAZ: 'Gayrimenkul A-Z',
+        clearFilters: 'Filtreleri Temizle',
+        includeDeleted: 'Silinenleri dahil et'
       },
       errors: {
         syncTitle: 'İşlem verisi eşitlenemedi'
@@ -418,10 +647,55 @@ export const MESSAGES = {
         nextAllowedStage: 'Sonraki izinli aşama: {stage}',
         noFurtherAction: 'Başka işlem yok. İşlem tamamlandı.',
         updating: 'Güncelleniyor...',
+        editing: 'Düzenleniyor...',
+        deleting: 'Siliniyor...',
         viewDetails: 'Detayları görüntüle',
         hideDetails: 'Detayları gizle',
         advanceTo: '{stage} aşamasına ilerlet',
         completed: 'Tamamlandı'
+      },
+      detail: {
+        currentStage: 'Geçerli Aşama',
+        totalServiceFee: 'Toplam Hizmet Bedeli',
+        listingAgent: 'Listeleyen Temsilci',
+        sellingAgent: 'Satışı Yapan Temsilci',
+        listingRole: 'Listeleyen rolü',
+        sellingRole: 'Satış rolü',
+        createdBy: 'Oluşturan',
+        lastEditedBy: 'Son Düzenleyen',
+        lastEditedAt: 'Son Düzenleme Tarihi',
+        transactionType: 'İşlem Türü',
+        deletedBy: 'Silen',
+        deletedAt: 'Silinme Tarihi',
+        unknownAgent: 'Bilinmeyen Temsilci',
+        unknown: 'Bilinmiyor',
+        notAvailable: 'Mevcut değil',
+        balanceDistribution: 'Bakiye Dağıtımı',
+        commissionCredited: 'Komisyon temsilci bakiyelerine işlendi',
+        creditedBy: 'İşleyen',
+        pendingBalanceDistribution: 'İşlem tamamlandı ancak bakiye dağıtımı bekliyor.',
+        notesActivity: 'Notlar ve Aktivite',
+        notesCount: '{count} not',
+        addNotePlaceholder: 'İşlem notu ekleyin...',
+        addingNote: 'Ekleniyor...',
+        addNote: 'Not Ekle',
+        unknownAuthor: 'Bilinmeyen yazar',
+        noNotes: 'Henüz not yok.',
+        relatedTasks: 'İlgili Görevler',
+        noRelatedTasks: 'Bu işleme bağlı görev yok.'
+      },
+      edit: {
+        title: 'İşlemi Düzenle',
+        description: 'Temel bilgileri güncelleyin. Sözleşme aşamasından sonra iş akışı açısından kritik alanlar kilitlenir.',
+        lockedNotice:
+          'Bu işlem sözleşme aşamasını geçti. Yalnızca gayrimenkul başlığı ve isteğe bağlı kaynak bağlantıları düzenlenebilir.',
+        saveChanges: 'Değişiklikleri Kaydet'
+      },
+      history: {
+        title: 'Aşama Geçmişi',
+        changedBy: 'Değiştiren',
+        createdAtStage: '{stage} aşamasında oluşturuldu',
+        empty: 'Aşama geçmişi bulunmuyor.'
       },
       form: {
         title: 'İşlem Oluştur',
@@ -431,31 +705,45 @@ export const MESSAGES = {
           'Lütfen vurgulanan alanları kontrol edin ve gönderim öncesi doğrulama hatalarını düzeltin.',
         sections: {
           dealDetails: 'İşlem Detayları',
-          agentAssignment: 'Danışman Ataması'
+          agentAssignment: 'Danışman Ataması',
+          clientLinks: 'Müşteri Bağlantıları'
         },
         fields: {
-          propertyTitle: 'Mülk Başlığı',
-          totalServiceFee: 'Toplam Hizmet Bedeli (USD)',
+          propertyTitle: 'Gayrimenkul Başlığı',
+          linkedProperty: 'Bağlı Gayrimenkul',
+          totalServiceFee: 'Toplam Hizmet Bedeli',
           initialStage: 'Başlangıç Aşaması',
-          listingAgentId: 'Listeleyen Danışman',
-          sellingAgentId: 'Satışı Yapan Danışman'
+          transactionType: 'İşlem Türü',
+          listingAgentId: 'Listeleyen Temsilci',
+          sellingAgentId: 'Satışı Yapan Temsilci',
+          clients: 'Müşteriler'
         },
         placeholders: {
           propertyTitle: 'Sunset Villas #12',
           totalServiceFee: '100000',
+          noLinkedProperty: 'Bağlı gayrimenkul yok',
+          selectType: 'Tür seçin',
           selectAgent: 'Kayıtlı danışman seçin'
         },
         hints: {
           initialStage: 'Tüm yeni işlemler agreement aşamasında başlar ve yalnızca ileri gider.',
+          linkedProperty: 'İsteğe bağlı. Metin başlığı eski işlemler için kullanılmaya devam eder.',
+          linkedPropertyEdit: 'İsteğe bağlı. Bu alan eski gayrimenkul başlığı alanının yerine geçmez.',
+          clients: 'İsteğe bağlı. Birden fazla müşteri seçmek için Command veya Ctrl tuşunu kullanın.',
           listingAgentId: 'Listeleyen danışmanı isimle seçin. ObjectId eşlemesi otomatik yapılır.',
           sellingAgentId: 'Satışı yapan danışmanı isimle seçin. ObjectId eşlemesi otomatik yapılır.',
-          noAgentsAvailable: 'Henüz kayıtlı danışman yok. Önce kullanıcı kaydı oluşturun.'
+          noAgentsAvailable: 'Henüz kayıtlı danışman yok. Önce kullanıcı kaydı oluşturun.',
+          noCity: 'Şehir yok',
+          registerAgentFirst: 'İşlem oluşturmadan önce en az bir aktif temsilci kaydedin.'
         },
         validation: {
-          propertyTitleRequired: 'Mülk başlığı zorunludur.',
+          propertyTitleRequired: 'Gayrimenkul başlığı zorunludur.',
+          propertyTitleMinLength: 'Gayrimenkul başlığı en az 3 karakter olmalıdır.',
           totalServiceFeePositive: 'Toplam hizmet bedeli 0’dan büyük olmalıdır.',
           listingAgentIdRequired: 'Listeleyen danışman seçimi zorunludur.',
-          sellingAgentIdRequired: 'Satışı yapan danışman seçimi zorunludur.'
+          sellingAgentIdRequired: 'Satışı yapan danışman seçimi zorunludur.',
+          transactionTypeRequired: 'Lütfen işlem türü seçin.',
+          noChangesDetected: 'Değişiklik bulunamadı.'
         }
       },
       financial: {
@@ -480,7 +768,8 @@ export const MESSAGES = {
       header: {
         kicker: 'Çalışma Alanı Tercihleri',
         title: 'Ayarlar',
-        description: 'Günlük operasyon için panel davranışını, görünümü ve dil seçeneklerini yönetin.'
+        description: 'Günlük operasyon için panel davranışını, görünümü ve dil seçeneklerini yönetin.',
+        meta: 'Çalışma alanı görünüm tercihleri bu tarayıcı oturumu için yerel olarak saklanır.'
       },
       profile: {
         title: 'Profil',
@@ -516,6 +805,7 @@ export const MESSAGES = {
       },
       preferences: {
         title: 'Çalışma Tercihleri',
+        description: 'Çalışma alanının yoğunluğunu ve hangi operasyon güncellemelerinin size ulaşacağını ayarlayın.',
         compactCardsLabel: 'Kompakt işlem kartlarını kullan',
         compactCardsHint: 'Küçük ekranlarda daha fazla kayıt görmek için daha sıkı kart görünümü kullanır.',
         pushNotificationsLabel: 'Mobil anlık bildirimleri aç',
@@ -525,11 +815,53 @@ export const MESSAGES = {
       },
       appearance: {
         title: 'Görünüm ve Dil',
-        description: 'Çalışma alanınız için tema ve arayüz dilini seçin.',
+        description: 'Çalışma alanınız için tema, arayüz dili ve para birimini seçin.',
         themeLabel: 'Tema',
         languageLabel: 'Dil',
+        currencyLabel: 'Para Birimi',
+        currencyHint: 'İşlem, komisyon, rapor ve bakiye gösterimlerinde kullanılır.',
         light: 'Açık',
         dark: 'Koyu'
+      }
+    },
+    balance: {
+      meta: {
+        title: 'Bakiyem'
+      },
+      header: {
+        kicker: 'Bakiye Merkezi',
+        title: 'Bakiyem',
+        description: 'Komisyon alacaklarınızı, denetim kayıtlarını ve bakiye hareketlerini takip edin.'
+      },
+      metrics: {
+        currentBalance: 'Güncel Bakiye',
+        currentBalanceHelper: 'Kullanılabilir komisyon bakiyesi',
+        totalEarned: 'Toplam Kazanç',
+        totalEarnedHelper: 'Toplam komisyon alacağı',
+        recentMovements: 'Son Hareketler',
+        recentMovementsHelper: 'Defterdeki son 8 satır'
+      },
+      ledgerTypes: {
+        commission_credit: 'Komisyon Alacağı',
+        manual_adjustment: 'Manuel Düzeltme',
+        reversal: 'Ters Kayıt'
+      }
+    },
+    reports: {
+      meta: {
+        title: 'Raporlar'
+      },
+      header: {
+        kicker: 'Ofis Analitiği',
+        title: 'Raporlar',
+        description: 'Organizasyon kapsamındaki üretim, komisyon, görev ve aktivite trendlerini inceleyin.',
+        meta: 'İşlemler, gayrimenkuller, görevler ve komisyon hareketleri için yönetici raporlaması.'
+      },
+      metrics: {
+        monthlyServiceFee: 'Aylık Hizmet Bedeli',
+        agencyTotal: 'Ajans Toplamı',
+        agentEarnings: 'Temsilci Kazancı',
+        overdueTasks: 'Geciken Görevler'
       }
     },
     stages: {
@@ -538,8 +870,58 @@ export const MESSAGES = {
       title_deed: 'Tapu Devri',
       completed: 'Tamamlandı'
     },
+    transactionTypes: {
+      sold: 'Satıldı',
+      rented: 'Kiralandı'
+    },
+    property: {
+      listingTypes: {
+        sale: 'Satılık',
+        rent: 'Kiralık'
+      },
+      statuses: {
+        draft: 'Taslak',
+        active: 'Aktif',
+        reserved: 'Rezerve',
+        sold: 'Satıldı',
+        rented: 'Kiralandı',
+        archived: 'Arşivlendi'
+      }
+    },
+    tasks: {
+      statuses: {
+        todo: 'Yapılacak',
+        in_progress: 'Devam Ediyor',
+        done: 'Tamamlandı',
+        cancelled: 'İptal Edildi'
+      }
+    },
     common: {
-      notAvailable: '-'
+      notAvailable: '-',
+      language: 'Dil',
+      currency: 'Para Birimi',
+      create: 'Oluştur',
+      edit: 'Düzenle',
+      delete: 'Sil',
+      save: 'Kaydet',
+      cancel: 'İptal',
+      search: 'Ara',
+      exportCsv: 'CSV Dışa Aktar',
+      status: 'Durum',
+      stage: 'Aşama',
+      totalAmount: 'Toplam Tutar',
+      completed: 'Tamamlandı',
+      pending: 'Beklemede',
+      refresh: 'Yenile',
+      refreshing: 'Yenileniyor...',
+      loading: 'Yükleniyor...',
+      clear: 'Temizle',
+      apply: 'Uygula',
+      retry: 'Tekrar Dene',
+      previous: 'Önceki',
+      next: 'Sonraki',
+      dismiss: 'Kapat',
+      all: 'Tümü'
     }
   },
   fr: {
@@ -651,7 +1033,7 @@ export const MESSAGES = {
         },
         fields: {
           propertyTitle: 'Titre du Bien',
-          totalServiceFee: 'Frais de Service Totaux (USD)',
+          totalServiceFee: 'Frais de Service Totaux',
           initialStage: 'Étape Initiale',
           listingAgentId: 'Conseiller Mandataire',
           sellingAgentId: 'Conseiller Vendeur'
@@ -809,7 +1191,7 @@ export const MESSAGES = {
         },
         fields: {
           propertyTitle: 'Objektbezeichnung',
-          totalServiceFee: 'Gesamte Servicegebühr (USD)',
+          totalServiceFee: 'Gesamte Servicegebühr',
           initialStage: 'Startstufe',
           listingAgentId: 'Listing-Berater',
           sellingAgentId: 'Selling-Berater'

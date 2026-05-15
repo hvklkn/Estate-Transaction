@@ -20,10 +20,10 @@ const tasksStore = useTasksStore();
 const transactionNotesStore = useTransactionNotesStore();
 const noteContent = ref('');
 const listingAgentName = computed(
-  () => props.transaction.listingAgent?.name?.trim() || 'Unknown Agent'
+  () => props.transaction.listingAgent?.name?.trim() || t('transactions.detail.unknownAgent')
 );
 const sellingAgentName = computed(
-  () => props.transaction.sellingAgent?.name?.trim() || 'Unknown Agent'
+  () => props.transaction.sellingAgent?.name?.trim() || t('transactions.detail.unknownAgent')
 );
 const createdByName = computed(
   () => props.transaction.createdBy?.name?.trim() || null
@@ -35,7 +35,7 @@ const deletedByName = computed(
   () => props.transaction.deletedBy?.name?.trim() || props.transaction.deletedById || null
 );
 const transactionTypeLabel = computed(() =>
-  props.transaction.transactionType === TransactionType.RENTED ? 'Rented' : 'Sold'
+  t(`transactionTypes.${props.transaction.transactionType}`)
 );
 const isCompleted = computed(() => props.transaction.stage === TransactionStage.COMPLETED);
 const creditedAgentAllocations = computed(() =>
@@ -56,11 +56,11 @@ const creditedByLabel = computed(() => {
   }
 
   if (props.transaction.balanceDistributionAppliedById === props.transaction.listingAgentId) {
-    return `${listingAgentName.value} (listing role)`;
+    return `${listingAgentName.value} (${t('transactions.detail.listingRole')})`;
   }
 
   if (props.transaction.balanceDistributionAppliedById === props.transaction.sellingAgentId) {
-    return `${sellingAgentName.value} (selling role)`;
+    return `${sellingAgentName.value} (${t('transactions.detail.sellingRole')})`;
   }
 
   return props.transaction.balanceDistributionAppliedById;
@@ -78,7 +78,7 @@ const resolveAllocationAgentName = (agentId: string) => {
     return sellingAgentName.value;
   }
 
-  return 'Unknown Agent';
+  return t('transactions.detail.unknownAgent');
 };
 
 const loadActivity = async () => {
@@ -140,7 +140,7 @@ onMounted(() => {
     <dl class="grid gap-3 md:grid-cols-3">
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="mb-1 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-          Listing role
+          {{ t('transactions.detail.listingRole') }}
         </dt>
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
           {{ t('transactions.detail.listingAgent') }}
@@ -152,7 +152,7 @@ onMounted(() => {
 
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="mb-1 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300">
-          Selling role
+          {{ t('transactions.detail.sellingRole') }}
         </dt>
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
           {{ t('transactions.detail.sellingAgent') }}
@@ -164,25 +164,25 @@ onMounted(() => {
 
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-          Created By
+          {{ t('transactions.detail.createdBy') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-          {{ createdByName ?? 'Unknown' }}
+          {{ createdByName ?? t('transactions.detail.unknown') }}
         </dd>
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-          Last Edited By
+          {{ t('transactions.detail.lastEditedBy') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
-          {{ updatedByName ?? 'Not available' }}
+          {{ updatedByName ?? t('transactions.detail.notAvailable') }}
         </dd>
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-          Last Edited At
+          {{ t('transactions.detail.lastEditedAt') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
           {{ formatDateTime(props.transaction.updatedAt) }}
@@ -191,7 +191,7 @@ onMounted(() => {
 
       <div class="rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-          Transaction Type
+          {{ t('transactions.detail.transactionType') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
           {{ transactionTypeLabel }}
@@ -203,10 +203,10 @@ onMounted(() => {
         class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 dark:border-rose-700 dark:bg-rose-950/30"
       >
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 dark:text-rose-300">
-          Deleted By
+          {{ t('transactions.detail.deletedBy') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-rose-800 dark:text-rose-200">
-          {{ deletedByName ?? 'Unknown' }}
+          {{ deletedByName ?? t('transactions.detail.unknown') }}
         </dd>
       </div>
 
@@ -215,7 +215,7 @@ onMounted(() => {
         class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 dark:border-rose-700 dark:bg-rose-950/30"
       >
         <dt class="text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 dark:text-rose-300">
-          Deleted At
+          {{ t('transactions.detail.deletedAt') }}
         </dt>
         <dd class="mt-1 text-sm font-medium text-rose-800 dark:text-rose-200">
           {{ formatDateTime(props.transaction.deletedAt ?? undefined) }}
@@ -224,7 +224,7 @@ onMounted(() => {
     </dl>
 
     <section v-if="isCompleted" class="space-y-2">
-      <h5 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Balance Distribution</h5>
+      <h5 class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ t('transactions.detail.balanceDistribution') }}</h5>
 
       <div
         v-if="props.transaction.balanceDistributionApplied"
@@ -232,14 +232,14 @@ onMounted(() => {
       >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-            Commission credited to agent balances
+            {{ t('transactions.detail.commissionCredited') }}
           </p>
           <p v-if="props.transaction.balanceDistributionAppliedAt" class="text-xs text-emerald-700 dark:text-emerald-300">
             {{ formatDateTime(props.transaction.balanceDistributionAppliedAt) }}
           </p>
         </div>
         <p v-if="creditedByLabel" class="mt-1 text-xs text-emerald-700/90 dark:text-emerald-300/90">
-          Credited by: {{ creditedByLabel }}
+          {{ t('transactions.detail.creditedBy') }}: {{ creditedByLabel }}
         </p>
 
         <ul class="mt-3 space-y-2">
@@ -267,7 +267,7 @@ onMounted(() => {
         v-else
         class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
       >
-        Transaction is completed but balance distribution is pending.
+        {{ t('transactions.detail.pendingBalanceDistribution') }}
       </p>
     </section>
 
@@ -299,7 +299,7 @@ onMounted(() => {
 
           <p v-if="entry.changedBy?.name || entry.changedById" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {{ t('transactions.history.changedBy') }}:
-            {{ entry.changedBy?.name ?? 'Unknown Agent' }}
+            {{ entry.changedBy?.name ?? t('transactions.detail.unknownAgent') }}
           </p>
         </li>
       </ol>
@@ -314,8 +314,8 @@ onMounted(() => {
 
     <section class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h5 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Notes & Activity</h5>
-        <span class="status-chip">{{ notes.length }} notes</span>
+        <h5 class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ t('transactions.detail.notesActivity') }}</h5>
+        <span class="status-chip">{{ t('transactions.detail.notesCount', { count: notes.length }) }}</span>
       </div>
 
       <form v-if="canAddNote" class="space-y-2" @submit.prevent="addNote">
@@ -323,7 +323,7 @@ onMounted(() => {
           v-model="noteContent"
           class="input-base min-h-20"
           :disabled="transactionNotesStore.createNoteTransactionId === props.transaction.id"
-          placeholder="Add a deal note..."
+          :placeholder="t('transactions.detail.addNotePlaceholder')"
         ></textarea>
         <div class="flex justify-end">
           <button
@@ -331,7 +331,7 @@ onMounted(() => {
             class="btn-primary"
             :disabled="!noteContent.trim() || transactionNotesStore.createNoteTransactionId === props.transaction.id"
           >
-            {{ transactionNotesStore.createNoteTransactionId === props.transaction.id ? 'Adding...' : 'Add Note' }}
+            {{ transactionNotesStore.createNoteTransactionId === props.transaction.id ? t('transactions.detail.addingNote') : t('transactions.detail.addNote') }}
           </button>
         </div>
       </form>
@@ -352,7 +352,7 @@ onMounted(() => {
           class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
         >
           <div class="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>{{ note.author?.name ?? 'Unknown author' }}</span>
+            <span>{{ note.author?.name ?? t('transactions.detail.unknownAuthor') }}</span>
             <span>{{ formatDateTime(note.createdAt) }}</span>
           </div>
           <p class="whitespace-pre-line text-slate-700 dark:text-slate-200">{{ note.content }}</p>
@@ -363,12 +363,12 @@ onMounted(() => {
         v-else
         class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
       >
-        No notes yet.
+        {{ t('transactions.detail.noNotes') }}
       </p>
 
       <div class="border-t border-slate-100 pt-3 dark:border-slate-800">
         <h6 class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-          Related Tasks
+          {{ t('transactions.detail.relatedTasks') }}
         </h6>
         <ul v-if="relatedTasks.length > 0" class="mt-2 space-y-2">
           <li
@@ -381,7 +381,7 @@ onMounted(() => {
           </li>
         </ul>
         <p v-else class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          No tasks are linked to this transaction.
+          {{ t('transactions.detail.noRelatedTasks') }}
         </p>
       </div>
     </section>

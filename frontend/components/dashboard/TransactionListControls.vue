@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import { useAppI18n } from '~/composables/useAppI18n';
 import { TransactionStage, TransactionType } from '~/types/transaction';
 
@@ -31,28 +33,28 @@ const emit = defineEmits<{
 
 const { t, getStageLabel } = useAppI18n();
 
-const stageOptions: Array<{ value: TransactionStage | 'all'; label: string }> = [
+const stageOptions = computed<Array<{ value: TransactionStage | 'all'; label: string }>>(() => [
   { value: 'all', label: t('transactions.filters.allStages') },
   { value: TransactionStage.AGREEMENT, label: getStageLabel(TransactionStage.AGREEMENT) },
   { value: TransactionStage.EARNEST_MONEY, label: getStageLabel(TransactionStage.EARNEST_MONEY) },
   { value: TransactionStage.TITLE_DEED, label: getStageLabel(TransactionStage.TITLE_DEED) },
   { value: TransactionStage.COMPLETED, label: getStageLabel(TransactionStage.COMPLETED) }
-];
+]);
 
-const transactionTypeOptions: Array<{ value: TransactionType | 'all'; label: string }> = [
-  { value: 'all', label: 'All types' },
-  { value: TransactionType.SOLD, label: 'Sold' },
-  { value: TransactionType.RENTED, label: 'Rented' }
-];
+const transactionTypeOptions = computed<Array<{ value: TransactionType | 'all'; label: string }>>(() => [
+  { value: 'all', label: t('transactions.filters.allTypes') },
+  { value: TransactionType.SOLD, label: t('transactionTypes.sold') },
+  { value: TransactionType.RENTED, label: t('transactionTypes.rented') }
+]);
 
-const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
+const sortOptions = computed<Array<{ value: TransactionSortOption; label: string }>>(() => [
   { value: 'newest', label: t('transactions.filters.sortNewest') },
   { value: 'oldest', label: t('transactions.filters.sortOldest') },
-  { value: 'recently_updated', label: 'Recently updated' },
+  { value: 'recently_updated', label: t('transactions.filters.sortRecentlyUpdated') },
   { value: 'highest_fee', label: t('transactions.filters.sortHighestCommission') },
-  { value: 'lowest_fee', label: 'Lowest commission' },
-  { value: 'property_a_to_z', label: 'Property A-Z' }
-];
+  { value: 'lowest_fee', label: t('transactions.filters.sortLowestCommission') },
+  { value: 'property_a_to_z', label: t('transactions.filters.sortPropertyAZ') }
+]);
 </script>
 
 <template>
@@ -63,7 +65,9 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
           <h3 class="text-base font-semibold text-slate-950 dark:text-white">
             {{ t('transactions.filters.title') }}
           </h3>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Search, stage, type, and sort controls for the transaction workspace.</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {{ t('transactions.filters.description') }}
+          </p>
         </div>
         <button
           type="button"
@@ -71,7 +75,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
           :disabled="props.disabled"
           @click="emit('clear')"
         >
-          Clear filters
+          {{ t('transactions.filters.clearFilters') }}
         </button>
       </div>
 
@@ -119,7 +123,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
         </label>
 
         <label class="block">
-          <span class="field-label">Transaction Type</span>
+          <span class="field-label">{{ t('transactions.filters.transactionTypeLabel') }}</span>
           <select
             :value="props.transactionTypeFilter"
             class="input-base"
@@ -176,7 +180,7 @@ const sortOptions: Array<{ value: TransactionSortOption; label: string }> = [
             @change="emit('update:include-deleted', ($event.target as HTMLInputElement).checked)"
           />
           <span class="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Include deleted
+            {{ t('transactions.filters.includeDeleted') }}
           </span>
         </label>
       </div>

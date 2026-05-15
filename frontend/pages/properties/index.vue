@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 
+import { useAppI18n } from '~/composables/useAppI18n';
+import { useUserSettings } from '~/composables/useUserSettings';
 import { toApiErrorMessage } from '~/services/api.errors';
 import { useAuthStore } from '~/stores/auth';
 import { useClientsStore } from '~/stores/clients';
 import { usePropertiesStore } from '~/stores/properties';
 import { PROPERTY_LISTING_TYPE_OPTIONS, PROPERTY_STATUS_OPTIONS, PROPERTY_TYPE_OPTIONS, type CreatePropertyPayload, type Property, type PropertyListingType, type PropertyStatus, type PropertyType } from '~/types/property';
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, normalizeCurrency } from '~/utils/formatCurrency';
 
 const authStore = useAuthStore();
 const clientsStore = useClientsStore();
 const propertiesStore = usePropertiesStore();
+const { formatCurrency } = useAppI18n();
+const { settings, hydrateFromStorage } = useUserSettings();
 
 useHead({ title: 'Properties' });
 
@@ -40,7 +45,7 @@ const form = reactive<PropertyFormState>({
   city: '',
   district: '',
   price: '',
-  currency: 'USD',
+  currency: DEFAULT_CURRENCY,
   status: 'draft' as PropertyStatus,
   description: '',
   ownerClientId: ''
@@ -135,11 +140,10 @@ const permissionNotice = computed(() => {
 const formatMoney = (value: number | null, currency: string) =>
   value === null
     ? 'Price not set'
-    : new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency || 'USD',
+    : formatCurrency(value, {
+        currency,
         maximumFractionDigits: 0
-      }).format(value);
+      });
 
 const resetForm = () => {
   selectedPropertyId.value = null;
@@ -150,7 +154,7 @@ const resetForm = () => {
   form.city = '';
   form.district = '';
   form.price = '';
-  form.currency = 'USD';
+  form.currency = settings.value.currency;
   form.status = 'draft';
   form.description = '';
   form.ownerClientId = '';
@@ -165,7 +169,7 @@ const editProperty = (property: Property) => {
   form.city = property.city;
   form.district = property.district;
   form.price = property.price === null ? '' : String(property.price);
-  form.currency = property.currency;
+  form.currency = normalizeCurrency(property.currency);
   form.status = property.status;
   form.description = property.description;
   form.ownerClientId = property.ownerClientId ?? '';
@@ -187,7 +191,7 @@ const buildPayload = (): CreatePropertyPayload => {
     city: toOptionalText(form.city),
     district: toOptionalText(form.district),
     ...(price.value === undefined ? {} : { price: price.value }),
-    currency: toTrimmedText(form.currency).toUpperCase() || 'USD',
+    currency: normalizeCurrency(toTrimmedText(form.currency)),
     status: form.status,
     description: toOptionalText(form.description),
     ...(ownerClientId ? { ownerClientId } : {})
@@ -263,6 +267,10 @@ const deleteProperty = async (property: Property) => {
 
 onMounted(async () => {
   authStore.hydrateFromStorage();
+  hydrateFromStorage();
+  if (!form.currency) {
+    form.currency = settings.value.currency;
+  }
   if (authStore.sessionToken) {
     await authStore.refreshCurrentUser({ silent: true }).catch(() => undefined);
   }
@@ -460,7 +468,11 @@ onMounted(async () => {
               </label>
               <label class="block">
                 <span class="field-label">Currency</span>
-                <input v-model="form.currency" class="input-base uppercase" maxlength="3" type="text" :disabled="!canEditForm" />
+                <select v-model="form.currency" class="input-base uppercase" :disabled="!canEditForm">
+                  <option v-for="option in SUPPORTED_CURRENCIES" :key="option.code" :value="option.code">
+                    {{ option.code }}
+                  </option>
+                </select>
               </label>
             </div>
 

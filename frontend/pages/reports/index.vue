@@ -22,11 +22,11 @@ import {
 
 const reportsStore = useReportsStore();
 const authStore = useAuthStore();
-const { formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
+const { t, formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 
-useHead({
-  title: 'Reports'
-});
+useHead(() => ({
+  title: t('reports.meta.title')
+}));
 
 const filterForm = reactive({
   dateFrom: '',
@@ -37,17 +37,32 @@ const filterForm = reactive({
   status: ''
 });
 
-const transactionTypeOptions = [
-  { value: TransactionType.SOLD, label: 'Sold' },
-  { value: TransactionType.RENTED, label: 'Rented' }
-];
-const transactionStageOptions = [
-  { value: TransactionStage.AGREEMENT, label: 'Agreement' },
-  { value: TransactionStage.EARNEST_MONEY, label: 'Earnest Money' },
-  { value: TransactionStage.TITLE_DEED, label: 'Title Deed' },
-  { value: TransactionStage.COMPLETED, label: 'Completed' }
-];
-const statusOptions = [...PROPERTY_STATUS_OPTIONS, ...TASK_STATUS_OPTIONS];
+const transactionTypeOptions = computed(() => [
+  { value: TransactionType.SOLD, label: t('transactionTypes.sold') },
+  { value: TransactionType.RENTED, label: t('transactionTypes.rented') }
+]);
+const transactionStageOptions = computed(() => [
+  { value: TransactionStage.AGREEMENT, label: getStageLabel(TransactionStage.AGREEMENT) },
+  { value: TransactionStage.EARNEST_MONEY, label: getStageLabel(TransactionStage.EARNEST_MONEY) },
+  { value: TransactionStage.TITLE_DEED, label: getStageLabel(TransactionStage.TITLE_DEED) },
+  { value: TransactionStage.COMPLETED, label: getStageLabel(TransactionStage.COMPLETED) }
+]);
+const propertyListingTypeOptions = computed(() =>
+  PROPERTY_LISTING_TYPE_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`property.listingTypes.${option.value}`)
+  }))
+);
+const statusOptions = computed(() => [
+  ...PROPERTY_STATUS_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`property.statuses.${option.value}`)
+  })),
+  ...TASK_STATUS_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`tasks.statuses.${option.value}`)
+  }))
+]);
 const exportOptions: Array<{ kind: ReportExportKind; label: string }> = [
   { kind: 'transactions', label: 'Transactions' },
   { kind: 'clients', label: 'Clients' },
@@ -112,14 +127,14 @@ onMounted(() => {
 <template>
   <section class="space-y-8">
     <AppPageHeader
-      eyebrow="Office Analytics"
-      title="Reports"
-      description="Review organization-scoped production, commission, task, and activity trends."
-      meta="Executive reporting for transactions, properties, tasks, and commission movement."
+      :eyebrow="t('reports.header.kicker')"
+      :title="t('reports.header.title')"
+      :description="t('reports.header.description')"
+      :meta="t('reports.header.meta')"
     >
       <template #actions>
         <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="applyFilters">
-          {{ reportsStore.isLoading ? 'Refreshing...' : 'Refresh' }}
+          {{ reportsStore.isLoading ? t('common.refreshing') : t('common.refresh') }}
         </button>
       </template>
     </AppPageHeader>
@@ -139,7 +154,7 @@ onMounted(() => {
           <label class="block">
             <span class="field-label">Type</span>
             <select v-model="filterForm.transactionType" class="input-base">
-              <option value="">All</option>
+              <option value="">{{ t('common.all') }}</option>
               <option v-for="option in transactionTypeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
@@ -148,7 +163,7 @@ onMounted(() => {
           <label class="block">
             <span class="field-label">Stage</span>
             <select v-model="filterForm.transactionStage" class="input-base">
-              <option value="">All</option>
+              <option value="">{{ t('common.all') }}</option>
               <option v-for="option in transactionStageOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
@@ -157,8 +172,8 @@ onMounted(() => {
           <label class="block">
             <span class="field-label">Listing</span>
             <select v-model="filterForm.propertyListingType" class="input-base">
-              <option value="">All</option>
-              <option v-for="option in PROPERTY_LISTING_TYPE_OPTIONS" :key="option.value" :value="option.value">
+              <option value="">{{ t('common.all') }}</option>
+              <option v-for="option in propertyListingTypeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
@@ -166,16 +181,16 @@ onMounted(() => {
           <label class="block">
             <span class="field-label">Status</span>
             <select v-model="filterForm.status" class="input-base">
-              <option value="">All</option>
+              <option value="">{{ t('common.all') }}</option>
               <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
           </label>
           <div class="flex flex-wrap items-end gap-2 md:col-span-6">
-            <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">Apply</button>
+            <button type="submit" class="btn-primary" :disabled="reportsStore.isLoading">{{ t('common.apply') }}</button>
             <button type="button" class="btn-secondary" :disabled="reportsStore.isLoading" @click="clearFilters">
-              Clear
+              {{ t('common.clear') }}
             </button>
           </div>
         </form>
@@ -185,10 +200,10 @@ onMounted(() => {
     <div v-if="reportsStore.error" class="alert-error">{{ reportsStore.error }}</div>
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard label="Monthly Service Fee" :value="formatCurrency(summary.monthlyServiceFee)" helper="Current calendar month" emphasis />
-      <MetricCard label="Agency Total" :value="formatCurrency(summary.commissionSummary.agencyTotal)" helper="Completed deals" />
-      <MetricCard label="Agent Earnings" :value="formatCurrency(summary.commissionSummary.agentEarningsTotal)" helper="Commission allocations" />
-      <MetricCard label="Overdue Tasks" :value="String(summary.taskSummary.overdue)" helper="Open tasks before today" />
+      <MetricCard :label="t('reports.metrics.monthlyServiceFee')" :value="formatCurrency(summary.monthlyServiceFee)" helper="Current calendar month" emphasis />
+      <MetricCard :label="t('reports.metrics.agencyTotal')" :value="formatCurrency(summary.commissionSummary.agencyTotal)" helper="Completed deals" />
+      <MetricCard :label="t('reports.metrics.agentEarnings')" :value="formatCurrency(summary.commissionSummary.agentEarningsTotal)" helper="Commission allocations" />
+      <MetricCard :label="t('reports.metrics.overdueTasks')" :value="String(summary.taskSummary.overdue)" helper="Open tasks before today" />
     </section>
 
     <section class="grid gap-4 xl:grid-cols-2">

@@ -21,7 +21,7 @@ const emit = defineEmits<{
   submit: [payload: CreateTransactionPayload];
 }>();
 
-const { t, getStageLabel } = useAppI18n();
+const { t, getStageLabel, selectedCurrency } = useAppI18n();
 
 const form = reactive({
   propertyTitle: '',
@@ -46,6 +46,9 @@ const errors = reactive({
 const showValidationSummary = ref(false);
 
 const hasErrors = computed(() => Object.values(errors).some((value) => value.length > 0));
+const totalServiceFeeLabel = computed(
+  () => `${t('transactions.form.fields.totalServiceFee')} (${selectedCurrency.value})`
+);
 const hasAgents = computed(() => props.agents.length > 0);
 const canSubmit = computed(
   () => !props.isSubmitting && !props.isAgentsLoading && !props.isResourcesLoading && hasAgents.value
@@ -98,7 +101,7 @@ const validateForm = (): boolean => {
   if (!trimmedPropertyTitle) {
     errors.propertyTitle = t('transactions.form.validation.propertyTitleRequired');
   } else if (trimmedPropertyTitle.length < 3) {
-    errors.propertyTitle = 'Property title must be at least 3 characters.';
+    errors.propertyTitle = t('transactions.form.validation.propertyTitleMinLength');
   }
 
   if (Number.isNaN(totalServiceFee) || totalServiceFee <= 0) {
@@ -114,7 +117,7 @@ const validateForm = (): boolean => {
   }
 
   if (form.transactionType !== TransactionType.SOLD && form.transactionType !== TransactionType.RENTED) {
-    errors.transactionType = 'Please select a transaction type.';
+    errors.transactionType = t('transactions.form.validation.transactionTypeRequired');
   }
 
   return !hasErrors.value;
@@ -145,7 +148,7 @@ const onSubmit = () => {
 };
 
 const transactionTypeLabel = (type: TransactionType) =>
-  type === TransactionType.SOLD ? 'Sold' : 'Rented';
+  t(`transactionTypes.${type}`);
 
 const handlePropertySelect = () => {
   clearFieldError('propertyId');
@@ -196,7 +199,7 @@ const handlePropertySelect = () => {
             </label>
 
             <label class="block">
-              <span class="field-label">Linked Property</span>
+              <span class="field-label">{{ t('transactions.form.fields.linkedProperty') }}</span>
               <select
                 v-model="form.propertyId"
                 class="input-base text-sm"
@@ -205,22 +208,22 @@ const handlePropertySelect = () => {
                 :disabled="props.isSubmitting || props.isResourcesLoading"
                 @change="handlePropertySelect"
               >
-                <option value="">No linked property</option>
+                <option value="">{{ t('transactions.form.placeholders.noLinkedProperty') }}</option>
                 <option
                   v-for="property in selectableProperties"
                   :key="property.id"
                   :value="property.id"
                 >
-                  {{ property.title }} · {{ property.city || 'No city' }} · {{ property.status }}
+                  {{ property.title }} · {{ property.city || t('transactions.form.hints.noCity') }} · {{ property.status }}
                 </option>
               </select>
-              <p class="field-hint">Optional. The text title remains available for legacy transactions.</p>
+              <p class="field-hint">{{ t('transactions.form.hints.linkedProperty') }}</p>
               <p v-if="errors.propertyId" class="field-error">{{ errors.propertyId }}</p>
             </label>
 
             <div class="grid gap-4 md:grid-cols-2">
               <label class="block">
-                <span class="field-label">{{ t('transactions.form.fields.totalServiceFee') }}</span>
+                <span class="field-label">{{ totalServiceFeeLabel }}</span>
                 <input
                   v-model="form.totalServiceFee"
                   type="number"
@@ -248,7 +251,7 @@ const handlePropertySelect = () => {
               </div>
 
               <label class="block">
-                <span class="field-label">Transaction Type</span>
+                <span class="field-label">{{ t('transactions.form.fields.transactionType') }}</span>
                 <select
                   v-model="form.transactionType"
                   class="input-base text-sm"
@@ -257,7 +260,7 @@ const handlePropertySelect = () => {
                   :disabled="props.isSubmitting"
                   @change="clearFieldError('transactionType')"
                 >
-                  <option value="">Select Type</option>
+                  <option value="">{{ t('transactions.form.placeholders.selectType') }}</option>
                   <option :value="TransactionType.SOLD">{{ transactionTypeLabel(TransactionType.SOLD) }}</option>
                   <option :value="TransactionType.RENTED">{{ transactionTypeLabel(TransactionType.RENTED) }}</option>
                 </select>
@@ -269,10 +272,10 @@ const handlePropertySelect = () => {
 
         <div class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            Client Links
+            {{ t('transactions.form.sections.clientLinks') }}
           </p>
           <label class="block">
-            <span class="field-label">Clients</span>
+            <span class="field-label">{{ t('transactions.form.fields.clients') }}</span>
             <select
               v-model="form.clientIds"
               multiple
@@ -290,7 +293,7 @@ const handlePropertySelect = () => {
                 {{ client.fullName }} · {{ client.type }}{{ client.email ? ` · ${client.email}` : '' }}
               </option>
             </select>
-            <p class="field-hint">Optional. Hold Command or Ctrl to select multiple clients.</p>
+            <p class="field-hint">{{ t('transactions.form.hints.clients') }}</p>
             <p v-if="errors.clientIds" class="field-error">{{ errors.clientIds }}</p>
           </label>
         </div>
@@ -371,7 +374,7 @@ const handlePropertySelect = () => {
             v-if="!hasAgents && !props.isAgentsLoading"
             class="text-xs text-amber-700 dark:text-amber-300"
           >
-            Register at least one active agent before creating a transaction.
+            {{ t('transactions.form.hints.registerAgentFirst') }}
           </p>
         </div>
       </form>

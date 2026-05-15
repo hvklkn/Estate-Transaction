@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useAppI18n } from '~/composables/useAppI18n';
 import { useAuthStore } from '~/stores/auth';
 
-const { t } = useAppI18n();
+const { t, locale } = useAppI18n();
 const authStore = useAuthStore();
 const route = useRoute();
 const runtimeConfig = useRuntimeConfig();
@@ -23,14 +23,14 @@ interface NavigationItem {
 
 useHead(() => ({
   htmlAttrs: {
-    lang: 'en',
+    lang: locale.value,
     class: colorMode.value === 'dark' ? 'dark' : undefined
   }
 }));
 
 const currentUserName = computed(() => authStore.currentUser?.name ?? null);
 const currentUserEmail = computed(() => authStore.currentUser?.email ?? null);
-const currentOrganizationName = computed(() => authStore.currentUser?.organization?.name ?? 'No organization');
+const currentOrganizationName = computed(() => authStore.currentUser?.organization?.name ?? t('layout.noOrganization'));
 const currentUserRoleLabel = computed(() => formatRoleLabel(authStore.currentUser?.role ?? null));
 const currentUserInitials = computed(() => {
   const source = currentUserName.value || currentUserEmail.value || 'User';
@@ -44,45 +44,45 @@ const currentUserInitials = computed(() => {
   return initials || 'U';
 });
 const primaryNavigationItems = computed<NavigationItem[]>(() => [
-  {
-    to: '/transactions',
-    label: t('layout.navigation.transactions')
-  },
-  {
-    to: '/clients',
-    label: 'Clients'
-  },
-  {
-    to: '/properties',
-    label: 'Properties'
-  },
-  {
-    to: '/tasks',
-    label: 'Tasks'
-  },
-  {
-    to: '/reports',
-    label: 'Reports'
-  }
+    {
+      to: '/transactions',
+      label: t('layout.navigation.transactions')
+    },
+    {
+      to: '/clients',
+      label: t('layout.navigation.clients')
+    },
+    {
+      to: '/properties',
+      label: t('layout.navigation.properties')
+    },
+    {
+      to: '/tasks',
+      label: t('layout.navigation.tasks')
+    },
+    {
+      to: '/reports',
+      label: t('layout.navigation.reports')
+    }
 ]);
 const workspaceNavigationItems = computed<NavigationItem[]>(() => {
   const items: NavigationItem[] = [
     {
       to: '/balance',
-      label: 'Balance'
+      label: t('layout.navigation.balance')
     }
   ];
 
   if (authStore.canManageTeam) {
     items.push({
       to: '/team',
-      label: 'Team'
+      label: t('layout.navigation.team')
     });
   }
 
   items.push({
     to: '/profile',
-    label: 'Profile'
+    label: t('layout.navigation.profile')
   });
   items.push({
     to: '/settings',
@@ -135,7 +135,7 @@ const isRouteActive = (targetPath: string): boolean => route.path === targetPath
 
 const formatRoleLabel = (role: string | null): string => {
   if (!role) {
-    return 'No role';
+    return t('layout.noRole');
   }
 
   return role
@@ -188,7 +188,7 @@ watch(
               </span>
               <span class="hidden min-w-0 flex-col leading-tight sm:flex">
                 <span class="truncate text-sm font-semibold text-slate-950 dark:text-white">Estate Transaction</span>
-                <span class="truncate text-[11px] font-medium text-blue-600 dark:text-blue-300">Dashboard</span>
+                <span class="truncate text-[11px] font-medium text-blue-600 dark:text-blue-300">{{ t('layout.navigation.dashboard') }}</span>
               </span>
             </NuxtLink>
           </div>
@@ -233,7 +233,7 @@ watch(
                 aria-haspopup="menu"
                 @click="toggleWorkspaceMenu"
               >
-                <span>Workspace</span>
+                <span>{{ t('layout.workspace') }}</span>
                 <svg viewBox="0 0 20 20" class="h-4 w-4 transition-transform" :class="isWorkspaceMenuOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                   <path d="M5 7.5 10 12.5 15 7.5" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -291,7 +291,7 @@ watch(
             </div>
 
             <NuxtLink v-else to="/auth" class="hidden rounded-full bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700 sm:inline-flex">
-              Sign in
+              {{ t('layout.signIn') }}
             </NuxtLink>
 
             <button
@@ -326,7 +326,7 @@ watch(
           </nav>
 
           <div class="mt-3 grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900/70">
-            <p class="px-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Workspace</p>
+            <p class="px-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{{ t('layout.workspace') }}</p>
             <NuxtLink
               v-for="navigationItem in workspaceNavigationItems"
               :key="navigationItem.to"
@@ -359,40 +359,40 @@ watch(
                 </div>
               </div>
               <p class="mt-4 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                A focused operating layer for transaction lifecycle tracking, client context, property inventory, tasks, and commission visibility.
+                {{ t('layout.footerDescription') }}
               </p>
             </section>
 
             <div class="grid gap-6 sm:grid-cols-3">
               <section>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Product</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{{ t('layout.product') }}</p>
                 <div class="mt-3 flex flex-col gap-2">
-                  <NuxtLink to="/transactions" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Transactions</NuxtLink>
-                  <NuxtLink to="/clients" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Clients</NuxtLink>
-                  <NuxtLink to="/properties" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Properties</NuxtLink>
-                  <NuxtLink to="/tasks" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Tasks</NuxtLink>
-                  <NuxtLink to="/reports" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Reports</NuxtLink>
+                  <NuxtLink to="/transactions" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.transactions') }}</NuxtLink>
+                  <NuxtLink to="/clients" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.clients') }}</NuxtLink>
+                  <NuxtLink to="/properties" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.properties') }}</NuxtLink>
+                  <NuxtLink to="/tasks" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.tasks') }}</NuxtLink>
+                  <NuxtLink to="/reports" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.reports') }}</NuxtLink>
                 </div>
               </section>
 
               <section>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Workspace</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{{ t('layout.workspace') }}</p>
                 <div class="mt-3 flex flex-col gap-2">
-                  <NuxtLink to="/balance" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Balance</NuxtLink>
-                  <NuxtLink v-if="authStore.canManageTeam" to="/team" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Team</NuxtLink>
-                  <NuxtLink to="/profile" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Profile</NuxtLink>
-                  <NuxtLink to="/settings" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Settings</NuxtLink>
-                  <NuxtLink to="/auth" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">User Access</NuxtLink>
+                  <NuxtLink to="/balance" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.balance') }}</NuxtLink>
+                  <NuxtLink v-if="authStore.canManageTeam" to="/team" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.team') }}</NuxtLink>
+                  <NuxtLink to="/profile" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.profile') }}</NuxtLink>
+                  <NuxtLink to="/settings" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.settings') }}</NuxtLink>
+                  <NuxtLink to="/auth" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.navigation.auth') }}</NuxtLink>
                 </div>
               </section>
 
               <section>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Support</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{{ t('layout.support') }}</p>
                 <div class="mt-3 flex flex-col gap-2">
                   <a href="mailto:support@example.com" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">support@example.com</a>
                   <a href="mailto:operations@example.com" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">operations@example.com</a>
-                  <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Privacy Policy</a>
-                  <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Terms of Service</a>
+                  <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.privacyPolicy') }}</a>
+                  <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">{{ t('layout.termsOfService') }}</a>
                 </div>
               </section>
             </div>
@@ -403,7 +403,7 @@ watch(
           <p>&copy; {{ currentYear }} Estate Transaction. All rights reserved.</p>
           <div class="flex flex-wrap items-center gap-2">
             <span class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">ENV: {{ appEnv }}</span>
-            <a href="#" class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 transition hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-blue-300">Cookie Policy</a>
+            <a href="#" class="rounded-full border border-slate-300 bg-white px-2.5 py-1 font-semibold text-slate-600 transition hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-blue-300">{{ t('layout.cookiePolicy') }}</a>
           </div>
         </div>
       </div>

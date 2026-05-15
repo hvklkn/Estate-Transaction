@@ -2,6 +2,7 @@ import { normalizeClientSummary } from '~/services/clients.api';
 import { toApiErrorMessage } from '~/services/api.errors';
 import { createStoredAuthHeaders, isObject, normalizeAgentSummary, normalizeOptionalIsoDate, toOptionalObjectIdString, toOptionalString, toRequiredObjectIdString, toRequiredString } from '~/services/resource-normalizers';
 import type { CreatePropertyPayload, Property, PropertyListingType, PropertyStatus, PropertySummary, PropertyType, UpdatePropertyPayload } from '~/types/property';
+import { DEFAULT_CURRENCY } from '~/utils/formatCurrency';
 
 const PROPERTIES_ENDPOINT = '/properties';
 const PROPERTY_ENDPOINT = (id: string) => `${PROPERTIES_ENDPOINT}/${id}`;
@@ -147,7 +148,7 @@ export const normalizePropertySummary = (apiProperty: ApiProperty): PropertySumm
   city: toOptionalString(apiProperty.city),
   district: toOptionalString(apiProperty.district),
   price: normalizePrice(apiProperty.price),
-  currency: toOptionalString(apiProperty.currency) || 'USD',
+  currency: toOptionalString(apiProperty.currency) || DEFAULT_CURRENCY,
   status: normalizeStatus(apiProperty.status)
 });
 

@@ -1,17 +1,35 @@
 import { watch } from 'vue';
 
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type AppLocale } from '~/locales/messages';
+import { DEFAULT_CURRENCY, normalizeCurrency, type SupportedCurrency } from '~/utils/formatCurrency';
+
 export const USER_SETTINGS_STORAGE_KEY = 'real-estate-platform.user-settings';
 
 export type UserSettings = {
   compactCards: boolean;
   pushNotifications: boolean;
   emailSummaries: boolean;
+  locale: AppLocale;
+  currency: SupportedCurrency;
 };
 
 const DEFAULT_USER_SETTINGS: UserSettings = {
   compactCards: false,
   pushNotifications: true,
-  emailSummaries: false
+  emailSummaries: false,
+  locale: DEFAULT_LOCALE,
+  currency: DEFAULT_CURRENCY
+};
+
+const SUPPORTED_LOCALE_CODES = new Set<AppLocale>(
+  SUPPORTED_LOCALES.map((locale) => locale.code)
+);
+
+export const normalizeLocale = (value: string | null | undefined): AppLocale => {
+  const normalizedValue = value?.trim().toLowerCase();
+  return SUPPORTED_LOCALE_CODES.has(normalizedValue as AppLocale)
+    ? (normalizedValue as AppLocale)
+    : DEFAULT_LOCALE;
 };
 
 const parseStoredSettings = (value: string | null): Partial<UserSettings> => {
@@ -50,17 +68,15 @@ export const useUserSettings = () => {
         ? parsedSettings.pushNotifications
         : DEFAULT_USER_SETTINGS.pushNotifications;
     settings.value.emailSummaries = Boolean(parsedSettings.emailSummaries);
+    settings.value.locale = normalizeLocale(parsedSettings.locale);
+    settings.value.currency = normalizeCurrency(parsedSettings.currency);
     isHydrated.value = true;
   };
 
-  if (!isPersistenceBound.value) {
+  if (import.meta.client && !isPersistenceBound.value) {
     watch(
       settings,
       (nextSettings) => {
-        if (!import.meta.client) {
-          return;
-        }
-
         window.localStorage.setItem(USER_SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
       },
       { deep: true }

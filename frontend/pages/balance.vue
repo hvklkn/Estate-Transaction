@@ -12,10 +12,10 @@ import type { BalanceLedgerType } from '~/types/balance';
 const authStore = useAuthStore();
 const balanceStore = useBalanceStore();
 const transactionsStore = useTransactionsStore();
-const { formatCurrency, formatDateTime } = useAppI18n();
+const { t, formatCurrency, formatDateTime } = useAppI18n();
 
 useHead(() => ({
-  title: 'My Balance'
+  title: t('balance.meta.title')
 }));
 
 const typeFilter = ref<BalanceLedgerType | 'all'>('all');
@@ -86,12 +86,12 @@ const ledgerEmptyDescription = computed(() =>
 
 const getLedgerTypeLabel = (type: BalanceLedgerType): string => {
   switch (type) {
-    case 'commission_credit':
-      return 'Commission Credit';
+      case 'commission_credit':
+      return t('balance.ledgerTypes.commission_credit');
     case 'manual_adjustment':
-      return 'Manual Adjustment';
+      return t('balance.ledgerTypes.manual_adjustment');
     case 'reversal':
-      return 'Reversal';
+      return t('balance.ledgerTypes.reversal');
     default:
       return type;
   }
@@ -170,9 +170,9 @@ onMounted(async () => {
 <template>
   <section class="space-y-8">
     <AppPageHeader
-      eyebrow="Balance Center"
-      title="My Balance"
-      description="Track your commission credits, audit trail entries, and balance timeline."
+      :eyebrow="t('balance.header.kicker')"
+      :title="t('balance.header.title')"
+      :description="t('balance.header.description')"
       :meta="`Showing ${showingRange} of ${ledger.total} ledger entries`"
     >
       <template #actions>
@@ -182,7 +182,7 @@ onMounted(async () => {
           :disabled="balanceStore.isLoadingSummary || balanceStore.isLoadingLedger"
           @click="refreshPage"
         >
-          {{ balanceStore.isLoadingSummary || balanceStore.isLoadingLedger ? 'Refreshing...' : 'Refresh' }}
+          {{ balanceStore.isLoadingSummary || balanceStore.isLoadingLedger ? t('common.refreshing') : t('common.refresh') }}
         </button>
       </template>
     </AppPageHeader>
@@ -190,31 +190,31 @@ onMounted(async () => {
     <div class="grid gap-4 md:grid-cols-3">
       <article class="panel">
         <div class="panel-body">
-          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Current Balance</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.metrics.currentBalance') }}</p>
           <p class="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">
-            {{ summary ? formatCurrency(summary.balance) : '$0.00' }}
+            {{ summary ? formatCurrency(summary.balance) : formatCurrency(0) }}
           </p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Available commission balance</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ t('balance.metrics.currentBalanceHelper') }}</p>
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body">
-          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Total Earned</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.metrics.totalEarned') }}</p>
           <p class="mt-2 text-3xl font-semibold text-emerald-700 dark:text-emerald-300">
-            {{ summary ? formatCurrency(summary.totalEarned) : '$0.00' }}
+            {{ summary ? formatCurrency(summary.totalEarned) : formatCurrency(0) }}
           </p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Commission credit total</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ t('balance.metrics.totalEarnedHelper') }}</p>
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-body">
-          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Recent Movements</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{{ t('balance.metrics.recentMovements') }}</p>
           <p class="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">
             {{ summary?.recentLedgerEntries.length ?? 0 }}
           </p>
-          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Last 8 rows from ledger</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ t('balance.metrics.recentMovementsHelper') }}</p>
         </div>
       </article>
     </div>
@@ -314,10 +314,10 @@ onMounted(async () => {
           <label class="block">
             <span class="field-label">Type</span>
             <select v-model="typeFilter" class="input-base text-sm">
-              <option value="all">All</option>
-              <option value="commission_credit">Commission Credit</option>
-              <option value="manual_adjustment">Manual Adjustment</option>
-              <option value="reversal">Reversal</option>
+              <option value="all">{{ t('common.all') }}</option>
+              <option value="commission_credit">{{ t('balance.ledgerTypes.commission_credit') }}</option>
+              <option value="manual_adjustment">{{ t('balance.ledgerTypes.manual_adjustment') }}</option>
+              <option value="reversal">{{ t('balance.ledgerTypes.reversal') }}</option>
             </select>
           </label>
 
@@ -332,9 +332,9 @@ onMounted(async () => {
           </label>
 
           <div class="flex items-end gap-2 lg:col-span-2">
-            <button type="submit" class="btn-primary" :disabled="balanceStore.isLoadingLedger">Apply</button>
+            <button type="submit" class="btn-primary" :disabled="balanceStore.isLoadingLedger">{{ t('common.apply') }}</button>
             <button type="button" class="btn-secondary" :disabled="balanceStore.isLoadingLedger" @click="clearFilters">
-              Clear
+              {{ t('common.clear') }}
             </button>
           </div>
         </form>
@@ -345,7 +345,7 @@ onMounted(async () => {
             <p class="mt-0.5 text-xs text-rose-700/90 dark:text-rose-300">{{ balanceStore.ledgerError }}</p>
           </div>
           <button type="button" class="btn-secondary" @click="applyFilters(currentPage).catch(() => undefined)">
-            Retry
+            {{ t('common.retry') }}
           </button>
         </div>
 
@@ -405,10 +405,10 @@ onMounted(async () => {
           </p>
           <div class="flex items-center gap-2">
             <button type="button" class="btn-secondary" :disabled="currentPage <= 1 || balanceStore.isLoadingLedger" @click="goToPreviousPage">
-              Previous
+              {{ t('common.previous') }}
             </button>
             <button type="button" class="btn-secondary" :disabled="currentPage >= totalPages || balanceStore.isLoadingLedger" @click="goToNextPage">
-              Next
+              {{ t('common.next') }}
             </button>
           </div>
         </footer>

@@ -2,9 +2,12 @@ import { computed } from 'vue';
 
 import { DEFAULT_LOCALE, MESSAGES, SUPPORTED_LOCALES, type AppLocale } from '~/locales/messages';
 import type { TransactionStage } from '~/types/transaction';
+import { formatCurrencyAmount, type SupportedCurrency } from '~/utils/formatCurrency';
+import { normalizeLocale, useUserSettings } from '~/composables/useUserSettings';
 
 const INTL_LOCALE_MAP: Record<AppLocale, string> = {
-  en: 'en-US'
+  en: 'en-US',
+  tr: 'tr-TR'
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -36,14 +39,21 @@ const interpolateMessage = (
   });
 
 export const useAppI18n = () => {
+  const { settings, hydrateFromStorage } = useUserSettings();
   const locale = useState<AppLocale>('app-locale', () => DEFAULT_LOCALE);
 
   const currentIntlLocale = computed(() => INTL_LOCALE_MAP[locale.value]);
+  const selectedCurrency = computed(() => settings.value.currency);
 
-  const normalizeLocale = (_value: string | null | undefined): AppLocale => DEFAULT_LOCALE;
+  if (import.meta.client) {
+    hydrateFromStorage();
+    locale.value = settings.value.locale;
+  }
 
-  const setLocale = (_nextLocale: AppLocale | string) => {
-    locale.value = DEFAULT_LOCALE;
+  const setLocale = (nextLocale: AppLocale | string) => {
+    const normalizedLocale = normalizeLocale(nextLocale);
+    locale.value = normalizedLocale;
+    settings.value.locale = normalizedLocale;
   };
 
   const t = (
@@ -57,12 +67,20 @@ export const useAppI18n = () => {
     return interpolateMessage(template, params);
   };
 
-  const formatCurrency = (amount: number): string =>
-    new Intl.NumberFormat(currentIntlLocale.value, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2
-    }).format(amount);
+  const formatCurrency = (
+    amount: number,
+    options: {
+      currency?: SupportedCurrency | string | null;
+      maximumFractionDigits?: number;
+      minimumFractionDigits?: number;
+    } = {}
+  ): string =>
+    formatCurrencyAmount(amount, {
+      locale: currentIntlLocale.value,
+      currency: options.currency ?? selectedCurrency.value,
+      maximumFractionDigits: options.maximumFractionDigits,
+      minimumFractionDigits: options.minimumFractionDigits
+    });
 
   const formatDateTime = (isoDate?: string): string => {
     if (!isoDate) {
@@ -91,6 +109,7 @@ export const useAppI18n = () => {
     locale,
     locales: SUPPORTED_LOCALES,
     currentIntlLocale,
+    selectedCurrency,
     normalizeLocale,
     setLocale,
     t,

@@ -9,7 +9,7 @@ import { useAuthStore } from '~/stores/auth';
 const authStore = useAuthStore();
 const agentsApi = useAgentsApi();
 const config = useRuntimeConfig();
-const { t } = useAppI18n();
+const { t, formatCurrency } = useAppI18n();
 
 useHead(() => ({
   title: t('auth.meta.title')
@@ -325,7 +325,7 @@ const onResetPasswordWithCode = async () => {
               <div class="grid gap-3">
                 <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
                   <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Commission pipeline</p>
-                  <p class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">$128k</p>
+                  <p class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">{{ formatCurrency(128000, { maximumFractionDigits: 0 }) }}</p>
                 </div>
                 <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
                   <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Overdue tasks</p>

@@ -262,8 +262,8 @@ const onDelete = () => {
             :disabled="Boolean(props.isUpdatingTransaction || props.isDeletingTransaction)"
             @click="onEdit"
           >
-            <template v-if="props.isUpdatingTransaction">Editing...</template>
-            <template v-else>Edit</template>
+            <template v-if="props.isUpdatingTransaction">{{ t('transactions.item.editing') }}</template>
+            <template v-else>{{ t('common.edit') }}</template>
           </button>
 
           <button
@@ -273,8 +273,8 @@ const onDelete = () => {
             :disabled="Boolean(props.isUpdatingTransaction || props.isDeletingTransaction)"
             @click="onDelete"
           >
-            <template v-if="props.isDeletingTransaction">Deleting...</template>
-            <template v-else>Delete</template>
+            <template v-if="props.isDeletingTransaction">{{ t('transactions.item.deleting') }}</template>
+            <template v-else>{{ t('common.delete') }}</template>
           </button>
 
           <button
@@ -284,7 +284,7 @@ const onDelete = () => {
           >
             <template v-if="props.isUpdatingStage">{{ t('transactions.item.updating') }}</template>
             <template v-else-if="canAdvanceStage && props.nextStage">
-              {{ `Move to ${getStageLabel(props.nextStage)}` }}
+              {{ t('transactions.item.advanceTo', { stage: getStageLabel(props.nextStage) }) }}
             </template>
             <template v-else>{{ t('transactions.item.completed') }}</template>
           </button>

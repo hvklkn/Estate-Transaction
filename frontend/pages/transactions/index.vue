@@ -128,11 +128,11 @@ const summaryEmailHref = computed(() => {
 const getLedgerMovementLabel = (type: 'commission_credit' | 'manual_adjustment' | 'reversal') => {
   switch (type) {
     case 'commission_credit':
-      return 'Commission credit';
+      return t('balance.ledgerTypes.commission_credit');
     case 'manual_adjustment':
-      return 'Manual adjustment';
+      return t('balance.ledgerTypes.manual_adjustment');
     case 'reversal':
-      return 'Reversal';
+      return t('balance.ledgerTypes.reversal');
     default:
       return type;
   }
@@ -409,7 +409,7 @@ onUnmounted(() => {
         <div class="panel-body space-y-4">
           <AppSectionHeader title="Stage Mix" description="Lifecycle distribution for the current dashboard scope.">
             <template #actions>
-              <NuxtLink to="/reports" class="btn-secondary">Reports</NuxtLink>
+              <NuxtLink to="/reports" class="btn-secondary">{{ t('layout.navigation.reports') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <div class="space-y-3">
@@ -431,17 +431,17 @@ onUnmounted(() => {
 
       <article class="panel">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="Monthly Service Fee" description="Revenue signal from completed and active workflows.">
+          <AppSectionHeader :title="t('reports.metrics.monthlyServiceFee')" description="Revenue signal from completed and active workflows.">
             <template #actions>
-              <NuxtLink to="/reports" class="btn-secondary">Analyze</NuxtLink>
+              <NuxtLink to="/reports" class="btn-secondary">{{ t('layout.navigation.reports') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <p class="text-3xl font-semibold text-slate-950 dark:text-white">
             {{ formatCurrency(reportsSummary.monthlyServiceFee) }}
           </p>
           <div class="grid gap-2 text-xs sm:grid-cols-2">
-            <span class="status-chip">Agency: {{ formatCurrency(reportsSummary.commissionSummary.agencyTotal) }}</span>
-            <span class="status-chip">Agent pool: {{ formatCurrency(reportsSummary.commissionSummary.agentPoolTotal) }}</span>
+            <span class="status-chip">{{ t('reports.metrics.agencyTotal') }}: {{ formatCurrency(reportsSummary.commissionSummary.agencyTotal) }}</span>
+            <span class="status-chip">{{ t('transactions.financial.agentPool') }}: {{ formatCurrency(reportsSummary.commissionSummary.agentPoolTotal) }}</span>
           </div>
         </div>
       </article>
@@ -523,13 +523,13 @@ onUnmounted(() => {
     <section class="grid gap-4 xl:grid-cols-3">
       <article class="panel xl:col-span-1">
         <div class="panel-body space-y-4">
-          <AppSectionHeader title="My Balance" :description="`Total earned: ${balanceSummary ? formatCurrency(balanceSummary.totalEarned) : '$0.00'}`">
+          <AppSectionHeader :title="t('balance.header.title')" :description="`${t('balance.metrics.totalEarned')}: ${balanceSummary ? formatCurrency(balanceSummary.totalEarned) : formatCurrency(0)}`">
             <template #actions>
-              <NuxtLink to="/balance" class="btn-secondary">Open Balance</NuxtLink>
+              <NuxtLink to="/balance" class="btn-secondary">{{ t('layout.navigation.balance') }}</NuxtLink>
             </template>
           </AppSectionHeader>
           <p class="text-3xl font-semibold text-slate-950 dark:text-white">
-            {{ balanceSummary ? formatCurrency(balanceSummary.balance) : '$0.00' }}
+            {{ balanceSummary ? formatCurrency(balanceSummary.balance) : formatCurrency(0) }}
           </p>
 
           <div v-if="balanceStore.summaryError" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
@@ -540,7 +540,7 @@ onUnmounted(() => {
 
       <article class="panel xl:col-span-2">
         <div class="panel-body">
-          <AppSectionHeader title="Recent Balance Movements" description="Latest credits, adjustments, and reversals.">
+          <AppSectionHeader :title="t('balance.metrics.recentMovements')" description="Latest credits, adjustments, and reversals.">
             <template #actions>
               <button
                 type="button"
@@ -548,7 +548,7 @@ onUnmounted(() => {
                 :disabled="balanceStore.isLoadingSummary"
                 @click="balanceStore.fetchSummary().catch(() => undefined)"
               >
-                {{ balanceStore.isLoadingSummary ? 'Loading...' : 'Refresh' }}
+                {{ balanceStore.isLoadingSummary ? t('common.loading') : t('common.refresh') }}
               </button>
             </template>
           </AppSectionHeader>
@@ -614,7 +614,7 @@ onUnmounted(() => {
       <div class="flex items-center justify-between gap-3">
         <p>{{ actionSuccessMessage }}</p>
         <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="actionSuccessMessage = ''">
-          Dismiss
+          {{ t('common.dismiss') }}
         </button>
       </div>
     </div>

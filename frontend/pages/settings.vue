@@ -3,8 +3,10 @@ import { computed, onMounted } from 'vue';
 
 import { useAppI18n } from '~/composables/useAppI18n';
 import { useUserSettings } from '~/composables/useUserSettings';
+import { SUPPORTED_CURRENCIES, normalizeCurrency } from '~/utils/formatCurrency';
+import type { AppLocale } from '~/locales/messages';
 
-const { t } = useAppI18n();
+const { t, locale, locales, setLocale } = useAppI18n();
 const { settings, hydrateFromStorage } = useUserSettings();
 const colorMode = useState<'light' | 'dark'>('color-mode', () => 'light');
 
@@ -29,6 +31,20 @@ const emailSummaries = computed({
   }
 });
 
+const selectedLocale = computed({
+  get: () => locale.value,
+  set: (nextLocale: AppLocale | string) => {
+    setLocale(nextLocale);
+  }
+});
+
+const selectedCurrency = computed({
+  get: () => settings.value.currency,
+  set: (nextCurrency: string) => {
+    settings.value.currency = normalizeCurrency(nextCurrency);
+  }
+});
+
 useHead(() => ({
   title: t('settings.meta.title')
 }));
@@ -48,7 +64,7 @@ onMounted(() => {
       :eyebrow="t('settings.header.kicker')"
       :title="t('settings.header.title')"
       :description="t('settings.header.description')"
-      meta="Workspace display preferences are stored locally for this browser session."
+      :meta="t('settings.header.meta')"
     />
 
     <div class="grid gap-4 lg:grid-cols-2">
@@ -56,7 +72,7 @@ onMounted(() => {
         <div class="panel-body space-y-4">
           <AppSectionHeader
             :title="t('settings.preferences.title')"
-            description="Tune how dense the workspace feels and which operational updates should reach you."
+            :description="t('settings.preferences.description')"
           />
 
           <div class="space-y-3">
@@ -120,6 +136,25 @@ onMounted(() => {
               </button>
             </div>
           </div>
+
+          <label class="block">
+            <span class="field-label">{{ t('settings.appearance.languageLabel') }}</span>
+            <select v-model="selectedLocale" class="input-base">
+              <option v-for="option in locales" :key="option.code" :value="option.code">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="field-label">{{ t('settings.appearance.currencyLabel') }}</span>
+            <select v-model="selectedCurrency" class="input-base">
+              <option v-for="option in SUPPORTED_CURRENCIES" :key="option.code" :value="option.code">
+                {{ option.label }}
+              </option>
+            </select>
+            <p class="field-hint">{{ t('settings.appearance.currencyHint') }}</p>
+          </label>
 
         </div>
       </article>
