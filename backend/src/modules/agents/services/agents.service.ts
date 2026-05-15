@@ -825,8 +825,8 @@ export class AgentsService implements OnModuleInit {
     });
 
     const organization = await this.organizationsService.create({
-      name: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_NAME', 'Iceberg Admin'),
-      slug: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_SLUG', 'iceberg-admin'),
+      name: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_NAME', 'Demo Realty Group'),
+      slug: this.configService.get<string>('SUPER_ADMIN_ORGANIZATION_SLUG', 'demo-realty-group'),
       ownerId: superAdmin._id.toString()
     });
 
@@ -998,7 +998,7 @@ export class AgentsService implements OnModuleInit {
   private async sendPasswordResetEmail(toEmail: string, code: string): Promise<void> {
     const resendApiKey = this.configService.getOrThrow<string>('RESEND_API_KEY').trim();
     const resendFromEmail = this.configService.getOrThrow<string>('RESEND_FROM_EMAIL').trim();
-    const resendFromName = this.configService.get<string>('RESEND_FROM_NAME', 'Iceberg').trim();
+    const resendFromName = this.configService.get<string>('RESEND_FROM_NAME', 'Real Estate Platform').trim();
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -1009,7 +1009,7 @@ export class AgentsService implements OnModuleInit {
       body: JSON.stringify({
         from: `${resendFromName} <${resendFromEmail}>`,
         to: [toEmail],
-        subject: 'Your Iceberg password reset code',
+        subject: 'Your Real Estate Platform password reset code',
         html: `<p>Your password reset code is:</p><p><strong style="font-size:22px; letter-spacing:2px;">${code}</strong></p><p>This code expires in ${PASSWORD_RESET_CODE_TTL_MINUTES} minutes.</p>`
       })
     });
@@ -1108,8 +1108,8 @@ export class AgentsService implements OnModuleInit {
   }
 
   private createOtpAuthUrl(email: string, secret: string): string {
-    const issuer = encodeURIComponent('Iceberg');
-    const label = encodeURIComponent(`Iceberg:${email}`);
+    const issuer = encodeURIComponent('Real Estate Platform');
+    const label = encodeURIComponent(`Real Estate Platform:${email}`);
     return `otpauth://totp/${label}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_TIME_STEP_SECONDS}`;
   }
 

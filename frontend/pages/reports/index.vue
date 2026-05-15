@@ -25,7 +25,7 @@ const authStore = useAuthStore();
 const { formatCurrency, formatDateTime, getStageLabel } = useAppI18n();
 
 useHead({
-  title: 'Reports | Iceberg'
+  title: 'Reports'
 });
 
 const filterForm = reactive({

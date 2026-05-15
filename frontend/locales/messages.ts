@@ -64,7 +64,7 @@ export const MESSAGES = {
       },
       placeholders: {
         name: 'Alex Johnson',
-        email: 'name@company.com'
+        email: 'name@example.com'
       }
     },
     transactions: {
@@ -251,7 +251,7 @@ export const MESSAGES = {
         },
         placeholders: {
           name: 'Alex Johnson',
-          email: 'name@company.com',
+          email: 'name@example.com',
           phone: '+90 5XX XXX XX XX',
           iban: 'TR00 0000 0000 0000 0000 0000 00'
         },
@@ -353,7 +353,7 @@ export const MESSAGES = {
       },
       placeholders: {
         name: 'Ahmet Yılmaz',
-        email: 'isim@sirket.com'
+        email: 'name@example.com'
       }
     },
     transactions: {
@@ -497,7 +497,7 @@ export const MESSAGES = {
         },
         placeholders: {
           name: 'Ahmet Yılmaz',
-          email: 'isim@sirket.com',
+          email: 'name@example.com',
           phone: '+90 5XX XXX XX XX',
           iban: 'TR00 0000 0000 0000 0000 0000 00'
         },
@@ -577,7 +577,7 @@ export const MESSAGES = {
       },
       placeholders: {
         name: 'Alex Martin',
-        email: 'nom@entreprise.com'
+        email: 'name@example.com'
       }
     },
     transactions: {
@@ -735,7 +735,7 @@ export const MESSAGES = {
       },
       placeholders: {
         name: 'Max Mustermann',
-        email: 'name@firma.de'
+        email: 'name@example.com'
       }
     },
     transactions: {

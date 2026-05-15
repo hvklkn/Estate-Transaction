@@ -5,8 +5,8 @@ import { toApiErrorMessage } from '~/services/api.errors';
 import { useAgentsApi } from '~/services/agents.api';
 import type { AgentRole, AgentUser, CreateTeamMemberPayload, OrganizationSummary } from '~/types/agent';
 
-const AUTH_STORAGE_KEY = 'iceberg.currentUser';
-const SESSION_TOKEN_STORAGE_KEY = 'iceberg.session-token';
+const AUTH_STORAGE_KEY = 'real-estate-platform.currentUser';
+const SESSION_TOKEN_STORAGE_KEY = 'real-estate-platform.session-token';
 
 const RESOURCE_VIEWER_ROLES = new Set<AgentRole>(['super_admin', 'office_owner', 'admin', 'manager', 'agent', 'assistant', 'finance']);
 const RESOURCE_CREATOR_ROLES = new Set<AgentRole>(['super_admin', 'office_owner', 'admin', 'manager', 'agent', 'assistant']);

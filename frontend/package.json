@@ -1,11 +1,11 @@
 {
-  "name": "iceberg-frontend",
+  "name": "real-estate-transaction-frontend",
   "version": "0.1.0",
+  "description": "Nuxt dashboard for real estate transaction management.",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "nuxt dev",
-    "dev:clean": "pkill -f \"nuxt dev\" || true; rm -rf .nuxt .output; nuxt dev",
     "build": "nuxt build",
     "build:vercel": "NITRO_PRESET=vercel nuxt build",
     "preview": "nuxt preview",

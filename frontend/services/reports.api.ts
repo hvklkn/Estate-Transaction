@@ -8,7 +8,7 @@ const createStoredAuthHeaders = (): HeadersInit => {
     return {};
   }
 
-  const token = window.localStorage.getItem('iceberg.session-token')?.trim();
+  const token = window.localStorage.getItem('real-estate-platform.session-token')?.trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

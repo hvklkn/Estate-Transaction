@@ -1,6 +1,6 @@
 import { watch } from 'vue';
 
-export const USER_SETTINGS_STORAGE_KEY = 'iceberg.user-settings';
+export const USER_SETTINGS_STORAGE_KEY = 'real-estate-platform.user-settings';
 
 export type UserSettings = {
   compactCards: boolean;

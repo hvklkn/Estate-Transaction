@@ -27,7 +27,7 @@ import { TransactionsModule } from '@/modules/transactions/transactions.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         uri: configService.getOrThrow<string>('MONGODB_URI'),
-        dbName: configService.get<string>('MONGODB_DB', 'iceberg')
+        dbName: configService.get<string>('MONGODB_DB', 'real_estate_platform')
       })
     }),
     HealthModule,

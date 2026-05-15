@@ -6,7 +6,7 @@ export class HealthController {
   check() {
     return {
       status: 'ok',
-      service: 'iceberg-backend',
+      service: 'real-estate-transaction-backend',
       timestamp: new Date().toISOString()
     };
   }

@@ -2,19 +2,30 @@
 node_modules/
 
 # build outputs
+dist/
 backend/dist/
+.nuxt/
 frontend/.nuxt/
+.output/
 frontend/.output/
 coverage/
+backend/coverage/
+frontend/coverage/
 *.tsbuildinfo
 
 # environment
 .env
+.env.local
 backend/.env
+backend/.env.local
 frontend/.env
+frontend/.env.local
 *.env.local
 
 # logs
+logs/
+backend/logs/
+frontend/logs/
 *.log
 npm-debug.log*
 

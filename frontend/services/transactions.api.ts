@@ -375,7 +375,7 @@ const readSessionTokenFromStorage = (): string | null => {
     return null;
   }
 
-  const token = window.localStorage.getItem('iceberg.session-token');
+  const token = window.localStorage.getItem('real-estate-platform.session-token');
   if (typeof token !== 'string') {
     return null;
   }

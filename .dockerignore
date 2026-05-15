@@ -3,13 +3,23 @@
 .vscode
 .sixth
 
+.env
+.env.local
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
+
 node_modules
 backend/node_modules
 frontend/node_modules
 
+dist
 frontend/.nuxt
 frontend/.output
 backend/dist
 coverage
 
 *.log
+logs
+.DS_Store

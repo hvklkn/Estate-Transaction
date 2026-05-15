@@ -12,7 +12,7 @@ const colorMode = useState<'light' | 'dark'>('color-mode', () => 'light');
 const isMobileMenuOpen = ref(false);
 const isWorkspaceMenuOpen = ref(false);
 const isUserMenuOpen = ref(false);
-const COLOR_MODE_STORAGE_KEY = 'iceberg.color-mode';
+const COLOR_MODE_STORAGE_KEY = 'real-estate-platform.color-mode';
 const currentYear = new Date().getFullYear();
 const appEnv = computed(() => String(runtimeConfig.public.appEnv ?? 'development').toUpperCase());
 
@@ -389,8 +389,8 @@ watch(
               <section>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">Support</p>
                 <div class="mt-3 flex flex-col gap-2">
-                  <a href="mailto:support@estatetransaction.app" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">support@estatetransaction.app</a>
-                  <a href="mailto:ops@estatetransaction.app" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">ops@estatetransaction.app</a>
+                  <a href="mailto:support@example.com" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">support@example.com</a>
+                  <a href="mailto:operations@example.com" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">operations@example.com</a>
                   <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Privacy Policy</a>
                   <a href="#" class="transition-colors hover:text-blue-700 dark:hover:text-blue-300">Terms of Service</a>
                 </div>

@@ -16,12 +16,12 @@ export const envValidationSchema = Joi.object({
     .messages({
       'string.pattern.base': 'MONGODB_URI must start with "mongodb://" or "mongodb+srv://"'
     }),
-  MONGODB_DB: Joi.string().trim().default('iceberg'),
+  MONGODB_DB: Joi.string().trim().default('real_estate_platform'),
   SUPER_ADMIN_EMAIL: Joi.string().trim().email({ tlds: { allow: false } }).allow('').optional(),
   SUPER_ADMIN_PASSWORD: Joi.string().min(8).allow('').optional(),
   SUPER_ADMIN_NAME: Joi.string().trim().min(2).default('Super Admin'),
-  SUPER_ADMIN_ORGANIZATION_NAME: Joi.string().trim().min(2).default('Iceberg Admin'),
-  SUPER_ADMIN_ORGANIZATION_SLUG: Joi.string().trim().min(2).default('iceberg-admin'),
+  SUPER_ADMIN_ORGANIZATION_NAME: Joi.string().trim().min(2).default('Demo Realty Group'),
+  SUPER_ADMIN_ORGANIZATION_SLUG: Joi.string().trim().min(2).default('demo-realty-group'),
   RESEND_API_KEY: Joi.string().trim().allow('').optional(),
   RESEND_FROM_EMAIL: Joi.string().trim().email({ tlds: { allow: false } }).allow('').optional(),
   RESEND_FROM_NAME: Joi.string().trim().allow('').optional()

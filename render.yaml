@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: iceberg-backend
+    name: real-estate-transaction-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     plan: free
@@ -19,10 +19,10 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: MONGODB_DB
-        value: iceberg
+        value: real_estate_platform
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
       - key: RESEND_FROM_NAME
-        value: Iceberg
+        value: Real Estate Platform

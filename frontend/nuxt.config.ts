@@ -37,8 +37,8 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'Iceberg Dashboard',
-      titleTemplate: '%s | Iceberg'
+      title: 'Real Estate Platform Dashboard',
+      titleTemplate: '%s | Real Estate Platform'
     }
   }
 });

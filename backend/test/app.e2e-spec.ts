@@ -139,7 +139,7 @@ describe('Auth + Transactions (e2e)', () => {
     process.env.CORS_ORIGIN = 'http://localhost:3000';
     process.env.CORS_CREDENTIALS = 'false';
     process.env.MONGODB_URI = mongodb.getUri();
-    process.env.MONGODB_DB = `iceberg_e2e_${Date.now()}`;
+    process.env.MONGODB_DB = `real_estate_platform_e2e_${Date.now()}`;
 
     const { AppModule } = await import('@/app.module');
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -211,12 +211,8 @@ describe('Auth + Transactions (e2e)', () => {
   });
 
   it('creates transaction with authenticated actor and records audit fields', async () => {
-    listingAgent = await registerAgent('listing', {
-      organizationSlug: creator.organizationSlug
-    });
-    sellingAgent = await registerAgent('selling', {
-      organizationSlug: creator.organizationSlug
-    });
+    listingAgent = await createAgentWithRole('listing', 'agent', creator.sessionToken);
+    sellingAgent = await createAgentWithRole('selling', 'agent', creator.sessionToken);
 
     const response = await request(app.getHttpServer())
       .post('/api/transactions')
@@ -272,9 +268,11 @@ describe('Auth + Transactions (e2e)', () => {
     otherOrgOwner = await registerAgent('other-owner', {
       organizationName: 'Other Realty'
     });
-    otherOrgAgent = await registerAgent('other-agent', {
-      organizationSlug: otherOrgOwner.organizationSlug
-    });
+    otherOrgAgent = await createAgentWithRole(
+      'other-agent',
+      'agent',
+      otherOrgOwner.sessionToken
+    );
 
     const otherOrgTransactionResponse = await request(app.getHttpServer())
       .post('/api/transactions')
@@ -401,9 +399,7 @@ describe('Auth + Transactions (e2e)', () => {
   });
 
   it('rejects forbidden stage updates from non-participants', async () => {
-    outsiderAgent = await registerAgent('outsider', {
-      organizationSlug: creator.organizationSlug
-    });
+    outsiderAgent = await createAgentWithRole('outsider', 'agent', creator.sessionToken);
 
     await request(app.getHttpServer())
       .patch(`/api/transactions/${splitTransactionId}/stage`)
@@ -492,7 +488,7 @@ describe('Auth + Transactions (e2e)', () => {
       .post('/api/transactions')
       .set(createAuthHeaders(creator.sessionToken))
       .send({
-        propertyTitle: 'Single Agent Commission Case',
+        propertyTitle: 'Single Agent Commission Scenario',
         totalServiceFee: 120000,
         listingAgentId: creator.id,
         sellingAgentId: creator.id,

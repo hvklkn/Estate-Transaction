@@ -1,7 +1,7 @@
 {
-  "name": "iceberg-backend",
+  "name": "real-estate-transaction-backend",
   "version": "0.1.0",
-  "description": "Real estate transaction lifecycle API",
+  "description": "NestJS API for real estate transaction management, commissions, and reporting.",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
